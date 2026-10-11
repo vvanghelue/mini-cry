@@ -1,0 +1,17 @@
+{
+  "name": "chair",
+  "category": "prop",
+  "label": "Chaise en bois",
+  "material": "wood",
+  "tags": ["village","camp","furniture","interior"],
+  "parts": [
+    {"shape":"box","size":[0.46,0.04,0.44],"pos":[0,0.46,0],"color":"#9a7648"},
+    {"shape":"box","size":[0.045,0.44,0.045],"pos":[-0.2,0.22,-0.19],"color":"#6c5133","repeat":{"count":2,"offset":[0.4,0,0]}},
+    {"shape":"box","size":[0.045,0.98,0.045],"pos":[-0.2,0.49,0.2],"rot":[-5,0,0],"color":"#6f5335","repeat":{"count":2,"offset":[0.4,0,0]}},
+    {"shape":"box","size":[0.42,0.07,0.025],"pos":[0,0.7,0.215],"rot":[-5,0,0],"color":"#8a683f"},
+    {"shape":"box","size":[0.42,0.09,0.025],"pos":[0,0.88,0.23],"rot":[-5,0,0],"color":"#a07c4c"},
+    {"shape":"box","size":[0.36,0.035,0.035],"pos":[0,0.17,-0.19],"color":"#5f472d"},
+    {"shape":"box","size":[0.035,0.035,0.36],"pos":[-0.2,0.2,0],"color":"#5f472d","repeat":{"count":2,"offset":[0.4,0,0]}}
+  ],
+  "collider": "auto"
+}

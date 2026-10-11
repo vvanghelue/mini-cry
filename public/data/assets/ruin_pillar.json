@@ -1,0 +1,36 @@
+{
+  "name": "ruin_pillar",
+  "category": "building",
+  "label": "Pilier en ruine",
+  "material": "stone",
+  "tags": ["ruins", "jungle", "temple"],
+  "parts": [
+    { "shape": "box", "size": [1.5,0.45,1.5], "pos": [0,0.22,0], "taper": 0.92, "color": "#76725e", "jitter": 0.08 },
+    { "shape": "box", "size": [0.95,1.05,0.95], "pos": [-0.004,0.975,-0.003], "rot": [-0.433,-0.941,-0.047], "color": "#8e8a72", "jitter": 0.08 },
+    { "shape": "box", "size": [0.589,0.651,0.06], "pos": [0,0.975,-0.485], "color": "#56533f", "jitter": 0.1, "minQuality": 0.6 },
+    { "shape": "box", "size": [0.342,0.315,0.06], "pos": [0,0.975,-0.515], "rot": [0,0,0], "color": "#a39f86", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.92,1,0.92], "pos": [0.024,2,0.022], "rot": [-0.308,-0.457,0.553], "color": "#817d66", "jitter": 0.08 },
+    { "shape": "box", "size": [0.57,0.62,0.06], "pos": [0,2,-0.47], "color": "#56533f", "jitter": 0.1, "minQuality": 0.6 },
+    { "shape": "box", "size": [0.331,0.3,0.06], "pos": [0,2,-0.5], "rot": [0,0,20], "color": "#a39f86", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.9,0.95,0.9], "pos": [-0.019,2.975,-0.01], "rot": [0.227,-1.279,-0.806], "color": "#9a967c", "jitter": 0.08 },
+    { "shape": "box", "size": [0.558,0.589,0.06], "pos": [0,2.975,-0.46], "color": "#56533f", "jitter": 0.1, "minQuality": 0.6 },
+    { "shape": "box", "size": [0.324,0.285,0.06], "pos": [0,2.975,-0.49], "rot": [0,0,40], "color": "#a39f86", "minQuality": 0.6 },
+    { "shape": "box", "size": [1.35,0.45,1.35], "pos": [0.05,3.67,0.02], "rot": [3,10,-4], "taper": 1.08, "color": "#9a967c", "jitter": 0.08 },
+    { "shape": "box", "size": [0.6,0.4,0.7], "pos": [-0.25,4.07,0.1], "rot": [8,25,12], "color": "#817d66", "jitter": 0.1 },
+    { "shape": "box", "size": [1.3,0.06,1.2], "pos": [0.05,3.92,0.05], "rot": [3,10,-4], "color": "#5d7a3c", "jitter": 0.12 },
+    { "shape": "box", "size": [1.55,0.12,1.55], "pos": [0,0.48,0], "taper": 0.85, "color": "#6b8a44", "jitter": 0.12, "minQuality": 0.6 },
+    { "shape": "box", "size": [0.3,0.9,0.05], "pos": [0.3,1.5,-0.49], "color": "#4f6a34", "minQuality": 0.6 },
+    { "shape": "limb", "segments": 3, "from": [0.45,3.85,-0.5], "to": [0.509,3.317,-0.568], "r0": 0.04, "r1": 0.035, "color": "#4f6a34", "wind": [0.05,0.15], "minQuality": 0.6 },
+    { "shape": "limb", "segments": 3, "from": [0.509,3.317,-0.568], "to": [0.455,2.783,-0.614], "r0": 0.04, "r1": 0.035, "color": "#728f48", "wind": [0.05,0.15], "minQuality": 0.6 },
+    { "shape": "limb", "segments": 3, "from": [0.455,2.783,-0.614], "to": [0.549,2.25,-0.651], "r0": 0.04, "r1": 0.035, "color": "#5d7a3c", "wind": [0.05,0.15], "minQuality": 0.6 },
+    { "shape": "limb", "segments": 3, "from": [-0.68,3.75,0.2], "to": [-0.683,3.35,0.227], "r0": 0.04, "r1": 0.035, "color": "#6b8a44", "wind": [0.05,0.15], "minQuality": 0.6 },
+    { "shape": "limb", "segments": 3, "from": [-0.683,3.35,0.227], "to": [-0.803,2.95,0.24], "r0": 0.04, "r1": 0.035, "color": "#4f6a34", "wind": [0.05,0.15], "minQuality": 0.6 },
+    { "shape": "limb", "segments": 3, "from": [-0.803,2.95,0.24], "to": [-0.956,2.55,0.249], "r0": 0.04, "r1": 0.035, "color": "#728f48", "wind": [0.05,0.15], "minQuality": 0.6 },
+    { "shape": "box", "size": [0.7,0.5,0.6], "pos": [1.1,0.25,-0.7], "rot": [10,35,15], "color": "#8e8a72", "jitter": 0.1 }
+  ],
+  "collider": [
+    { "type": "box", "size": [1.5,0.45,1.5], "pos": [0,0.22,0] },
+    { "type": "box", "size": [0.95,3.9,0.95], "pos": [0,2.4,0] },
+    { "type": "box", "size": [0.7,0.5,0.6], "pos": [1.1,0.25,-0.7], "rot": [0,35,0] }
+  ]
+}

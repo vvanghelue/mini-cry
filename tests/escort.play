@@ -1,0 +1,30 @@
+# Escort (m05): Valérie only talks at the objective that frees her (no "je te suis" with nothing
+# happening), can't be talked to while she follows, and gets out of the lab's back room behind
+# the player (follow retraces his footsteps around the interior wall).
+live startMission {"id":"m05"}
+wait 2
+live god
+live teleport {"to":"mk_lab_approach"}
+wait 3
+live killAll {"radius": 2000}
+eval (game.player.teleport([-430, 3.5, -472.6]), 1)
+wait 1
+expect game.missions.state.m05.obj === 1 && game.world.entities.handle('npc_val').interact.prompt() === null
+eval (game.world.entities.handle('npc_val').use(), 1)
+wait 0.5
+expect game.missions.state.m05.obj === 1 && game.actors.get('npc_val').ai.state !== 'follow'
+eval (game.pickupItem('key_card','pk_keycard'), 1)
+wait 1
+eval (game.world.entities.handle('lab_door').use(), 1)
+wait 1
+expect game.world.entities.handle('npc_val').interact.prompt() === 'Parler à Valérie'
+eval (game.world.entities.handle('npc_val').use(), 1)
+wait 2
+live killAll {"radius": 2000}
+expect game.actors.get('npc_val').ai.state === 'follow' && game.world.entities.handle('npc_val').interact.prompt() === null
+# the player walks out: back room -> interior door -> front room -> front door -> outside
+eval (async () => { for (const [x, z] of [[-429,-473.5],[-428,-473],[-428,-471.5],[-428,-470],[-429,-468],[-430,-466],[-430,-464.5],[-430,-463],[-430,-461],[-430,-459],[-430,-457],[-430,-455],[-430,-453],[-430,-451]]) { game.player.teleport([x, 3.5, z]); await new Promise((r) => setTimeout(r, 250)); } return game.ai.trail.length; })()
+wait 8
+eval ({ val: game.actors.get('npc_val').pos.toArray().map((v) => +v.toFixed(1)), d: +game.actors.get('npc_val').pos.distanceTo(game.player.pos).toFixed(1) })
+shot escort
+expect game.actors.get('npc_val').pos.z > -460 && game.actors.get('npc_val').pos.distanceTo(game.player.pos) < 8

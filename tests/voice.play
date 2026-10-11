@@ -1,0 +1,7 @@
+# Recorded dialogue voices: every line has an up-to-date clip, line timing follows the clip, the clip plays (when audio runs).
+expect Object.keys(game.dialogue.voices.lines).length > 0 && Object.keys(game.data.dialogue.dialogues).every((id) => game.dialogue.lines(id).every((l) => game.dialogue.clip(l)))
+expect Math.abs(game.dialogue.duration('m01_mara') - game.dialogue.lines('m01_mara').reduce((s, l) => s + game.dialogue.clip(l).duration + (game.data.dialogue.speakers[l.speaker].radio !== false ? 0.5 : 0.35), 0)) < 0.01
+eval (game.dialogue.queue.length = 0, game.dialogue.current = null, game.dialogue.play('m03_vargas'), 1)
+wait 2
+expect game.dialogue.current?.speaker === 'mara' && game.dialogue._holding < 0 && (!game.audio?.running || game.audio.stats.clipsPlaying === 1)
+eval ({ audio: game.audio?.stats?.state, clips: game.audio?.stats?.clips, playing: game.audio?.stats?.clipsPlaying, t: game.dialogue.t })

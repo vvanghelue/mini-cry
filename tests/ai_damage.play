@@ -1,0 +1,14 @@
+# spawn: -510,1,524,0.87
+# Lethality on normal: 6 mercenaries (rifles, SMGs, heavy, shotgun) at 10-25 m in the open, player
+# standing still (damage recorded, not applied). Only 3 of them may aim at the player at once (fire
+# tokens, the others fire wide), so it must take well over 2 s to lose 100 HP (it took 2 s before).
+live killAll
+wait 1
+eval (()=>{ const g = game, p = g.player, T = g.world.terrain; window.__hits = []; window.__wide = 0; window.__maxTok = 0; p.damage = (a, f, k) => { window.__hits.push({ t: g.time, a: a * (g.difficulty?.damageTaken ?? 1) }); return 0; }; const comp = ['merc_rifle', 'merc_smg', 'merc_heavy', 'merc_shotgun', 'merc_smg', 'merc_rifle'], dists = [25, 15, 20, 10, 15, 25]; comp.forEach((arch, i) => { const ang = p.yaw + (i - 2.5) * 0.35, d = dists[i]; const x = p.pos.x - Math.sin(ang) * d, z = p.pos.z - Math.cos(ang) * d; const a = g.actors.spawn({ id: 'ttk_' + i, archetype: arch, group: 'ttk', pos: [x, T.heightAt(x, z), z] }); const s = a.ai._shoot.bind(a.ai); a.ai._shoot = (w, dd, wide) => { if (wide) window.__wide++; window.__maxTok = Math.max(window.__maxTok, g.ai.shooters.size); return s(w, dd, wide); }; a.ai.lastKnown.copy(p.pos); a.ai.lastSeenT = g.time; a.ai.awareness = 1; a.ai.enterCombat(true); }); window.__t0 = g.time; return g.settings.difficulty })()
+wait 20
+eval (()=>{ let c = 0; window.__dead = null; for (const x of window.__hits) { c += x.a; if (window.__dead == null && c >= 100) window.__dead = x.t - window.__t0; } window.__total = c; return { total: Math.round(c), deadAt: window.__dead, wide: window.__wide, maxTokens: window.__maxTok } })()
+expect game.settings.difficulty === 'normal'
+expect window.__total > 150
+expect window.__dead == null || window.__dead > 3.5
+expect window.__wide > 20
+expect window.__maxTok <= 3

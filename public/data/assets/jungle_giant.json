@@ -1,0 +1,35 @@
+{
+  "name": "jungle_giant",
+  "category": "vegetation",
+  "label": "G\u00e9ant de la jungle",
+  "generator": {
+    "type": "jungleTree",
+    "params": {
+      "forms": [
+        {},
+        {
+          "height": 17,
+          "trunkTop": 0.55,
+          "crownBase": 0.42,
+          "crownRadius": 4.7,
+          "elevMin": -20,
+          "elevMax": 65,
+          "clumps": 16,
+          "clumpRadius": 1.7,
+          "clumpSquash": 0.7,
+          "buttress": 0,
+          "aerialRoots": 7,
+          "lianas": 3,
+          "leafColors": [
+            "#30621c",
+            "#3b6e22",
+            "#2a5718"
+          ]
+        }
+      ],
+      "clumps": 17,
+      "crownRadius": 5.4,
+      "clumpRadius": 1.9
+    }
+  }
+}

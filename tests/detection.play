@@ -1,0 +1,18 @@
+# Detection model (AIBrain._perceive): crouched in dense undergrowth 12 m in front of a guard you
+# stay hidden; standing up there gets you spotted and his squad mate (30 m away) is warned; a
+# spotter killed before he shouts warns no one.
+live setTime {"hour":13}
+wait 0.5
+eval (() => { const g = game, T = g.world.terrain, ai = g.ai, ph = g.world.physics, V = app.THREE.Vector3; for (const o of g.actors.list) if (o.ai) o.ai.dormant = true; const [a, b] = g.actors.byGroup('beach_patrol'); const dry = (x, z) => T.inBounds(x, z) && T.heightAt(x, z) > T.waterLevelAt(x, z) + 0.3; let spot = null; for (let j = 2; j < ai.fn - 2 && !spot; j += 1) for (let i = 2; i < ai.fn - 2 && !spot; i += 1) { const x = i * 2 - T.half + 1, z = j * 2 - T.half + 1; if (ai.foliageAt(x, z) < 2 || !dry(x, z)) continue; const y = T.heightAt(x, z); for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4, gx = x + Math.sin(t) * 12, gz = z + Math.cos(t) * 12; if (!dry(gx, gz) || ai.foliageAt(gx, gz) > 0) continue; const gy = T.heightAt(gx, gz); if (Math.abs(gy - y) > 1) continue; const f = ai.foliageAt(x, z) + 0.7 * ai.foliageAt(x + Math.sin(t) * 2, z + Math.cos(t) * 2) + 0.4 * ai.foliageAt(x + Math.sin(t) * 4, z + Math.cos(t) * 4); if (f < 2.5) continue; if (!ph.visible(new V(gx, gy + 1.62, gz), new V(x, y + 1.06, z)) || !ph.visible(new V(gx, gy + 1.62, gz), new V(x, y + 0.3, z))) continue; const bx = gx + Math.sin(t) * 30, bz = gz + Math.cos(t) * 30; if (!dry(bx, bz)) continue; spot = { x, y, z, gx, gy, gz, bx, bz, t, f }; break; } } if (!spot) return 'no spot'; const place = (o, x, z, look) => { o.ai.dormant = false; o.root.visible = true; o.idleAnim = null; o.pos.set(x, T.heightAt(x, z), z); o.vel.set(0, 0, 0); o.moveTarget = null; o.ai.home.copy(o.pos); o.heading = o.ai.homeHeading = look; o.ai.setState('idle'); o.ai.awareness = 0; o.ai.lookT = 999; }; window.__det = { spot, place }; place(a, spot.gx, spot.gz, spot.t + Math.PI); place(b, spot.bx, spot.bz, spot.t); g.player.teleport([spot.x, spot.y + 0.2, spot.z]); return spot; })()
+key ControlLeft 5
+eval (() => { const [a, b] = game.actors.byGroup('beach_patrol'); return { a: [a.ai.state, +a.ai.awareness.toFixed(2)], b: [b.ai.state, +b.ai.awareness.toFixed(2)], dist: +a.pos.distanceTo(game.player.pos).toFixed(1) }; })()
+expect (() => { const a = game.actors.byGroup('beach_patrol')[0]; return a.ai.state !== 'combat' && a.ai.awareness < 0.6; })()
+wait 5
+eval (() => { const [a, b] = game.actors.byGroup('beach_patrol'); return { a: [a.ai.state, +a.ai.awareness.toFixed(2)], b: [b.ai.state, +b.ai.awareness.toFixed(2)] }; })()
+expect game.actors.byGroup('beach_patrol')[0].ai.state === 'combat'
+expect game.actors.byGroup('beach_patrol')[1].ai.state === 'combat'
+eval (async () => { const g = game, [a, b] = g.actors.byGroup('beach_patrol'), s = window.__det.spot; await new Promise((r) => setTimeout(r, 1600)); g.player.godMode = true; window.__det.place(a, s.gx, s.gz, s.t + Math.PI); window.__det.place(b, s.bx, s.bz, s.t); g.player.teleport([s.gx + Math.sin(s.t + Math.PI) * 5, s.gy + 0.2, s.gz + Math.cos(s.t + Math.PI) * 5]); const t0 = g.time; await new Promise((r) => { const f = () => (a.ai.state === 'combat' || g.time - t0 > 5 ? r() : requestAnimationFrame(f)); f(); }); const spotted = +(g.time - t0).toFixed(2); a.damage(1000, g.player.pos, { attacker: 'player' }); return { spotted, aAlive: a.alive }; })()
+wait 2.5
+eval (() => { const [a, b] = game.actors.byGroup('beach_patrol'); return { a: a.alive, b: [b.ai.state, +b.ai.awareness.toFixed(2)] }; })()
+expect !game.actors.byGroup('beach_patrol')[0].alive && game.actors.byGroup('beach_patrol')[1].ai.state !== 'combat'
+shot detection

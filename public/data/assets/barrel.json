@@ -1,0 +1,20 @@
+{
+  "name": "barrel",
+  "category": "prop",
+  "label": "Fût",
+  "material": "metal",
+  "tags": ["cover","industrial","camp"],
+  "parts": [
+    {"shape":"cylinder","radius":0.28,"height":0.86,"pos":[0,0.445,0],"color":"#3c6688","segments":10,"rot":[0,18,0]},
+    {"shape":"cylinder","radius":0.292,"height":0.035,"pos":[0,0.3,0],"color":"#33597a","segments":10,"open":true,"rot":[0,18,0]},
+    {"shape":"cylinder","radius":0.292,"height":0.035,"pos":[0,0.59,0],"color":"#33597a","segments":10,"open":true,"rot":[0,18,0]},
+    {"shape":"cylinder","radius":0.288,"height":0.03,"pos":[0,0.875,0],"color":"#35597a","segments":10,"open":true,"rot":[0,18,0]},
+    {"shape":"cylinder","radius":0.288,"height":0.03,"pos":[0,0.015,0],"color":"#35597a","segments":10,"open":true,"rot":[0,18,0]},
+    {"shape":"cylinder","radius":0.035,"height":0.016,"pos":[0.14,0.882,0.06],"color":"#7d8388","segments":6,"minQuality":0.75},
+    {"shape":"cylinder","radius":0.022,"height":0.016,"pos":[-0.15,0.882,-0.05],"color":"#7d8388","segments":6,"minQuality":0.75},
+    {"shape":"cylinder","radius":0.283,"height":0.06,"pos":[0,0.07,0],"color":"#6a5040","segments":10,"open":true,"rot":[0,18,0],"jitter":0.12,"minQuality":0.75}
+  ],
+  "collider": [
+    {"type":"cylinder","radius":0.29,"height":0.89,"pos":[0,0.445,0]}
+  ]
+}

@@ -1,0 +1,18 @@
+# The opening: cinematic, first dialogue, wreck objectives, pickups and the radio.
+eval (game.missions.begin(), 1)
+wait 8
+expect game.missions.focus === 'm01' && document.querySelector('.hud-obj').innerText.includes('Fouiller')
+live teleport {"to":"mk_wreck"}
+wait 1
+expect game.missions.state.m01.obj === 1
+eval (()=>{ const e = game.world.entities.get('pk_machete'); game.player.teleport([e.pos[0] + 1.2, e.pos[1], e.pos[2]]); game.player.yaw = Math.atan2(1.2, 0); game.player.pitch = -0.6; return 1 })()
+wait 0.5
+press KeyE
+wait 0.5
+expect game.weapons.owned.has('machete') && game.missions.state.m01.obj === 2
+eval (()=>{ const e = game.world.entities.get('radio_wreck'); game.player.teleport([e.pos[0] + 1.5, e.pos[1], e.pos[2]]); game.player.yaw = Math.atan2(1.5, 0); game.player.pitch = -0.4; return 1 })()
+wait 0.5
+press KeyE
+wait 2
+eval [game.missions.state.m01.obj, document.querySelector(".hud-subs").innerText, document.querySelector(".hud-prompt").innerText, game.interacted.size]
+expect game.missions.state.m01.obj === 3 && (game.dialogue.current?.speaker === 'mara' || game.dialogue.queue.some((l) => l.speaker === 'mara'))

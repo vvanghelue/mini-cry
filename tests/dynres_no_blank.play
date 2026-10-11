@@ -1,0 +1,9 @@
+# Dynamic resolution must never present an empty frame: resizing the canvas clears its drawing
+# buffer, so the resize has to happen before the frame renders (otherwise the black page shows
+# through for one frame — the "black flashes" seen when the GPU time hovers around the target).
+# Forces a resolution change every frame for 3 s and reads the presented pixel after each render.
+eval (()=>{ const e = app.engine, d = e.dynamicResolution, gl = e.renderer.getContext(), px = new Uint8Array(4); window.__dr = { frames: 0, blank: 0, changes: 0, enabled: d.enabled, target: d.targetMs }; d.enabled = true; let last = e.resScale; const t0 = performance.now(); const f = () => { const s = window.__dr; if (performance.now() - t0 > 3000) { d.enabled = s.enabled; d.targetMs = s.target; return; } requestAnimationFrame(f); gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.readPixels(gl.drawingBufferWidth >> 1, gl.drawingBufferHeight >> 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); s.frames++; if (px[3] === 0) s.blank++; if (e.resScale !== last) { s.changes++; last = e.resScale; } if (!e.perf.gpuMs) e.perf.gpuMs = 5; d.targetMs = s.frames % 2 ? 1e-3 : 1e4; d.cooldown = 0; }; requestAnimationFrame(f); return 1 })()
+wait 3.5
+eval window.__dr
+expect window.__dr.changes >= 20
+expect window.__dr.blank === 0

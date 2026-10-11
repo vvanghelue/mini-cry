@@ -1,0 +1,17 @@
+{
+  "name": "toolbox",
+  "category": "prop",
+  "label": "Caisse à outils",
+  "material": "metal",
+  "tags": ["garage","industrial","camp"],
+  "parts": [
+    {"shape":"box","size":[0.5,0.17,0.22],"pos":[0,0.085,0],"color":"#b5352b"},
+    {"shape":"box","size":[0.505,0.014,0.225],"pos":[0,0.17,0],"color":"#6d2420"},
+    {"shape":"wedge","size":[0.22,0.06,0.5],"pos":[0,0.177,0],"rot":[0,90,0],"color":"#a92f26"},
+    {"shape":"box","size":[0.2,0.022,0.03],"pos":[0,0.272,0],"color":"#3b3d3f"},
+    {"shape":"box","size":[0.022,0.06,0.026],"pos":[-0.09,0.24,0],"color":"#8a8e90","repeat":{"count":2,"offset":[0.18,0,0]}},
+    {"shape":"box","size":[0.04,0.05,0.015],"pos":[-0.17,0.16,-0.117],"color":"#a0a5a8","repeat":{"count":2,"offset":[0.34,0,0]}},
+    {"shape":"box","size":[0.5,0.02,0.005],"pos":[0,0.04,-0.111],"color":"#8e2a23","minQuality":0.75}
+  ],
+  "collider": "auto"
+}

@@ -1,0 +1,61 @@
+{
+  "name": "broadleaf",
+  "category": "vegetation",
+  "label": "Feuillu",
+  "generator": {
+    "type": "broadleaf",
+    "params": {
+      "forms": [
+        {
+          "height": 8.5,
+          "trunkTop": 0.55,
+          "crownBase": 0.3,
+          "crownRadius": 3.0,
+          "elevMin": -30,
+          "elevMax": 80,
+          "clumps": 11,
+          "clumpRadius": 1.4,
+          "leafColors": [
+            "#2f5f1c",
+            "#386b20",
+            "#2a5419"
+          ]
+        },
+        {
+          "height": 9,
+          "trunkTop": 0.45,
+          "crownBase": 0.45,
+          "crownRadius": 3.9,
+          "elevMin": -10,
+          "elevMax": 55,
+          "branches": 6,
+          "clumps": 12,
+          "clumpRadius": 1.35,
+          "clumpSquash": 0.62,
+          "leafColors": [
+            "#4a7d28",
+            "#558a2e",
+            "#43722a"
+          ]
+        },
+        {
+          "height": 12,
+          "trunkRadius": 0.32,
+          "trunkTop": 0.75,
+          "crownBase": 0.35,
+          "crownRadius": 2.5,
+          "elevMin": -25,
+          "elevMax": 75,
+          "clumps": 15,
+          "clumpRadius": 1.15,
+          "leafColors": [
+            "#3f7a22",
+            "#4b8a2a",
+            "#376d1e"
+          ],
+          "clumpSquash": 0.9
+        }
+      ]
+    }
+  }
+}

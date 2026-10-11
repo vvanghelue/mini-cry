@@ -1,0 +1,1 @@
+{ "name": "palm_beach", "category": "vegetation", "label": "Palmier de plage (penché)", "generator": { "type": "palm", "params": { "height": 10, "lean": 24, "curve": 0.5, "fronds": 15 } } }

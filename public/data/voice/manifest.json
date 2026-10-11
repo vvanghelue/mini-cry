@@ -1,0 +1,419 @@
+{
+  "generator": "mc voice generate (OpenRouter text-to-speech)",
+  "lines": {
+    "42e3e68e5935d592": {
+      "file": "42e3e68e5935d592.mp3",
+      "duration": 5.564,
+      "dialogue": "abuelo_done",
+      "line": 0,
+      "speaker": "abuelo",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bill"
+    },
+    "0cf54b2015748e7f": {
+      "file": "0cf54b2015748e7f.mp3",
+      "duration": 8.829,
+      "dialogue": "abuelo_relics",
+      "line": 0,
+      "speaker": "abuelo",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bill"
+    },
+    "59fbbcc40adca0dc": {
+      "file": "59fbbcc40adca0dc.mp3",
+      "duration": 6.426,
+      "dialogue": "abuelo_relics",
+      "line": 1,
+      "speaker": "abuelo",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bill"
+    },
+    "cc1431b8f7fc6b25": {
+      "file": "cc1431b8f7fc6b25.mp3",
+      "duration": 5.146,
+      "dialogue": "lab_early",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "328c17a4baff28f2": {
+      "file": "328c17a4baff28f2.mp3",
+      "duration": 6.348,
+      "dialogue": "m01_after",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "d8a3e4b2da7d7c66": {
+      "file": "d8a3e4b2da7d7c66.mp3",
+      "duration": 5.407,
+      "dialogue": "m01_mara",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "26354b1c1c8d8a92": {
+      "file": "26354b1c1c8d8a92.mp3",
+      "duration": 5.251,
+      "dialogue": "m01_mara",
+      "line": 1,
+      "speaker": "theo",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "callum"
+    },
+    "361aeb1d5d68a285": {
+      "file": "361aeb1d5d68a285.mp3",
+      "duration": 7.001,
+      "dialogue": "m01_mara",
+      "line": 2,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "3821b9afe4705bb6": {
+      "file": "3821b9afe4705bb6.mp3",
+      "duration": 5.146,
+      "dialogue": "m01_mara",
+      "line": 3,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "d976099cb66be153": {
+      "file": "d976099cb66be153.mp3",
+      "duration": 5.956,
+      "dialogue": "m01_wake",
+      "line": 0,
+      "speaker": "theo",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "callum"
+    },
+    "9d8e9696c8b22839": {
+      "file": "9d8e9696c8b22839.mp3",
+      "duration": 5.329,
+      "dialogue": "m01_wake",
+      "line": 1,
+      "speaker": "theo",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "callum"
+    },
+    "28c00b748ae69d38": {
+      "file": "28c00b748ae69d38.mp3",
+      "duration": 5.329,
+      "dialogue": "m02_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "d474c1bf73da1784": {
+      "file": "d474c1bf73da1784.mp3",
+      "duration": 5.486,
+      "dialogue": "m02_intro",
+      "line": 1,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "65f8fb67bb1eddf9": {
+      "file": "65f8fb67bb1eddf9.mp3",
+      "duration": 7.967,
+      "dialogue": "m03_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "5c0cdb3c941d01ca": {
+      "file": "5c0cdb3c941d01ca.mp3",
+      "duration": 4.911,
+      "dialogue": "m03_vargas",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "6eaee6dca310b4b9": {
+      "file": "6eaee6dca310b4b9.mp3",
+      "duration": 6.191,
+      "dialogue": "m03_vargas",
+      "line": 1,
+      "speaker": "vargas",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "brian"
+    },
+    "e654db6e265fe7b5": {
+      "file": "e654db6e265fe7b5.mp3",
+      "duration": 5.642,
+      "dialogue": "m03_vargas",
+      "line": 2,
+      "speaker": "vargas",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "brian"
+    },
+    "4c7c26121e620291": {
+      "file": "4c7c26121e620291.mp3",
+      "duration": 4.362,
+      "dialogue": "m03_vargas",
+      "line": 3,
+      "speaker": "vargas",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "brian"
+    },
+    "4846df32d8de6b88": {
+      "file": "4846df32d8de6b88.mp3",
+      "duration": 2.116,
+      "dialogue": "m03_vargas",
+      "line": 4,
+      "speaker": "theo",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "callum"
+    },
+    "d9d2b2d51441cadc": {
+      "file": "d9d2b2d51441cadc.mp3",
+      "duration": 6.113,
+      "dialogue": "m04_done",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "38f4890c8b49d50a": {
+      "file": "38f4890c8b49d50a.mp3",
+      "duration": 5.564,
+      "dialogue": "m04_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "a99eb47d7d87da1b": {
+      "file": "a99eb47d7d87da1b.mp3",
+      "duration": 5.642,
+      "dialogue": "m05_done",
+      "line": 0,
+      "speaker": "val",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bella"
+    },
+    "e2bbcf0906c5150a": {
+      "file": "e2bbcf0906c5150a.mp3",
+      "duration": 6.113,
+      "dialogue": "m05_done",
+      "line": 1,
+      "speaker": "val",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bella"
+    },
+    "c0a594f1feb167ae": {
+      "file": "c0a594f1feb167ae.mp3",
+      "duration": 7.471,
+      "dialogue": "m05_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "01eae13372570544": {
+      "file": "01eae13372570544.mp3",
+      "duration": 7.314,
+      "dialogue": "m05_night",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "71031e8b36d01632": {
+      "file": "71031e8b36d01632.mp3",
+      "duration": 5.721,
+      "dialogue": "m06_done",
+      "line": 0,
+      "speaker": "vargas",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "brian"
+    },
+    "e2f34a5c09120c4c": {
+      "file": "e2f34a5c09120c4c.mp3",
+      "duration": 5.642,
+      "dialogue": "m06_done",
+      "line": 1,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "8085fe6552bc76f8": {
+      "file": "8085fe6552bc76f8.mp3",
+      "duration": 7.706,
+      "dialogue": "m06_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "49efed919cc267a0": {
+      "file": "49efed919cc267a0.mp3",
+      "duration": 5.642,
+      "dialogue": "m07_call",
+      "line": 0,
+      "speaker": "pilot",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "charlie"
+    },
+    "559572100128a412": {
+      "file": "559572100128a412.mp3",
+      "duration": 4.127,
+      "dialogue": "m07_call",
+      "line": 1,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "224d14e65f5b3871": {
+      "file": "224d14e65f5b3871.mp3",
+      "duration": 4.833,
+      "dialogue": "m07_end",
+      "line": 0,
+      "speaker": "val",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bella"
+    },
+    "47bee3ca6c30a6b8": {
+      "file": "47bee3ca6c30a6b8.mp3",
+      "duration": 5.486,
+      "dialogue": "m07_end",
+      "line": 1,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "2085ad62e5e112a1": {
+      "file": "2085ad62e5e112a1.mp3",
+      "duration": 5.407,
+      "dialogue": "m07_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "fb574d29bc6926f0": {
+      "file": "fb574d29bc6926f0.mp3",
+      "duration": 5.721,
+      "dialogue": "m07_vargas",
+      "line": 0,
+      "speaker": "vargas",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "brian"
+    },
+    "d3a219d2ae205810": {
+      "file": "d3a219d2ae205810.mp3",
+      "duration": 6.348,
+      "dialogue": "mara_meet",
+      "line": 0,
+      "speaker": "mara_live",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "857121542ad62d50": {
+      "file": "857121542ad62d50.mp3",
+      "duration": 6.922,
+      "dialogue": "mara_meet",
+      "line": 1,
+      "speaker": "mara_live",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "ca8131c9a669a17d": {
+      "file": "ca8131c9a669a17d.mp3",
+      "duration": 6.766,
+      "dialogue": "mara_meet",
+      "line": 2,
+      "speaker": "mara_live",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "659ca054afdfbc8c": {
+      "file": "659ca054afdfbc8c.mp3",
+      "duration": 6.687,
+      "dialogue": "mara_meet",
+      "line": 3,
+      "speaker": "mara_live",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "c972dd51c9abff67": {
+      "file": "c972dd51c9abff67.mp3",
+      "duration": 5.068,
+      "dialogue": "pedro_thanks",
+      "line": 0,
+      "speaker": "pedro",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "roger"
+    },
+    "fd934d9e6f2123be": {
+      "file": "fd934d9e6f2123be.mp3",
+      "duration": 7.811,
+      "dialogue": "s02_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "aaabb7c612c35f9a": {
+      "file": "aaabb7c612c35f9a.mp3",
+      "duration": 5.799,
+      "dialogue": "s03_intro",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    },
+    "4e11184911dfdfa2": {
+      "file": "4e11184911dfdfa2.mp3",
+      "duration": 3.396,
+      "dialogue": "val_found",
+      "line": 0,
+      "speaker": "val",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bella"
+    },
+    "025425cf2c9795cd": {
+      "file": "025425cf2c9795cd.mp3",
+      "duration": 5.642,
+      "dialogue": "val_found",
+      "line": 1,
+      "speaker": "val",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bella"
+    },
+    "f7f5afcf95508370": {
+      "file": "f7f5afcf95508370.mp3",
+      "duration": 4.206,
+      "dialogue": "val_found",
+      "line": 2,
+      "speaker": "val",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "bella"
+    },
+    "a0ebe303aacf8c9c": {
+      "file": "a0ebe303aacf8c9c.mp3",
+      "duration": 6.269,
+      "dialogue": "vargas_taunt",
+      "line": 0,
+      "speaker": "vargas",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "brian"
+    },
+    "ff7663e07d8aca64": {
+      "file": "ff7663e07d8aca64.mp3",
+      "duration": 7.236,
+      "dialogue": "village_free",
+      "line": 0,
+      "speaker": "mara",
+      "model": "elevenlabs/eleven-v4",
+      "voice": "jessica"
+    }
+  }
+}

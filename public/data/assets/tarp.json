@@ -1,0 +1,39 @@
+{
+  "name": "tarp",
+  "category": "building",
+  "label": "Abri bâche",
+  "material": "cloth",
+  "tags": ["camp", "village", "shelter"],
+  "parts": [
+    { "shape": "limb", "segments": 5, "from": [-2,0,-2], "to": [-2,2.6,-2], "r0": 0.06, "r1": 0.05, "color": "#6e5536" },
+    { "shape": "limb", "segments": 3, "from": [-2,2.55,-2], "to": [-3.1,0.02,-3.1], "r0": 0.012, "r1": 0.012, "color": "#d2c6a0", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.05,0.22,0.05], "pos": [-3.1,0.08,-3.1], "color": "#5a4a34", "minQuality": 0.6 },
+    { "shape": "limb", "segments": 5, "from": [2,0,-2], "to": [2,2.55,-2], "r0": 0.06, "r1": 0.05, "color": "#6e5536" },
+    { "shape": "limb", "segments": 3, "from": [2,2.5,-2], "to": [3.1,0.02,-3.1], "r0": 0.012, "r1": 0.012, "color": "#d2c6a0", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.05,0.22,0.05], "pos": [3.1,0.08,-3.1], "color": "#5a4a34", "minQuality": 0.6 },
+    { "shape": "limb", "segments": 5, "from": [2,0,2], "to": [2,2.2,2], "r0": 0.06, "r1": 0.05, "color": "#6e5536" },
+    { "shape": "limb", "segments": 3, "from": [2,2.15,2], "to": [3.1,0.02,3.1], "r0": 0.012, "r1": 0.012, "color": "#d2c6a0", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.05,0.22,0.05], "pos": [3.1,0.08,3.1], "color": "#5a4a34", "minQuality": 0.6 },
+    { "shape": "limb", "segments": 5, "from": [-2,0,2], "to": [-2,2.25,2], "r0": 0.06, "r1": 0.05, "color": "#6e5536" },
+    { "shape": "limb", "segments": 3, "from": [-2,2.2,2], "to": [-3.1,0.02,3.1], "r0": 0.012, "r1": 0.012, "color": "#d2c6a0", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.05,0.22,0.05], "pos": [-3.1,0.08,3.1], "color": "#5a4a34", "minQuality": 0.6 },
+    { "shape": "tris", "doubleSided": true, "positions": [-2.24,2.52,-2.24,0,2.05,0,0,2.375,-2.24,0,2.375,-2.24,0,2.05,0,2.24,2.47,-2.24,2.24,2.12,2.24,0,2.05,0,0,2.025,2.24,0,2.025,2.24,0,2.05,0,-2.24,2.17,2.24], "color": "#2f63a0", "jitter": 0.07 },
+    { "shape": "tris", "doubleSided": true, "positions": [2.24,2.47,-2.24,0,2.05,0,2.24,2.175,0,2.24,2.175,0,0,2.05,0,2.24,2.12,2.24,-2.24,2.17,2.24,0,2.05,0,-2.24,2.225,0,-2.24,2.225,0,0,2.05,0,-2.24,2.52,-2.24], "color": "#27548a", "jitter": 0.07 },
+    { "shape": "box", "size": [1.6,0.06,0.8], "pos": [0.4,0.78,0.3], "color": "#9a7a50" },
+    { "shape": "box", "size": [1.4,0.06,0.3], "pos": [0.4,0.45,-0.45], "color": "#7a5a3a", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.07,0.76,0.07], "pos": [-0.3,0.38,0], "color": "#5a3f27", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.07,0.76,0.07], "pos": [-0.3,0.38,0.6], "color": "#5a3f27", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.07,0.76,0.07], "pos": [1.1,0.38,0], "color": "#5a3f27", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.07,0.76,0.07], "pos": [1.1,0.38,0.6], "color": "#5a3f27", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.07,0.43,0.25], "pos": [-0.2,0.21,-0.45], "color": "#5a3f27", "minQuality": 0.6 },
+    { "shape": "box", "size": [0.07,0.43,0.25], "pos": [1,0.21,-0.45], "color": "#5a3f27", "minQuality": 0.6 }
+  ],
+  "collider": [
+    { "type": "cylinder", "radius": 0.07, "height": 2.5, "pos": [-2,1.25,-2] },
+    { "type": "cylinder", "radius": 0.07, "height": 2.45, "pos": [2,1.225,-2] },
+    { "type": "cylinder", "radius": 0.07, "height": 2.1, "pos": [2,1.05,2] },
+    { "type": "cylinder", "radius": 0.07, "height": 2.15, "pos": [-2,1.075,2] },
+    { "type": "box", "size": [1.6,0.8,0.8], "pos": [0.4,0.4,0.3] },
+    { "type": "box", "size": [1.4,0.48,0.3], "pos": [0.4,0.24,-0.45] }
+  ]
+}

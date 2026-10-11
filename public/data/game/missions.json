@@ -1,0 +1,716 @@
+{
+  "start": "m01",
+  "variables": {},
+  "missions": [
+    {
+      "id": "m01",
+      "title": "Échoué",
+      "type": "main",
+      "description": "Le Marlin a été coulé par des mercenaires. Valérie a disparu. Survivre, trouver de l'aide.",
+      "onStart": [
+        {
+          "do": "setTime",
+          "hour": 6.4
+        },
+        {
+          "do": "cinematic",
+          "from": [
+            -470,
+            30,
+            470
+          ],
+          "to": [
+            -500,
+            6,
+            530
+          ],
+          "lookAt": "mk_wreck",
+          "duration": 6,
+          "text": "Isla Sombra — quelque part dans le Pacifique Sud"
+        },
+        {
+          "do": "dialogue",
+          "id": "m01_wake"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "wreck",
+          "type": "goto",
+          "text": "Fouiller l'épave du Marlin",
+          "target": "mk_wreck",
+          "radius": 9
+        },
+        {
+          "id": "machete",
+          "type": "pickup",
+          "text": "Ramasser la machette",
+          "target": "pk_machete"
+        },
+        {
+          "id": "radio",
+          "type": "interact",
+          "text": "Allumer la radio de bord",
+          "target": "radio_wreck",
+          "onComplete": [
+            {
+              "do": "dialogue",
+              "id": "m01_mara",
+              "wait": true
+            }
+          ]
+        },
+        {
+          "id": "camp",
+          "type": "goto",
+          "text": "Longer la plage vers l'est",
+          "target": "mk_beach_camp",
+          "radius": 35,
+          "onStart": [
+            {
+              "do": "hint",
+              "text": "Accroupi (Ctrl), dans les buissons, vous êtes presque invisible. Une attaque à la machette par derrière tue sans bruit.",
+              "duration": 8
+            }
+          ]
+        },
+        {
+          "id": "pirates",
+          "type": "kill",
+          "text": "Neutraliser les mercenaires du campement",
+          "group": "beach_patrol",
+          "onComplete": [
+            {
+              "do": "dialogue",
+              "id": "m01_after"
+            }
+          ]
+        },
+        {
+          "id": "village",
+          "type": "goto",
+          "text": "Rejoindre Puerto Viejo",
+          "target": "mk_village_edge",
+          "radius": 25
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "startMission",
+          "id": "m02"
+        }
+      ]
+    },
+    {
+      "id": "m02",
+      "title": "Puerto Viejo",
+      "type": "main",
+      "description": "Le village de pêcheurs est tenu par les hommes de Vargas.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "m02_intro"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "free",
+          "type": "liberate",
+          "text": "Libérer Puerto Viejo",
+          "target": "outpost_village",
+          "onStart": [
+            {
+              "do": "hint",
+              "text": "Sabotez l'alarme (E) avant d'ouvrir le feu, sinon des renforts arriveront.",
+              "duration": 7
+            }
+          ]
+        },
+        {
+          "id": "mara",
+          "type": "interact",
+          "text": "Retrouver Mara (maison sur pilotis)",
+          "target": "npc_mara"
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "giveItem",
+          "item": "binoculars"
+        },
+        {
+          "do": "giveWeapon",
+          "weapon": "rifle_ak",
+          "ammo": {
+            "rifle": 60
+          }
+        },
+        {
+          "do": "startMission",
+          "id": "m03"
+        },
+        {
+          "do": "startMission",
+          "id": "s01"
+        }
+      ]
+    },
+    {
+      "id": "m03",
+      "title": "Ondes courtes",
+      "type": "main",
+      "description": "Un brouilleur sur le Cerro Antena coupe toutes les communications de l'île.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "m03_intro"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "reach",
+          "type": "goto",
+          "text": "Monter au Cerro Antena",
+          "target": "mk_antenna",
+          "radius": 50
+        },
+        {
+          "id": "jammer",
+          "type": "destroy",
+          "text": "Détruire le brouilleur",
+          "target": "jammer"
+        },
+        {
+          "id": "call",
+          "type": "interact",
+          "text": "Émettre depuis la radio de l'antenne",
+          "target": "radio_antenna",
+          "onComplete": [
+            {
+              "do": "dialogue",
+              "id": "m03_vargas",
+              "wait": true
+            }
+          ]
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "startMission",
+          "id": "m04"
+        },
+        {
+          "do": "startMission",
+          "id": "s02"
+        }
+      ]
+    },
+    {
+      "id": "m04",
+      "title": "Le fleuve",
+      "type": "main",
+      "description": "La route du nord passe par l'avant-poste du fleuve.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "m04_intro"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "river",
+          "type": "liberate",
+          "text": "Libérer l'avant-poste du fleuve",
+          "target": "outpost_river"
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "dialogue",
+          "id": "m04_done"
+        },
+        {
+          "do": "hint",
+          "text": "Une jeep est garée à l'avant-poste (E pour conduire).",
+          "duration": 6
+        },
+        {
+          "do": "startMission",
+          "id": "m05"
+        }
+      ]
+    },
+    {
+      "id": "m05",
+      "title": "Le laboratoire",
+      "type": "main",
+      "description": "Valérie est retenue au laboratoire de la côte nord.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "m05_intro"
+        }
+      ],
+      "failIf": [
+        {
+          "actorDead": "npc_val",
+          "reason": "Valérie est morte"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "approach",
+          "type": "goto",
+          "text": "Approcher du laboratoire",
+          "target": "mk_lab",
+          "radius": 80,
+          "onComplete": [
+            {
+              "do": "setTime",
+              "hour": 22
+            },
+            {
+              "do": "dialogue",
+              "id": "m05_night"
+            },
+            {
+              "do": "checkpoint"
+            }
+          ]
+        },
+        {
+          "id": "card",
+          "type": "pickup",
+          "text": "Voler la carte d'accès dans l'entrepôt",
+          "target": "pk_keycard"
+        },
+        {
+          "id": "door",
+          "type": "interact",
+          "text": "Ouvrir la porte du laboratoire",
+          "target": "lab_door"
+        },
+        {
+          "id": "val",
+          "type": "interact",
+          "text": "Libérer Valérie",
+          "target": "npc_val"
+        },
+        {
+          "id": "escort",
+          "type": "escort",
+          "text": "Escorter Valérie jusqu'au ponton",
+          "actor": "npc_val",
+          "target": "mk_lab_boat",
+          "radius": 7,
+          "onStart": [
+            {
+              "do": "follow",
+              "actor": "npc_val"
+            },
+            {
+              "do": "alertGroup",
+              "group": "lab_guards"
+            },
+            {
+              "do": "spawn",
+              "archetype": "merc_rifle",
+              "at": "mk_lab_rf",
+              "count": 3,
+              "group": "lab_guards",
+              "behavior": "attack"
+            }
+          ]
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "stopFollow",
+          "actor": "npc_val"
+        },
+        {
+          "do": "dialogue",
+          "id": "m05_done",
+          "wait": true
+        },
+        {
+          "do": "removeGroup",
+          "group": "val"
+        },
+        {
+          "do": "setTime",
+          "hour": 7
+        },
+        {
+          "do": "startMission",
+          "id": "m06"
+        }
+      ]
+    },
+    {
+      "id": "m06",
+      "title": "Ailes coupées",
+      "type": "main",
+      "description": "Vargas veut évacuer sa cargaison par avion. Privons-le de carburant.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "m06_intro"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "fuel",
+          "type": "condition",
+          "text": "Faire sauter les 3 cuves de carburant de l'aérodrome",
+          "marker": "fuel_2",
+          "condition": {
+            "all": [
+              {
+                "destroyed": "fuel_1"
+              },
+              {
+                "destroyed": "fuel_2"
+              },
+              {
+                "destroyed": "fuel_3"
+              }
+            ]
+          }
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "dialogue",
+          "id": "m06_done"
+        },
+        {
+          "do": "startMission",
+          "id": "m07"
+        }
+      ]
+    },
+    {
+      "id": "m07",
+      "title": "La Fortaleza",
+      "type": "main",
+      "description": "Il est temps d'en finir avec le colonel Vargas.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "m07_intro"
+        },
+        {
+          "do": "setTime",
+          "hour": 17.2
+        }
+      ],
+      "objectives": [
+        {
+          "id": "gate",
+          "type": "goto",
+          "text": "Atteindre la porte de la Fortaleza",
+          "target": "mk_fort_gate",
+          "radius": 18,
+          "onComplete": [
+            {
+              "do": "checkpoint"
+            }
+          ]
+        },
+        {
+          "id": "boss",
+          "type": "kill",
+          "text": "Éliminer le colonel Vargas",
+          "actor": "boss_vargas",
+          "marker": "boss_vargas",
+          "onStart": [
+            {
+              "do": "dialogue",
+              "id": "m07_vargas"
+            }
+          ]
+        },
+        {
+          "id": "radio",
+          "type": "interact",
+          "text": "Appeler les secours depuis la radio du fort",
+          "target": "radio_fort",
+          "onComplete": [
+            {
+              "do": "dialogue",
+              "id": "m07_call",
+              "wait": true
+            }
+          ]
+        },
+        {
+          "id": "heli",
+          "type": "goto",
+          "text": "Rejoindre l'héliport",
+          "target": "mk_helipad",
+          "radius": 8
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "cinematic",
+          "from": [
+            560,
+            110,
+            20
+          ],
+          "to": [
+            470,
+            90,
+            -110
+          ],
+          "lookAt": "mk_fort",
+          "duration": 7,
+          "text": "Isla Sombra est libre."
+        },
+        {
+          "do": "dialogue",
+          "id": "m07_end",
+          "wait": true
+        },
+        {
+          "do": "endGame",
+          "title": "Isla Sombra est libre",
+          "text": "Vargas est tombé. Mara et les villageois reprennent leur île — et Valérie tient son article."
+        }
+      ]
+    },
+    {
+      "id": "s01",
+      "title": "Les reliques de Sombra",
+      "type": "side",
+      "description": "Le vieux Tomás cherche les huit idoles dorées de ses ancêtres.",
+      "onStart": [
+        {
+          "do": "hint",
+          "text": "Mission secondaire : parlez à Abuelo Tomás à Puerto Viejo.",
+          "duration": 6
+        }
+      ],
+      "objectives": [
+        {
+          "id": "talk",
+          "type": "interact",
+          "text": "Parler à Abuelo Tomás",
+          "target": "npc_abuelo"
+        },
+        {
+          "id": "relics",
+          "type": "collect",
+          "text": "Trouver les reliques dorées",
+          "item": "relic",
+          "count": 8,
+          "absolute": true,
+          "noMarker": true
+        },
+        {
+          "id": "back",
+          "type": "interact",
+          "text": "Rapporter les reliques à Tomás",
+          "target": "npc_abuelo"
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "giveItem",
+          "item": "armor"
+        },
+        {
+          "do": "giveWeapon",
+          "weapon": "sniper",
+          "ammo": {
+            "sniper": 20
+          }
+        },
+        {
+          "do": "dialogue",
+          "id": "abuelo_done"
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "title": "La Granja",
+      "type": "side",
+      "description": "Les mercenaires ont pris la ferme de Pedro.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "s02_intro"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "farm",
+          "type": "liberate",
+          "text": "Libérer la ferme de Pedro",
+          "target": "outpost_farm"
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "activateGroup",
+          "group": "farm_civ"
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "title": "Le gardien du phare",
+      "type": "side",
+      "description": "Le phare de l'îlot est occupé. Il faut un bateau.",
+      "onStart": [
+        {
+          "do": "dialogue",
+          "id": "s03_intro"
+        }
+      ],
+      "objectives": [
+        {
+          "id": "light",
+          "type": "liberate",
+          "text": "Libérer le phare (îlot à l'est)",
+          "target": "outpost_lighthouse"
+        }
+      ],
+      "onComplete": [
+        {
+          "do": "giveItem",
+          "item": "grenades"
+        }
+      ]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "t_village_free",
+      "when": {
+        "event": "liberate",
+        "outpost": "outpost_village"
+      },
+      "do": [
+        {
+          "do": "activateGroup",
+          "group": "village_civ"
+        },
+        {
+          "do": "dialogue",
+          "id": "village_free"
+        }
+      ]
+    },
+    {
+      "id": "t_farm_free",
+      "when": {
+        "event": "liberate",
+        "outpost": "outpost_farm"
+      },
+      "do": [
+        {
+          "do": "activateGroup",
+          "group": "farm_civ"
+        }
+      ]
+    },
+    {
+      "id": "t_first_alarm",
+      "when": {
+        "event": "alarm"
+      },
+      "do": [
+        {
+          "do": "hint",
+          "text": "Alarme ! Des renforts arrivent. Sabotez les alarmes (E) avant d'attaquer un avant-poste.",
+          "duration": 7
+        }
+      ]
+    },
+    {
+      "id": "t_crater",
+      "when": {
+        "enterZone": "zone_crater"
+      },
+      "do": [
+        {
+          "do": "banner",
+          "title": "El Cono",
+          "subtitle": "Le volcan endormi",
+          "duration": 4
+        }
+      ]
+    },
+    {
+      "id": "t_lab_early",
+      "when": {
+        "enterZone": "zone_lab"
+      },
+      "if": {
+        "not": {
+          "any": [
+            {
+              "missionActive": "m05"
+            },
+            {
+              "missionDone": "m05"
+            }
+          ]
+        }
+      },
+      "do": [
+        {
+          "do": "dialogue",
+          "id": "lab_early"
+        }
+      ]
+    },
+    {
+      "id": "t_lighthouse_side",
+      "when": {
+        "event": "missionComplete",
+        "mission": "m04"
+      },
+      "do": [
+        {
+          "do": "startMission",
+          "id": "s03"
+        }
+      ]
+    },
+    {
+      "id": "t_relic_first",
+      "when": {
+        "event": "pickup",
+        "item": "relic"
+      },
+      "do": [
+        {
+          "do": "hint",
+          "text": "Une relique dorée ! Abuelo Tomás en cherche huit.",
+          "duration": 5
+        }
+      ]
+    },
+    {
+      "id": "t_vargas_taunt",
+      "when": {
+        "event": "liberate"
+      },
+      "if": {
+        "missionDone": "m03"
+      },
+      "once": true,
+      "do": [
+        {
+          "do": "dialogue",
+          "id": "vargas_taunt"
+        }
+      ]
+    }
+  ]
+}

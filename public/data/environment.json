@@ -1,0 +1,49 @@
+{
+  "timeOfDay": 9.5,
+  "dayLengthMinutes": 40,
+  "sunTilt": 0.45,
+  "sunIntensity": 2.8,
+  "moonIntensity": 0.65,
+  "ambient": 2.3,
+  "exposure": 1,
+  "nightExposure": 2,
+  "fogDensity": 0.0014,
+  "wind": {
+    "strength": 0.35,
+    "speed": 1.3,
+    "dir": [
+      0.8,
+      0.6
+    ]
+  },
+  "clouds": {
+    "coverage": 0.45,
+    "speed": 3,
+    "scale": 1
+  },
+  "sky": {
+    "dayZenith": "#2d6ed8",
+    "dayHorizon": "#b4dcf5",
+    "sunsetZenith": "#3b4f8a",
+    "sunsetHorizon": "#f5a066",
+    "nightZenith": "#03060f",
+    "nightHorizon": "#0d1626",
+    "ground": "#6b6a3a"
+  },
+  "ocean": {
+    "shallow": "#3ee6d2",
+    "deep": "#0b4c86",
+    "foam": "#f4fbff",
+    "murk": 0.08
+  },
+  "river": {
+    "shallow": "#6f9a6a",
+    "deep": "#21402c"
+  },
+  "ao": {
+    "intensity": 3.5,
+    "radius": 1.5,
+    "direct": 0.3,
+    "distance": 80
+  }
+}

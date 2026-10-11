@@ -1,0 +1,10 @@
+# Stealth takedown: sneak up crouched behind a beach-camp merc and use the machete.
+eval (()=>{ game.weapons.give('machete'); const a = game.actors.byGroup('beach_patrol')[0]; game.player.crouched = true; game.player.crouch = 1; const back = a.forward(new app.THREE.Vector3()).multiplyScalar(-1.6); game.player.teleport([a.pos.x + back.x, a.pos.y + 0.3, a.pos.z + back.z]); const e = game.player.eye; game.player.yaw = Math.atan2(-(a.pos.x - e.x), -(a.pos.z - e.z)); game.player.pitch = -0.25; const b = game.actors.byGroup('beach_patrol')[1]; const fb = b.forward(new app.THREE.Vector3()), tp = game.player.pos.clone().sub(b.pos).setY(0); return [a.id, a.ai.state, 'b->player angle', Math.round(Math.acos(fb.dot(tp.normalize())) * 57)] })()
+key ControlLeft 0.6
+wait 0.2
+eval game.actors.byGroup('beach_patrol').map(a => [a.id, a.ai.state, +a.ai.awareness.toFixed(2)])
+click 0.1
+wait 0.8
+eval [game.actors.byGroup('beach_patrol').map(a => [a.id, a.alive, a.ai.state, +a.ai.awareness.toFixed(2)]), game.stats.takedowns]
+shot takedown
+expect game.stats.takedowns === 1 && !game.actors.byGroup('beach_patrol')[0].alive

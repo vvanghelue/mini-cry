@@ -1,0 +1,17 @@
+# Pause menu → "Carte" → Escape must come back to the pause menu (not a frozen, menu-less game),
+# then "Reprendre" must give the control back. (?bot forces the pointer lock, so the Escape that
+# releases it is simulated with game.pause().)
+wait 1
+eval game.pause()
+eval document.querySelector('.menu-panel .b-map').click()
+expect game.menus.mapOpen && !game.menus.root.classList.contains('show')
+press Escape
+expect !game.menus.mapOpen && game.paused && game.engine.timeScale === 0
+expect game.menus.root.classList.contains('show') && !!document.querySelector('.menu-panel .b-res')
+eval document.querySelector('.menu-panel .b-res').click()
+expect !game.paused && game.engine.timeScale > 0 && !game.menus.root.classList.contains('show')
+# map opened in game with M, closed with Escape: back in game, not paused
+press KeyM
+expect game.menus.mapOpen && game.engine.timeScale === 0
+press Escape
+expect !game.menus.mapOpen && !game.paused && game.engine.timeScale > 0

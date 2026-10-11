@@ -1,0 +1,21 @@
+{
+  "name": "crate",
+  "category": "prop",
+  "label": "Caisse en bois",
+  "material": "wood",
+  "tags": ["cover","camp","storage"],
+  "parts": [
+    {"shape":"box","size":[0.92,0.32,0.92],"pos":[0,0.18,0],"color":"#a07a48","jitter":0.07},
+    {"shape":"box","size":[0.9,0.32,0.9],"pos":[0,0.5,0],"color":"#8d683b","jitter":0.07},
+    {"shape":"box","size":[0.92,0.3,0.92],"pos":[0,0.82,0],"color":"#a8834f","jitter":0.07},
+    {"shape":"box","size":[0.11,1,0.11],"pos":[-0.445,0.5,-0.445],"color":"#6e5030","repeat":{"count":2,"offset":[0.89,0,0]}},
+    {"shape":"box","size":[0.11,1,0.11],"pos":[-0.445,0.5,0.445],"color":"#73552f","repeat":{"count":2,"offset":[0.89,0,0]}},
+    {"shape":"box","size":[0.8,0.1,0.06],"pos":[0,0.94,-0.475],"color":"#77593a","repeat":{"count":2,"offset":[0,0,0.95]},"minQuality":0.75},
+    {"shape":"box","size":[0.06,0.1,0.8],"pos":[-0.475,0.94,0],"color":"#7a5a36","repeat":{"count":2,"offset":[0.95,0,0]},"minQuality":0.75},
+    {"shape":"box","size":[0.8,0.1,0.06],"pos":[0,0.06,-0.475],"color":"#6b4e2e","repeat":{"count":2,"offset":[0,0,0.95]},"minQuality":0.75},
+    {"shape":"box","size":[0.06,0.1,0.8],"pos":[-0.475,0.06,0],"color":"#6e5131","repeat":{"count":2,"offset":[0.95,0,0]},"minQuality":0.75},
+    {"shape":"box","size":[1.04,0.09,0.05],"pos":[0,0.5,-0.47],"rot":[0,0,44],"color":"#80603a","repeat":{"count":2,"offset":[0,0,0.94]},"minQuality":0.75},
+    {"shape":"box","size":[1.04,0.09,0.05],"pos":[-0.47,0.5,0],"rot":[0,90,-44],"color":"#7c5d38","repeat":{"count":2,"offset":[0.94,0,0]},"minQuality":0.75}
+  ],
+  "collider": "auto"
+}

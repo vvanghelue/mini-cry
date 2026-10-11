@@ -1,0 +1,14 @@
+{
+  "views": [
+    { "name": "wreck_start", "cam": "-505,4,530,0.55,-0.1", "tod": 9 },
+    { "name": "village", "cam": "-170,8,540,0,-0.12", "tod": 11 },
+    { "name": "jungle_dense", "cam": "-60,30,200,0.6,-0.05", "tod": 10 },
+    { "name": "river_outpost", "cam": "-30,32,110,0.5,-0.15", "tod": 15 },
+    { "name": "lab_night", "cam": "-430,12,-400,0,-0.12", "tod": 22.5 },
+    { "name": "fortress", "cam": "520,72,20,0,-0.2", "tod": 17.5 },
+    { "name": "airfield", "cam": "220,30,200,-1.2,-0.1", "tod": 13 },
+    { "name": "volcano_vista", "cam": "-200,140,300,-0.7,-0.15", "tod": 16 },
+    { "name": "sunset_coast", "cam": "-560,8,520,-0.4,0", "tod": 18.2 },
+    { "name": "sun_flare", "cam": "-170,30,720,-1.7,0.45", "tod": 9 }
+  ]
+}

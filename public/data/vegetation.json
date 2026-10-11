@@ -1,0 +1,626 @@
+{
+  "seed": 4242,
+  "clearRoads": 5,
+  "species": [
+    {
+      "id": "palm_beach",
+      "asset": "palm_beach",
+      "variants": 4,
+      "collide": true,
+      "castShadow": 140,
+      "lods": [
+        {
+          "distance": 55,
+          "quality": 1
+        },
+        {
+          "distance": 220,
+          "quality": 0.5
+        },
+        {
+          "distance": 950,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 1.4,
+        "spacing": 7,
+        "materials": [
+          "sand",
+          "grass",
+          "jungle"
+        ],
+        "minHeight": 1,
+        "maxHeight": 14,
+        "maxSlope": 20,
+        "coastBand": 60,
+        "noiseScale": 90,
+        "noiseMin": -0.2,
+        "scale": [
+          0.8,
+          1.2
+        ]
+      },
+      "shareVariantsFrom": 3
+    },
+    {
+      "id": "palm",
+      "asset": "palm",
+      "variants": 4,
+      "collide": true,
+      "castShadow": 140,
+      "lods": [
+        {
+          "distance": 55,
+          "quality": 1
+        },
+        {
+          "distance": 220,
+          "quality": 0.5
+        },
+        {
+          "distance": 950,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.55,
+        "spacing": 8,
+        "materials": [
+          "grass",
+          "jungle",
+          "field"
+        ],
+        "minHeight": 2,
+        "maxHeight": 70,
+        "maxSlope": 28,
+        "noiseScale": 140,
+        "noiseMin": 0,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      },
+      "shareVariantsFrom": 3
+    },
+    {
+      "id": "jungle_giant",
+      "asset": "jungle_giant",
+      "variants": 4,
+      "collide": true,
+      "castShadow": 160,
+      "lods": [
+        {
+          "distance": 65,
+          "quality": 1
+        },
+        {
+          "distance": 260,
+          "quality": 0.5
+        },
+        {
+          "distance": 1100,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.5,
+        "spacing": 11,
+        "materials": [
+          "jungle",
+          "moss"
+        ],
+        "minHeight": 4,
+        "maxHeight": 110,
+        "maxSlope": 30,
+        "noiseScale": 160,
+        "noiseMin": -0.15,
+        "scale": [
+          0.8,
+          1.35
+        ]
+      },
+      "shareVariantsFrom": 3
+    },
+    {
+      "id": "broadleaf",
+      "asset": "broadleaf",
+      "variants": 3,
+      "collide": true,
+      "castShadow": 120,
+      "lods": [
+        {
+          "distance": 50,
+          "quality": 1
+        },
+        {
+          "distance": 190,
+          "quality": 0.5
+        },
+        {
+          "distance": 800,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.6,
+        "spacing": 8,
+        "materials": [
+          "jungle",
+          "grass",
+          "moss"
+        ],
+        "minHeight": 3,
+        "maxHeight": 130,
+        "maxSlope": 32,
+        "noiseScale": 110,
+        "noiseMin": -0.3,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      },
+      "shareVariantsFrom": 3
+    },
+    {
+      "id": "bamboo",
+      "asset": "bamboo",
+      "variants": 2,
+      "collide": true,
+      "castShadow": 90,
+      "lods": [
+        {
+          "distance": 50,
+          "quality": 1
+        },
+        {
+          "distance": 180,
+          "quality": 0.5
+        },
+        {
+          "distance": 450,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.7,
+        "spacing": 7,
+        "materials": [
+          "jungle",
+          "mud"
+        ],
+        "minHeight": 1.5,
+        "maxHeight": 40,
+        "maxSlope": 25,
+        "noiseScale": 70,
+        "noiseMin": 0.35,
+        "scale": [
+          0.8,
+          1.2
+        ]
+      }
+    },
+    {
+      "id": "banana",
+      "asset": "banana",
+      "variants": 3,
+      "collide": false,
+      "castShadow": 30,
+      "lods": [
+        {
+          "distance": 40,
+          "quality": 1
+        },
+        {
+          "distance": 140,
+          "quality": 0.5
+        }
+      ],
+      "scatter": {
+        "density": 1.5,
+        "spacing": 5,
+        "materials": [
+          "jungle",
+          "grass",
+          "field"
+        ],
+        "minHeight": 1.5,
+        "maxHeight": 60,
+        "maxSlope": 28,
+        "noiseScale": 60,
+        "noiseMin": 0.1,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      }
+    },
+    {
+      "id": "bush",
+      "asset": "bush",
+      "variants": 4,
+      "collide": false,
+      "castShadow": 20,
+      "lods": [
+        {
+          "distance": 35,
+          "quality": 1
+        },
+        {
+          "distance": 130,
+          "quality": 0.5
+        },
+        {
+          "distance": 260,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 4,
+        "spacing": 4,
+        "materials": [
+          "jungle",
+          "grass",
+          "moss",
+          "sand"
+        ],
+        "minHeight": 1.2,
+        "maxHeight": 140,
+        "maxSlope": 35,
+        "noiseScale": 50,
+        "noiseMin": -0.35,
+        "scale": [
+          0.7,
+          1.4
+        ]
+      }
+    },
+    {
+      "id": "bush_berries",
+      "asset": "bush_berries",
+      "variants": 2,
+      "collide": false,
+      "castShadow": 0,
+      "lods": [
+        {
+          "distance": 30,
+          "quality": 1
+        },
+        {
+          "distance": 100,
+          "quality": 0.5
+        }
+      ],
+      "scatter": {
+        "density": 0.8,
+        "spacing": 5,
+        "materials": [
+          "jungle",
+          "grass"
+        ],
+        "minHeight": 2,
+        "maxHeight": 80,
+        "maxSlope": 30,
+        "noiseScale": 40,
+        "noiseMin": 0.2,
+        "scale": [
+          0.8,
+          1.2
+        ]
+      }
+    },
+    {
+      "id": "fern",
+      "asset": "fern",
+      "variants": 4,
+      "collide": false,
+      "castShadow": 0,
+      "lods": [
+        {
+          "distance": 25,
+          "quality": 1
+        },
+        {
+          "distance": 70,
+          "quality": 0.5
+        }
+      ],
+      "scatter": {
+        "density": 12,
+        "spacing": 2.5,
+        "materials": [
+          "jungle",
+          "moss",
+          "mud"
+        ],
+        "minHeight": 1.2,
+        "maxHeight": 120,
+        "maxSlope": 40,
+        "noiseScale": 30,
+        "noiseMin": -0.25,
+        "scale": [
+          0.7,
+          1.5
+        ]
+      }
+    },
+    {
+      "id": "flowers",
+      "asset": "flowers",
+      "variants": 3,
+      "collide": false,
+      "castShadow": 0,
+      "lods": [
+        {
+          "distance": 30,
+          "quality": 1
+        }
+      ],
+      "scatter": {
+        "density": 2,
+        "spacing": 4,
+        "materials": [
+          "grass",
+          "field"
+        ],
+        "minHeight": 2,
+        "maxHeight": 120,
+        "maxSlope": 25,
+        "noiseScale": 25,
+        "noiseMin": 0.3,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      }
+    },
+    {
+      "id": "rock",
+      "asset": "rock",
+      "variants": 4,
+      "collide": true,
+      "castShadow": 80,
+      "lods": [
+        {
+          "distance": 50,
+          "quality": 1
+        },
+        {
+          "distance": 200,
+          "quality": 0.5
+        },
+        {
+          "distance": 500,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.5,
+        "spacing": 9,
+        "materials": [
+          "rock",
+          "dark_rock",
+          "moss",
+          "grass",
+          "sand",
+          "ash"
+        ],
+        "minHeight": -3,
+        "maxHeight": 220,
+        "maxSlope": 60,
+        "noiseScale": 80,
+        "noiseMin": 0,
+        "scale": [
+          0.6,
+          1.6
+        ]
+      }
+    },
+    {
+      "id": "rock_mossy",
+      "asset": "rock_mossy",
+      "variants": 3,
+      "collide": true,
+      "castShadow": 90,
+      "lods": [
+        {
+          "distance": 50,
+          "quality": 1
+        },
+        {
+          "distance": 200,
+          "quality": 0.5
+        },
+        {
+          "distance": 500,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.25,
+        "spacing": 12,
+        "materials": [
+          "jungle",
+          "moss",
+          "mud"
+        ],
+        "minHeight": 1,
+        "maxHeight": 120,
+        "maxSlope": 45,
+        "noiseScale": 100,
+        "noiseMin": 0.1,
+        "scale": [
+          0.6,
+          1.4
+        ]
+      }
+    },
+    {
+      "id": "boulder",
+      "asset": "boulder",
+      "variants": 3,
+      "collide": true,
+      "castShadow": 200,
+      "lods": [
+        {
+          "distance": 80,
+          "quality": 1
+        },
+        {
+          "distance": 300,
+          "quality": 0.5
+        },
+        {
+          "distance": 1200,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.08,
+        "spacing": 25,
+        "materials": [
+          "rock",
+          "dark_rock",
+          "ash",
+          "moss"
+        ],
+        "minHeight": 5,
+        "maxHeight": 220,
+        "maxSlope": 60,
+        "noiseScale": 200,
+        "noiseMin": -0.2,
+        "scale": [
+          0.7,
+          1.8
+        ]
+      }
+    },
+    {
+      "id": "dead_tree",
+      "asset": "dead_tree",
+      "variants": 2,
+      "collide": true,
+      "castShadow": 80,
+      "lods": [
+        {
+          "distance": 60,
+          "quality": 1
+        },
+        {
+          "distance": 250,
+          "quality": 0.5
+        }
+      ],
+      "scatter": {
+        "density": 0.12,
+        "spacing": 18,
+        "materials": [
+          "ash",
+          "dark_rock",
+          "mud"
+        ],
+        "minHeight": 1,
+        "maxHeight": 200,
+        "maxSlope": 35,
+        "noiseScale": 90,
+        "noiseMin": 0,
+        "scale": [
+          0.8,
+          1.3
+        ]
+      }
+    },
+    {
+      "id": "pandanus",
+      "asset": "pandanus",
+      "variants": 3,
+      "collide": true,
+      "castShadow": 100,
+      "shareVariantsFrom": 3,
+      "lods": [
+        {
+          "distance": 45,
+          "quality": 1
+        },
+        {
+          "distance": 160,
+          "quality": 0.5
+        },
+        {
+          "distance": 600,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.6,
+        "spacing": 9,
+        "materials": [
+          "sand",
+          "grass"
+        ],
+        "minHeight": 0.8,
+        "maxHeight": 10,
+        "maxSlope": 22,
+        "coastBand": 45,
+        "noiseScale": 70,
+        "noiseMin": -0.1,
+        "scale": [
+          0.75,
+          1.25
+        ]
+      }
+    },
+    {
+      "id": "flame_tree",
+      "asset": "flame_tree",
+      "variants": 2,
+      "collide": true,
+      "castShadow": 140,
+      "shareVariantsFrom": 3,
+      "lods": [
+        {
+          "distance": 60,
+          "quality": 1
+        },
+        {
+          "distance": 230,
+          "quality": 0.5
+        },
+        {
+          "distance": 900,
+          "quality": 0.25
+        }
+      ],
+      "scatter": {
+        "density": 0.14,
+        "spacing": 24,
+        "materials": [
+          "grass",
+          "field"
+        ],
+        "minHeight": 2,
+        "maxHeight": 60,
+        "maxSlope": 20,
+        "noiseScale": 160,
+        "noiseMin": -0.3,
+        "scale": [
+          0.85,
+          1.2
+        ]
+      }
+    }
+  ],
+  "grass": {
+    "asset": "grass_tuft",
+    "variants": 4,
+    "radius": 45,
+    "density": 2.2,
+    "materials": [
+      "grass",
+      "jungle",
+      "field",
+      "moss"
+    ],
+    "maxSlope": 35
+  }
+}

@@ -1,0 +1,10 @@
+# spawn: -20,30,112,-0.5
+# Long fight against the river outpost garrison (player invulnerable, standing still):
+# enemies must engage, move (cover / approach), shoot, and nobody stays stuck.
+eval (()=>{ game.player.godMode = true; window.__dmg = 0; const d = game.player.damage.bind(game.player); game.player.damage = (a, f, k) => { window.__dmg += a; return 0; }; window.__start = Object.fromEntries(game.actors.byGroup('river_mercs').map(a => [a.id, a.pos.clone()])); window.__gren = 0; const sg = game.weapons.spawnGrenade.bind(game.weapons); game.weapons.spawnGrenade = (...x) => { window.__gren++; return sg(...x); }; return Object.keys(window.__start).length })()
+wait 20
+eval (()=>{ const r = game.actors.byGroup('river_mercs').map(a => ({ id: a.id, arch: a.arch.label, state: a.ai.state, moved: +a.pos.distanceTo(window.__start[a.id] ?? a.pos).toFixed(1), dist: +a.pos.distanceTo(game.player.pos).toFixed(0), cover: !!a.ai.inCover, stuck: +(a.stuck ?? 0).toFixed(1) })); return { damageTaken: Math.round(window.__dmg), grenades: window.__gren, actors: r } })()
+expect window.__dmg > 30
+expect game.actors.byGroup('river_mercs').filter(a => a.ai.state === 'combat').length >= 4
+expect game.actors.byGroup('river_mercs').filter(a => a.pos.distanceTo(window.__start[a.id] ?? a.pos) > 3).length >= 3
+shot ai_fight

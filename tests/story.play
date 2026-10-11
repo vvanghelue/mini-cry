@@ -1,0 +1,72 @@
+# Full story regression test (fast-forwarded): npm run play -- --file tests/story.play --query "story=1"
+# Each "eval" prints the mission state so a failure shows where the chain broke.
+eval (()=>{ game.player.godMode = true; game.missions.begin(); return game.missions.focus })()
+wait 8
+# --- m01 Échoué
+live teleport {"to":"mk_wreck"}
+wait 1
+eval (game.pickupItem('weapon_machete','pk_machete'), game.world.entities.handle('radio_wreck').use(), 1)
+wait 12
+live teleport {"to":"mk_beach_camp"}
+wait 1
+live killAll {"group":"beach_patrol"}
+wait 2
+live teleport {"to":"mk_village_edge"}
+wait 2
+eval [game.missions.focus, JSON.stringify(game.missions.state)]
+# --- m02 Puerto Viejo
+eval (game.world.entities.handle('alarm_village').use(), 1)
+live killAll {"group":"village_mercs"}
+live teleport {"to":"mk_village"}
+wait 3
+eval (game.world.entities.handle('npc_mara').use(), 1)
+wait 3
+eval [game.missions.focus, game.liberated.size, [...game.weapons.owned]]
+# --- m03 Ondes courtes
+live teleport {"to":"mk_antenna"}
+wait 2
+eval (game.world.entities.handle('jammer').onHit(999), 1)
+wait 1
+eval (game.world.entities.handle('radio_antenna').use(), 1)
+wait 25
+eval [game.missions.focus, JSON.stringify(game.missions.state.m03)]
+# --- m04 Le fleuve
+eval (game.world.entities.handle('alarm_river').use(), 1)
+live killAll {"group":"river_mercs"}
+live teleport {"to":"mk_river"}
+wait 4
+eval [game.missions.focus, game.liberated.has('outpost_river')]
+# --- m05 Le laboratoire
+live teleport {"to":"mk_lab_approach"}
+wait 3
+eval (game.pickupItem('key_card','pk_keycard'), 1)
+wait 1
+eval (game.world.entities.handle('lab_door').use(), 1)
+wait 1
+eval (game.world.entities.handle('npc_val').use(), 1)
+wait 2
+eval [game.missions.focus, JSON.stringify(game.missions.state.m05)]
+eval (game.world.entities.handle('alarm_lab').use(), 1)
+live killAll {"group":"lab_guards", "radius": 2000}
+live teleport {"to":"mk_lab_boat"}
+wait 4
+eval [game.missions.focus, JSON.stringify(game.missions.state.m05), game.actors.get('npc_val')?.pos.toArray()]
+wait 14
+# --- m06 Ailes coupées
+eval (['fuel_1','fuel_2','fuel_3'].forEach(id => game.world.entities.handle(id).onHit(999)), 1)
+wait 3
+eval [game.missions.focus, JSON.stringify(game.missions.state.m06)]
+wait 12
+# --- m07 La Fortaleza
+live teleport {"to":"mk_fort_gate"}
+wait 2
+eval (game.actors.get('boss_vargas').die({attacker:'player'}), 1)
+wait 3
+eval (game.world.entities.handle('radio_fort').use(), 1)
+wait 12
+live teleport {"to":"mk_helipad"}
+wait 20
+eval [game.missions.focus, JSON.stringify(Object.fromEntries(Object.entries(game.missions.state).map(([k,v])=>[k,v.status]))), game.started, document.querySelector('.menu-panel')?.innerText.slice(0,80)]
+shot story_end
+expect ['m01','m02','m03','m04','m05','m06','m07'].every(id => game.missions.state[id]?.status === 'done')
+expect document.querySelector('.menu-panel')?.innerText.includes('Isla Sombra est libre')

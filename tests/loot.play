@@ -1,0 +1,16 @@
+# Enemy loot: a killed merc always drops the weapon it held (lying on the ground, partly loaded),
+# the corpse no longer holds it, and the player picks it up with E (magazine filled from it).
+# spawn: -505,2,525,0.6
+eval (()=>{ game.player.godMode = true; const p = game.player.pos, f = game.player.forward(); game.world.entities.add({ type: 'enemy', archetype: 'merc_smg', pos: [p.x + f.x * 6, 0, p.z + f.z * 6], group: 'loot', dormant: true }); return true })()
+wait 0.5
+eval (()=>{ game.actors.byGroup('loot')[0].die({ attacker: 'player' }); return game.world.entities.list.filter(e => e.temp).map(e => [e.item, e.rounds]) })()
+wait 1
+eval (()=>{ const d = window.__drop = game.world.entities.list.find(e => e.temp && e.item === 'weapon_smg'); const o = game.world.entities.handle(d.id).object.position; game.player.teleport([o.x, o.y + 0.2, o.z + 1.3]); game.player.yaw = 0; game.player.pitch = -0.7; return d })()
+wait 0.6
+shot loot
+eval game.hud.prompt.textContent
+expect game.hud.prompt.textContent.includes('Pistolet-mitrailleur') && game.actors.byGroup('loot')[0].weaponMesh.visible === false
+press KeyE
+wait 0.4
+eval ({ owned: [...game.weapons.owned], clip: game.weapons.clip.smg, reserve: game.weapons.ammo.smg, rounds: __drop.rounds })
+expect game.weapons.owned.has('smg') && game.weapons.clip.smg === __drop.rounds && !game.world.entities.get(__drop.id)

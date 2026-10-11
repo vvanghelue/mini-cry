@@ -1,0 +1,28 @@
+{
+  "name": "antenna_small",
+  "category": "prop",
+  "label": "Petite antenne radio",
+  "material": "metal",
+  "tags": ["military","comms"],
+  "parts": [
+    {"shape":"box","size":[0.4,0.12,0.4],"pos":[0,0.06,0],"color":"#8f8b82"},
+    {"shape":"limb","from":[0,0.12,0],"to":[0,4,0],"r0":0.035,"r1":0.018,"color":"#9aa0a4","segments":6,"open":false},
+    {"shape":"limb","from":[0,4,0],"to":[0,4.6,0],"r0":0.008,"r1":0.005,"color":"#4a4d50","segments":4},
+    {"shape":"box","size":[0.9,0.025,0.025],"pos":[0,3.6,0],"color":"#7d8287"},
+    {"shape":"box","size":[0.025,0.025,0.7],"pos":[0,3.3,0],"color":"#7d8287"},
+    {"shape":"box","size":[0.7,0.025,0.025],"pos":[0,3,0],"rot":[0,45,0],"color":"#7d8287"},
+    {"shape":"sphere","radius":0.045,"pos":[0,4.03,0],"color":"#ff3020","detail":0,"emissive":0.8,"glow":{"size":0.6,"blink":1.2,"day":0.25}},
+    {"shape":"box","size":[0.22,0.3,0.14],"pos":[0.2,0.42,-0.05],"color":"#6d7a5a"},
+    {"shape":"limb","from":[0.12,0.5,-0.05],"to":[0.03,0.8,0],"r0":0.01,"r1":0.01,"color":"#2b2b2a","segments":3},
+    {"shape":"limb","from":[0,2.9,0],"to":[1.5285,0,0.4728],"r0":0.004,"r1":0.004,"color":"#3b3d3e","segments":3},
+    {"shape":"limb","from":[1.5285,-0.05,0.4728],"to":[1.5285,0.15,0.4728],"r0":0.02,"r1":0.015,"color":"#5d5f60","segments":4,"minQuality":0.75},
+    {"shape":"limb","from":[0,2.9,0],"to":[-1.1738,0,1.0873],"r0":0.004,"r1":0.004,"color":"#3b3d3e","segments":3},
+    {"shape":"limb","from":[-1.1738,-0.05,1.0873],"to":[-1.1738,0.15,1.0873],"r0":0.02,"r1":0.015,"color":"#5d5f60","segments":4,"minQuality":0.75},
+    {"shape":"limb","from":[0,2.9,0],"to":[-0.3548,0,-1.5602],"r0":0.004,"r1":0.004,"color":"#3b3d3e","segments":3},
+    {"shape":"limb","from":[-0.3548,-0.05,-1.5602],"to":[-0.3548,0.15,-1.5602],"r0":0.02,"r1":0.015,"color":"#5d5f60","segments":4,"minQuality":0.75}
+  ],
+  "collider": [
+    {"type":"box","size":[0.4,0.12,0.4],"pos":[0,0.06,0]},
+    {"type":"cylinder","radius":0.05,"height":4,"pos":[0,2,0]}
+  ]
+}

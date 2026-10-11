@@ -1,0 +1,355 @@
+{
+  "ammoTypes": {
+    "pistol": {
+      "label": "Munitions 9mm",
+      "max": 120
+    },
+    "rifle": {
+      "label": "Munitions 7.62",
+      "max": 240
+    },
+    "smg": {
+      "label": "Munitions .45",
+      "max": 240
+    },
+    "shells": {
+      "label": "Cartouches",
+      "max": 48
+    },
+    "sniper": {
+      "label": "Munitions .338",
+      "max": 40
+    },
+    "rocket": {
+      "label": "Roquettes",
+      "max": 6
+    }
+  },
+  "weapons": {
+    "machete": {
+      "label": "Machette",
+      "slot": 1,
+      "type": "melee",
+      "asset": "machete",
+      "damage": 55,
+      "stealthDamage": 999,
+      "range": 2.3,
+      "rate": 0.5,
+      "hitDelay": 0.12,
+      "sound": "machete_swing",
+      "hitSound": "machete_hit",
+      "view": {
+        "pos": [
+          0.32,
+          -0.32,
+          -0.55
+        ],
+        "rot": [
+          10,
+          20,
+          -30
+        ]
+      }
+    },
+    "pistol": {
+      "label": "Pistolet",
+      "slot": 2,
+      "type": "gun",
+      "asset": "pistol",
+      "ammo": "pistol",
+      "damage": 30,
+      "headshot": 2.5,
+      "auto": false,
+      "rpm": 320,
+      "mag": 12,
+      "reload": 1.35,
+      "spreadHip": 1,
+      "spreadAds": 0.25,
+      "spreadMove": 1.2,
+      "recoil": 1.6,
+      "recoilRecover": 9,
+      "range": 90,
+      "falloff": [
+        30,
+        90,
+        0.5
+      ],
+      "tracerEvery": 0,
+      "adsFov": 58,
+      "adsTime": 0.16,
+      "sound": "pistol_shot",
+      "noise": 70,
+      "view": {
+        "pos": [
+          0.22,
+          -0.24,
+          -0.45
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "smg": {
+      "label": "Pistolet-mitrailleur",
+      "slot": 3,
+      "type": "gun",
+      "asset": "smg",
+      "ammo": "smg",
+      "damage": 15,
+      "headshot": 2,
+      "auto": true,
+      "rpm": 820,
+      "mag": 30,
+      "reload": 1.7,
+      "spreadHip": 2,
+      "spreadAds": 0.9,
+      "spreadMove": 1.5,
+      "recoil": 0.55,
+      "recoilRecover": 12,
+      "range": 70,
+      "falloff": [
+        20,
+        70,
+        0.4
+      ],
+      "tracerEvery": 3,
+      "adsFov": 55,
+      "adsTime": 0.18,
+      "sound": "smg_shot",
+      "noise": 80,
+      "view": {
+        "pos": [
+          0.2,
+          -0.24,
+          -0.45
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "rifle_ak": {
+      "label": "Fusil d'assaut AK",
+      "slot": 3,
+      "type": "gun",
+      "asset": "rifle_ak",
+      "ammo": "rifle",
+      "damage": 26,
+      "headshot": 2.2,
+      "auto": true,
+      "rpm": 600,
+      "mag": 30,
+      "reload": 2.1,
+      "spreadHip": 2,
+      "spreadAds": 0.55,
+      "spreadMove": 2,
+      "recoil": 1,
+      "recoilRecover": 8,
+      "range": 220,
+      "falloff": [
+        60,
+        220,
+        0.6
+      ],
+      "tracerEvery": 3,
+      "adsFov": 50,
+      "adsTime": 0.22,
+      "sound": "rifle_shot",
+      "noise": 120,
+      "view": {
+        "pos": [
+          0.2,
+          -0.25,
+          -0.5
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "rifle_m4": {
+      "label": "Carabine M4",
+      "slot": 3,
+      "type": "gun",
+      "asset": "rifle_m4",
+      "ammo": "rifle",
+      "damage": 23,
+      "headshot": 2.2,
+      "auto": true,
+      "rpm": 760,
+      "mag": 30,
+      "reload": 1.9,
+      "spreadHip": 1.6,
+      "spreadAds": 0.35,
+      "spreadMove": 1.6,
+      "recoil": 0.75,
+      "recoilRecover": 10,
+      "range": 240,
+      "falloff": [
+        70,
+        240,
+        0.6
+      ],
+      "tracerEvery": 3,
+      "adsFov": 48,
+      "adsTime": 0.2,
+      "sound": "rifle_shot",
+      "noise": 120,
+      "view": {
+        "pos": [
+          0.2,
+          -0.25,
+          -0.5
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "shotgun": {
+      "label": "Fusil à pompe",
+      "slot": 4,
+      "type": "gun",
+      "asset": "shotgun",
+      "ammo": "shells",
+      "damage": 13,
+      "pellets": 9,
+      "headshot": 1.5,
+      "auto": false,
+      "rpm": 75,
+      "mag": 6,
+      "reload": 0.55,
+      "reloadPerShell": true,
+      "spreadHip": 6,
+      "spreadAds": 4.2,
+      "spreadMove": 1,
+      "recoil": 4.5,
+      "recoilRecover": 6,
+      "range": 45,
+      "falloff": [
+        8,
+        45,
+        0.15
+      ],
+      "tracerEvery": 0,
+      "adsFov": 60,
+      "adsTime": 0.2,
+      "sound": "shotgun_shot",
+      "pumpSound": "shotgun_pump",
+      "noise": 110,
+      "view": {
+        "pos": [
+          0.2,
+          -0.26,
+          -0.5
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "sniper": {
+      "label": "Fusil de précision",
+      "slot": 4,
+      "type": "gun",
+      "asset": "sniper",
+      "ammo": "sniper",
+      "damage": 115,
+      "headshot": 3,
+      "auto": false,
+      "rpm": 42,
+      "mag": 5,
+      "reload": 2.6,
+      "spreadHip": 5,
+      "spreadAds": 0,
+      "spreadMove": 3,
+      "recoil": 5,
+      "recoilRecover": 5,
+      "range": 900,
+      "falloff": [
+        400,
+        900,
+        0.8
+      ],
+      "tracerEvery": 1,
+      "adsFov": 14,
+      "adsTime": 0.3,
+      "scope": true,
+      "sound": "sniper_shot",
+      "boltSound": "reload_bolt",
+      "noise": 160,
+      "view": {
+        "pos": [
+          0.2,
+          -0.25,
+          -0.5
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "rpg": {
+      "label": "Lance-roquettes",
+      "slot": 5,
+      "type": "launcher",
+      "asset": "rpg",
+      "ammo": "rocket",
+      "damage": 260,
+      "radius": 7,
+      "auto": false,
+      "rpm": 30,
+      "mag": 1,
+      "reload": 2.6,
+      "spreadHip": 1.5,
+      "spreadAds": 0.3,
+      "recoil": 6,
+      "recoilRecover": 4,
+      "projectile": {
+        "asset": "rocket",
+        "speed": 70,
+        "gravity": 1.5,
+        "maxRange": 600
+      },
+      "adsFov": 55,
+      "adsTime": 0.3,
+      "sound": "rpg_launch",
+      "noise": 150,
+      "view": {
+        "pos": [
+          0.25,
+          -0.2,
+          -0.4
+        ],
+        "rot": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  "grenade": {
+    "asset": "grenade",
+    "damage": 220,
+    "radius": 7.5,
+    "fuse": 3.2,
+    "throwSpeed": 17,
+    "lift": 4,
+    "gravity": 18,
+    "bounce": 0.35
+  }
+}

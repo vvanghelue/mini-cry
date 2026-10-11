@@ -1,0 +1,38 @@
+{
+  "name": "generator",
+  "category": "prop",
+  "label": "Groupe électrogène",
+  "material": "metal",
+  "tags": ["cover","industrial","camp"],
+  "parts": [
+    {"shape":"box","size":[1.6,0.1,0.1],"pos":[0,0.05,-0.3],"color":"#4a4d50","repeat":{"count":2,"offset":[0,0,0.6]}},
+    {"shape":"box","size":[0.08,0.06,0.6],"pos":[-0.7,0.07,0],"color":"#45484b","repeat":{"count":3,"offset":[0.7,0,0]}},
+    {"shape":"box","size":[1.15,0.7,0.7],"pos":[-0.12,0.47,0],"color":"#5b6e46"},
+    {"shape":"box","size":[1.19,0.06,0.74],"pos":[-0.12,0.85,0],"color":"#667a4f"},
+    {"shape":"box","size":[0.2,0.78,0.74],"pos":[0.56,0.49,0],"color":"#4d5d3b"},
+    {"shape":"box","size":[0.014,0.04,0.6],"pos":[0.666,0.22,0],"color":"#2f3430","repeat":{"count":6,"offset":[0,0.09,0]}},
+    {"shape":"box","size":[0.36,0.3,0.04],"pos":[-0.44,0.58,-0.37],"color":"#7d8279"},
+    {"shape":"cylinder","radius":0.038,"height":0.02,"pos":[-0.52,0.63,-0.395],"color":"#ddd8c4","rot":[90,0,0],"segments":8},
+    {"shape":"cylinder","radius":0.038,"height":0.02,"pos":[-0.38,0.63,-0.395],"color":"#ddd8c4","rot":[90,0,0],"segments":8},
+    {"shape":"box","size":[0.012,0.03,0.006],"pos":[-0.52,0.64,-0.406],"rot":[0,0,35],"color":"#b03a2e","minQuality":0.75},
+    {"shape":"box","size":[0.012,0.03,0.006],"pos":[-0.38,0.64,-0.406],"rot":[0,0,-50],"color":"#b03a2e","minQuality":0.75},
+    {"shape":"box","size":[0.05,0.05,0.03],"pos":[-0.54,0.5,-0.39],"color":"#b8382e"},
+    {"shape":"sphere","radius":0.018,"pos":[-0.44,0.5,-0.392],"color":"#4ce05a","detail":0,"emissive":0.9},
+    {"shape":"box","size":[0.045,0.035,0.03],"pos":[-0.34,0.5,-0.39],"color":"#2d2f30"},
+    {"shape":"box","size":[0.5,0.03,0.012],"pos":[0.08,0.34,-0.355],"color":"#3a4430","repeat":{"count":3,"offset":[0,0.08,0]},"minQuality":0.75},
+    {"shape":"box","size":[0.5,0.03,0.012],"pos":[0.08,0.34,0.355],"color":"#3a4430","repeat":{"count":3,"offset":[0,0.08,0]},"minQuality":0.75},
+    {"shape":"cylinder","radius":0.085,"height":0.5,"pos":[0,0.97,0.16],"color":"#3f4142","rot":[0,0,90],"segments":7},
+    {"shape":"limb","from":[0.23,0.97,0.16],"to":[0.3,1,0.16],"r0":0.03,"r1":0.03,"color":"#4a3d33","segments":6},
+    {"shape":"limb","from":[0.3,0.97,0.16],"to":[0.3,1.3,0.16],"r0":0.032,"r1":0.03,"color":"#4f3f33","segments":6,"open":false},
+    {"shape":"limb","from":[0.3,1.3,0.16],"to":[0.4,1.36,0.16],"r0":0.03,"r1":0.028,"color":"#463a31","segments":6,"open":false},
+    {"shape":"box","size":[0.03,0.13,0.03],"pos":[-0.07,0.94,0.16],"color":"#45484b","repeat":{"count":2,"offset":[0.2,0,0]}},
+    {"shape":"cylinder","radius":0.05,"height":0.05,"pos":[-0.45,0.9,0.2],"color":"#c79a34","segments":7},
+    {"shape":"box","size":[0.06,0.08,0.06],"pos":[-0.12,0.92,-0.1],"color":"#3f4244","minQuality":0.75},
+    {"shape":"limb","from":[-0.7,0.3,-0.1],"to":[-0.95,0.12,-0.2],"r0":0.018,"r1":0.018,"color":"#2b2a28","segments":4},
+    {"shape":"limb","from":[-0.95,0.12,-0.2],"to":[-1.3,0.02,-0.05],"r0":0.018,"r1":0.018,"color":"#2b2a28","segments":4},
+    {"shape":"box","size":[0.06,0.12,0.1],"pos":[-0.72,0.3,-0.1],"color":"#2f3133"}
+  ],
+  "collider": [
+    {"type":"box","size":[1.6,0.9,0.75],"pos":[0,0.45,0]}
+  ]
+}

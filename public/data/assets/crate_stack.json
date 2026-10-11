@@ -1,0 +1,19 @@
+{
+  "name": "crate_stack",
+  "category": "prop",
+  "label": "Pile de caisses",
+  "material": "wood",
+  "tags": ["cover","camp","storage"],
+  "parts": [
+    {"shape":"ref","asset":"crate","pos":[-0.55,0,0.05],"rot":[0,4,0]},
+    {"shape":"ref","asset":"crate","pos":[0.56,0,-0.03],"rot":[0,-6,0]},
+    {"shape":"ref","asset":"crate","pos":[0.05,1,0.04],"rot":[0,13,0]},
+    {"shape":"ref","asset":"crate_small","pos":[1.5,0,0.42],"rot":[0,24,0]}
+  ],
+  "collider": [
+    {"type":"box","size":[1,1,1],"pos":[-0.55,0.5,0.05],"rot":[0,4,0]},
+    {"type":"box","size":[1,1,1],"pos":[0.56,0.5,-0.03],"rot":[0,-6,0]},
+    {"type":"box","size":[1,1,1],"pos":[0.05,1.5,0.04],"rot":[0,13,0]},
+    {"type":"box","size":[0.6,0.64,0.6],"pos":[1.5,0.32,0.42],"rot":[0,24,0]}
+  ]
+}

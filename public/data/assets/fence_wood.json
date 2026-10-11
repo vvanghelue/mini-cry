@@ -1,0 +1,19 @@
+{
+  "name": "fence_wood",
+  "category": "prop",
+  "label": "Clôture en bois",
+  "material": "wood",
+  "tags": ["fence","village"],
+  "parts": [
+    {"shape":"box","size":[0.12,1.35,0.12],"pos":[-1.94,0.675,0],"rot":[0,8,1.5],"color":"#6b5034","taper":0.8},
+    {"shape":"box","size":[0.13,1.4,0.13],"pos":[0,0.7,0],"rot":[0,-12,-1],"color":"#76583a","taper":0.8},
+    {"shape":"box","size":[0.12,1.32,0.12],"pos":[1.94,0.66,0],"rot":[0,20,0.5],"color":"#6e5236","taper":0.8},
+    {"shape":"box","size":[4.04,0.11,0.05],"pos":[0,0.5,-0.088],"rot":[0,0,0.6],"color":"#8a6a44"},
+    {"shape":"box","size":[4.04,0.11,0.05],"pos":[0,1.06,-0.088],"rot":[0,0,-0.8],"color":"#977550"},
+    {"shape":"box","size":[2.15,0.09,0.045],"pos":[-0.97,0.78,0.085],"rot":[0,0,21],"color":"#866440"},
+    {"shape":"box","size":[2.15,0.09,0.045],"pos":[0.97,0.78,0.085],"rot":[0,0,-21],"color":"#7e5e3b","minQuality":0.75}
+  ],
+  "collider": [
+    {"type":"box","size":[4,1.35,0.2],"pos":[0,0.675,0]}
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "ammo_box",
+  "category": "prop",
+  "label": "Caisse de munitions",
+  "material": "wood",
+  "tags": ["military","camp","storage"],
+  "parts": [
+    {"shape":"box","size":[0.66,0.26,0.38],"pos":[0,0.16,0],"color":"#56633a"},
+    {"shape":"box","size":[0.7,0.06,0.42],"pos":[0,0.3,0],"color":"#5f6d40"},
+    {"shape":"box","size":[0.04,0.29,0.41],"pos":[-0.345,0.165,0],"color":"#4b5732","repeat":{"count":2,"offset":[0.69,0,0]}},
+    {"shape":"box","size":[0.66,0.03,0.06],"pos":[0,0.015,-0.15],"color":"#3f4a2a","repeat":{"count":2,"offset":[0,0,0.3]}},
+    {"shape":"box","size":[0.045,0.06,0.02],"pos":[-0.2,0.27,-0.215],"color":"#7d8279","repeat":{"count":2,"offset":[0.4,0,0]}},
+    {"shape":"box","size":[0.5,0.028,0.004],"pos":[0,0.11,-0.191],"color":"#d6b23a"},
+    {"shape":"box","size":[0.3,0.025,0.004],"pos":[-0.06,0.2,-0.191],"color":"#cfc38a","minQuality":0.75},
+    {"shape":"box","size":[0.12,0.025,0.004],"pos":[0.17,0.2,-0.191],"color":"#cfc38a","minQuality":0.75},
+    {"shape":"box","size":[0.3,0.004,0.06],"pos":[0,0.332,0],"color":"#d6b23a","minQuality":0.75},
+    {"shape":"limb","from":[-0.366,0.22,-0.09],"to":[-0.4,0.18,0],"r0":0.012,"r1":0.012,"color":"#b8a67a","segments":4},
+    {"shape":"limb","from":[-0.4,0.18,0],"to":[-0.366,0.22,0.09],"r0":0.012,"r1":0.012,"color":"#b8a67a","segments":4},
+    {"shape":"limb","from":[0.366,0.22,-0.09],"to":[0.4,0.18,0],"r0":0.012,"r1":0.012,"color":"#b8a67a","segments":4},
+    {"shape":"limb","from":[0.4,0.18,0],"to":[0.366,0.22,0.09],"r0":0.012,"r1":0.012,"color":"#b8a67a","segments":4}
+  ],
+  "collider": "auto"
+}

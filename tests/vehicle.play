@@ -1,0 +1,21 @@
+# Drive the river outpost jeep: enter (E), accelerate, steer, exit.
+eval (()=>{ game.player.godMode = true; game.player.godInvisible = true; const v = game.world.entities.get('jeep_river'); game.player.teleport([v.pos[0] + 1.5, v.pos[1] + 0.5, v.pos[2] + 1.5]); return v.pos })()
+wait 0.5
+eval document.querySelector('.hud-prompt').innerText
+press KeyE
+wait 0.3
+eval [!!game.player.inVehicle, game.player.inVehicle?.pos.toArray().map(Math.round)]
+key KeyW 3
+eval [Math.round(game.player.inVehicle?.speed * 3.6) + ' km/h', game.player.inVehicle?.pos.toArray().map(Math.round)]
+shot driving
+key KeyA 1.2
+key KeyW 1.5
+eval [Math.round(game.player.inVehicle?.speed * 3.6) + ' km/h', game.player.inVehicle?.pos.toArray().map(Math.round), +game.player.inVehicle?.heading.toFixed(2)]
+wait 2
+press KeyE
+wait 0.5
+eval [!!game.player.inVehicle, game.player.pos.toArray().map(Math.round)]
+expect !game.player.inVehicle && game.player.pos.distanceTo(new app.THREE.Vector3(-9, 26, 60)) > 30
+# parked on a slope (any heading), the body must lie on the ground: up vector ~ terrain normal
+eval (async ()=>{ const T = game.world.terrain, v = game.vehicles.list.find((o) => o.id === 'jeep_river'), n = T.normalAt(-300.5, 200.5), up = new app.THREE.Vector3(); window.__tilt = []; for (const h of [0, Math.PI / 2, 2.5]) { v.pos.set(-300.5, T.heightAt(-300.5, 200.5), 200.5); v.heading = h; v.speed = 0; await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); up.set(0, 1, 0).applyQuaternion(v.object.quaternion); window.__tilt.push(+(up.x * n.x + up.y * n.y + up.z * n.z).toFixed(3)); } return window.__tilt })()
+expect window.__tilt.every((d) => d > 0.97)

@@ -1,0 +1,21 @@
+{
+  "name": "barrel_stack",
+  "category": "prop",
+  "label": "Fûts sur palette",
+  "material": "metal",
+  "tags": ["cover","industrial","camp"],
+  "parts": [
+    {"shape":"box","size":[1.24,0.03,0.16],"pos":[0,0.125,-0.42],"color":"#a98a5c","repeat":{"count":5,"offset":[0,0,0.21]}},
+    {"shape":"box","size":[0.1,0.1,1],"pos":[-0.56,0.06,0],"color":"#8c6f47","repeat":{"count":3,"offset":[0.56,0,0]}},
+    {"shape":"box","size":[1.24,0.02,0.12],"pos":[0,0.01,-0.42],"color":"#957650","repeat":{"count":3,"offset":[0,0,0.42]},"minQuality":0.75},
+    {"shape":"ref","asset":"barrel","pos":[-0.31,0.14,-0.2],"rot":[0,20,0]},
+    {"shape":"ref","asset":"barrel","pos":[0.31,0.14,-0.2],"rot":[0,145,0]},
+    {"shape":"ref","asset":"barrel","pos":[0.02,0.14,0.32],"rot":[0,260,0]}
+  ],
+  "collider": [
+    {"type":"box","size":[1.24,0.14,1],"pos":[0,0.07,0]},
+    {"type":"cylinder","radius":0.29,"height":0.89,"pos":[-0.31,0.585,-0.2]},
+    {"type":"cylinder","radius":0.29,"height":0.89,"pos":[0.31,0.585,-0.2]},
+    {"type":"cylinder","radius":0.29,"height":0.89,"pos":[0.02,0.585,0.32]}
+  ]
+}

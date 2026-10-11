@@ -1,0 +1,1 @@
+{ "name": "boulder", "category": "vegetation", "label": "Gros rocher", "generator": { "type": "rock", "params": { "radius": 4.5, "noise": 0.32, "squash": [1, 0.8, 1.15], "colors": ["#6e6a63", "#5f5b55"] } } }

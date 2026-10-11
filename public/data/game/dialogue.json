@@ -1,0 +1,377 @@
+{
+  "tts": {
+    "model": "elevenlabs/eleven-v4"
+  },
+  "speakers": {
+    "theo": {
+      "name": "Théo",
+      "desc": "Capitaine du Marlin, la quarantaine, plaisancier pris dans une guerre qui n'est pas la sienne : sobre, déterminé, pince-sans-rire.",
+      "radio": false,
+      "tts": {
+        "voice": "callum"
+      },
+      "pitch": 0.85,
+      "rate": 1.05,
+      "voiceIndex": 1
+    },
+    "mara": {
+      "name": "Mara (radio)",
+      "desc": "Jeune femme de Puerto Viejo, la trentaine, meneuse de la résistance : chaleureuse, vive, parle vite à la radio.",
+      "radio": true,
+      "tts": {
+        "voice": "jessica"
+      },
+      "pitch": 1.25,
+      "rate": 1.08,
+      "voiceIndex": 0
+    },
+    "mara_live": {
+      "name": "Mara",
+      "desc": "Mara en personne (même voix que la radio) : plus posée, chaleureuse.",
+      "radio": false,
+      "tts": {
+        "voice": "jessica"
+      },
+      "pitch": 1.25,
+      "rate": 1.05,
+      "voiceIndex": 0
+    },
+    "val": {
+      "name": "Valérie",
+      "desc": "Valérie, journaliste d'investigation, la trentaine : tranchante, courageuse, à bout de forces après sa captivité.",
+      "radio": false,
+      "tts": {
+        "voice": "bella"
+      },
+      "pitch": 1.15,
+      "rate": 1.1,
+      "voiceIndex": 0
+    },
+    "vargas": {
+      "name": "Colonel Vargas (radio)",
+      "desc": "Colonel mercenaire, la cinquantaine, maître de l'île : grave, posé, cruel et ironique, savoure chaque mot.",
+      "radio": true,
+      "tts": {
+        "voice": "brian"
+      },
+      "pitch": 0.7,
+      "rate": 0.92,
+      "voiceIndex": 1
+    },
+    "abuelo": {
+      "name": "Abuelo Tomás",
+      "desc": "Vieil homme du village, gardien des légendes : lent, chaleureux, voix usée.",
+      "radio": false,
+      "tts": {
+        "voice": "bill"
+      },
+      "pitch": 0.75,
+      "rate": 0.9,
+      "voiceIndex": 1
+    },
+    "pedro": {
+      "name": "Pedro",
+      "desc": "Fermier de la Granja, la cinquantaine : simple, jovial, soulagé d'être libéré.",
+      "radio": false,
+      "tts": {
+        "voice": "roger"
+      },
+      "pitch": 0.9,
+      "rate": 1,
+      "voiceIndex": 1
+    },
+    "pilot": {
+      "name": "Pilote (radio)",
+      "desc": "Pilote d'hélicoptère de l'armée : net, professionnel, phrasé radio rapide.",
+      "radio": true,
+      "tts": {
+        "voice": "charlie"
+      },
+      "pitch": 0.95,
+      "rate": 1.1,
+      "voiceIndex": 1
+    }
+  },
+  "dialogues": {
+    "m01_wake": [
+      {
+        "speaker": "theo",
+        "text": "Ma tête… Le Marlin. Ils nous ont coulés sans sommation.",
+        "spoken": "[groans] Ma tête… Le Marlin. [angry] Ils nous ont coulés sans sommation."
+      },
+      {
+        "speaker": "theo",
+        "text": "Val ? VAL ! … Rien. Il faut que je retourne à l'épave.",
+        "spoken": "[worried] Val ? [shouts] VAL ! [pause] [quietly] … Rien. [determined] Il faut que je retourne à l'épave."
+      }
+    ],
+    "m01_mara": [
+      {
+        "speaker": "mara",
+        "text": "… quelqu'un m'entend ? Ici Mara, Puerto Viejo. J'ai vu un bateau couler ce matin.",
+        "spoken": "[nervous] … quelqu'un m'entend ? [urgent] Ici Mara, Puerto Viejo. J'ai vu un bateau couler ce matin."
+      },
+      {
+        "speaker": "theo",
+        "text": "Je vous entends. Je suis le capitaine du Marlin. Une journaliste était à bord avec moi.",
+        "spoken": "[relieved] Je vous entends. Je suis le capitaine du Marlin. Une journaliste était à bord avec moi."
+      },
+      {
+        "speaker": "mara",
+        "text": "Les hommes de Vargas ont emmené une femme vers le nord. Si tu veux la revoir, viens au village, à l'est, en longeant la plage.",
+        "spoken": "[serious] Les hommes de Vargas ont emmené une femme vers le nord. Si tu veux la revoir, viens au village, à l'est, en longeant la plage."
+      },
+      {
+        "speaker": "mara",
+        "text": "Et fais attention : il y a des pirates de Vargas sur la plage. Reste dans les buissons.",
+        "spoken": "[warning] Et fais attention : il y a des pirates de Vargas sur la plage. [quietly] Reste dans les buissons."
+      }
+    ],
+    "m01_after": [
+      {
+        "speaker": "mara",
+        "text": "Des coups de feu ? … C'était toi ? Pas mal pour un capitaine de plaisance. Continue vers l'est.",
+        "spoken": "[surprised] Des coups de feu ? … C'était toi ? [chuckles] Pas mal pour un capitaine de plaisance. Continue vers l'est."
+      }
+    ],
+    "m02_intro": [
+      {
+        "speaker": "mara",
+        "text": "Puerto Viejo est tenu par une demi-douzaine de mercenaires. Il y a une alarme près du mât.",
+        "spoken": "[serious] Puerto Viejo est tenu par une demi-douzaine de mercenaires. Il y a une alarme près du mât."
+      },
+      {
+        "speaker": "mara",
+        "text": "S'ils la déclenchent, la moitié de l'île débarque. Coupe-la d'abord, discrètement.",
+        "spoken": "S'ils la déclenchent, la moitié de l'île débarque. [quietly] Coupe-la d'abord, discrètement."
+      }
+    ],
+    "village_free": [
+      {
+        "speaker": "mara",
+        "text": "Ils sont tous tombés ! Les gens sortent de leurs maisons… Viens me voir, ma maison est sur pilotis, au bord du lagon.",
+        "spoken": "[excited] Ils sont tous tombés ! [emotional] Les gens sortent de leurs maisons… [warmly] Viens me voir, ma maison est sur pilotis, au bord du lagon."
+      }
+    ],
+    "mara_meet": [
+      {
+        "speaker": "mara_live",
+        "text": "Alors c'est toi, Théo. Merci… ça faisait deux ans qu'on vivait sous leur botte.",
+        "spoken": "[warmly] Alors c'est toi, Théo. Merci… [sighs] ça faisait deux ans qu'on vivait sous leur botte."
+      },
+      {
+        "speaker": "mara_live",
+        "text": "Ton amie, la journaliste, ils l'ont emmenée au laboratoire de la côte nord. C'est le repaire des scientifiques de Vargas.",
+        "spoken": "[serious] Ton amie, la journaliste, ils l'ont emmenée au laboratoire de la côte nord. C'est le repaire des scientifiques de Vargas."
+      },
+      {
+        "speaker": "mara_live",
+        "text": "Mais d'abord il faut faire tomber leur brouilleur, sur le Cerro Antena. Tant qu'il tourne, personne ne peut appeler à l'aide."
+      },
+      {
+        "speaker": "mara_live",
+        "text": "Prends ces jumelles et le fusil de mon frère. Avec les jumelles (B), tu peux repérer et marquer les ennemis.",
+        "spoken": "[softly] Prends ces jumelles… et le fusil de mon frère. Avec les jumelles, tu peux repérer et marquer les ennemis."
+      }
+    ],
+    "m03_intro": [
+      {
+        "speaker": "mara",
+        "text": "Le Cerro Antena, c'est la colline à l'ouest, avec la grande antenne rouge. Le brouilleur est un groupe électrogène au pied de la tour."
+      }
+    ],
+    "m03_vargas": [
+      {
+        "speaker": "mara",
+        "text": "Le brouillage a cessé ! Je… attends, il y a quelqu'un sur la fréquence.",
+        "spoken": "[excited] Le brouillage a cessé ! Je… [worried] attends, il y a quelqu'un sur la fréquence."
+      },
+      {
+        "speaker": "vargas",
+        "text": "Capitaine Varin. Quel plaisir d'entendre enfin votre voix. Ici le colonel Vargas.",
+        "spoken": "[calm, menacing] Capitaine Varin. [mockingly] Quel plaisir d'entendre enfin votre voix. Ici le colonel Vargas."
+      },
+      {
+        "speaker": "vargas",
+        "text": "Votre amie journaliste pose beaucoup de questions. Elle répondra aux miennes, à présent.",
+        "spoken": "[coldly] Votre amie journaliste pose beaucoup de questions. [menacing] Elle répondra aux miennes, à présent."
+      },
+      {
+        "speaker": "vargas",
+        "text": "Quittez mon île, capitaine. Tant qu'il vous reste des jambes pour nager.",
+        "spoken": "[menacing] Quittez mon île, capitaine. [mischievously] Tant qu'il vous reste des jambes pour nager."
+      },
+      {
+        "speaker": "theo",
+        "text": "Je viens la chercher, Vargas.",
+        "spoken": "[angry, determined] Je viens la chercher, Vargas."
+      }
+    ],
+    "m04_intro": [
+      {
+        "speaker": "mara",
+        "text": "Pour aller au nord, il faut passer l'avant-poste du fleuve, sur la route. Ils y gardent une jeep."
+      }
+    ],
+    "m04_done": [
+      {
+        "speaker": "mara",
+        "text": "La route du nord est ouverte. Le laboratoire est au bout, sur la côte. Attends la nuit pour t'en approcher.",
+        "spoken": "[relieved] La route du nord est ouverte. Le laboratoire est au bout, sur la côte. [serious] Attends la nuit pour t'en approcher."
+      }
+    ],
+    "m05_intro": [
+      {
+        "speaker": "mara",
+        "text": "Le laboratoire est très gardé : des tours, des patrouilles, une alarme. Approche par le sud, je te dirai quand c'est le bon moment.",
+        "spoken": "[serious] Le laboratoire est très gardé : des tours, des patrouilles, une alarme. Approche par le sud, je te dirai quand c'est le bon moment."
+      }
+    ],
+    "m05_night": [
+      {
+        "speaker": "mara",
+        "text": "La nuit est tombée. La porte du labo s'ouvre avec une carte d'accès : les gardes en laissent une dans l'entrepôt, à l'est.",
+        "spoken": "[quietly] La nuit est tombée. La porte du labo s'ouvre avec une carte d'accès : les gardes en laissent une dans l'entrepôt, à l'est."
+      }
+    ],
+    "lab_early": [
+      {
+        "speaker": "mara",
+        "text": "Tu es près du laboratoire ? C'est un nid de frelons. Ne t'y risque pas seul pour l'instant.",
+        "spoken": "[worried] Tu es près du laboratoire ? C'est un nid de frelons. Ne t'y risque pas seul pour l'instant."
+      }
+    ],
+    "val_found": [
+      {
+        "speaker": "val",
+        "text": "Théo ?! J'ai cru que tu étais mort !",
+        "spoken": "[gasps] Théo ?! [emotional] J'ai cru que tu étais mort !"
+      },
+      {
+        "speaker": "val",
+        "text": "Ce n'est pas un labo, c'est une usine : Vargas fabrique des armes chimiques et les vend au plus offrant.",
+        "spoken": "[urgent] Ce n'est pas un labo, c'est une usine : Vargas fabrique des armes chimiques et les vend au plus offrant."
+      },
+      {
+        "speaker": "val",
+        "text": "Il y a un bateau au ponton, au nord. Sors-moi d'ici, je te suis !",
+        "spoken": "Il y a un bateau au ponton, au nord. [urgent] Sors-moi d'ici, je te suis !"
+      }
+    ],
+    "m05_done": [
+      {
+        "speaker": "val",
+        "text": "On a réussi… Je file à Puerto Viejo avec le bateau, Mara saura où me cacher.",
+        "spoken": "[out of breath] On a réussi… [relieved] Je file à Puerto Viejo avec le bateau, Mara saura où me cacher."
+      },
+      {
+        "speaker": "val",
+        "text": "Écoute : la cargaison part demain par avion depuis l'aérodrome. Sans carburant, pas d'avion.",
+        "spoken": "[serious] Écoute : la cargaison part demain par avion depuis l'aérodrome. Sans carburant, pas d'avion."
+      }
+    ],
+    "m06_intro": [
+      {
+        "speaker": "mara",
+        "text": "Valérie est arrivée saine et sauve. L'aérodrome est au centre de l'île, après l'avant-poste. Trois cuves de carburant près du hangar.",
+        "spoken": "[relieved] Valérie est arrivée saine et sauve. [serious] L'aérodrome est au centre de l'île, après l'avant-poste. Trois cuves de carburant près du hangar."
+      }
+    ],
+    "m06_done": [
+      {
+        "speaker": "vargas",
+        "text": "Vous venez de brûler deux millions de dollars, capitaine. Venez donc à la Fortaleza en discuter.",
+        "spoken": "[coldly] Vous venez de brûler deux millions de dollars, capitaine. [sarcastic] Venez donc à la Fortaleza en discuter."
+      },
+      {
+        "speaker": "mara",
+        "text": "Il t'attend, Théo. La Fortaleza est sur le plateau à l'est. Toute l'île compte sur toi.",
+        "spoken": "[worried] Il t'attend, Théo. La Fortaleza est sur le plateau à l'est. [softly] Toute l'île compte sur toi."
+      }
+    ],
+    "m07_intro": [
+      {
+        "speaker": "mara",
+        "text": "Les villageois ont vu des renforts monter au plateau. La porte est au sud. Bonne chance.",
+        "spoken": "Les villageois ont vu des renforts monter au plateau. La porte est au sud. [softly] Bonne chance."
+      }
+    ],
+    "m07_vargas": [
+      {
+        "speaker": "vargas",
+        "text": "Bienvenue à la Fortaleza ! Mes hommes vont vous offrir la visite.",
+        "spoken": "[laughs] Bienvenue à la Fortaleza ! [menacing] Mes hommes vont vous offrir la visite."
+      }
+    ],
+    "m07_call": [
+      {
+        "speaker": "pilot",
+        "text": "Ici Sierra-Quatre, on vous reçoit. Hélicoptère en route vers votre position, posé dans trois minutes.",
+        "spoken": "[professional] Ici Sierra-Quatre, on vous reçoit. Hélicoptère en route vers votre position, posé dans trois minutes."
+      },
+      {
+        "speaker": "mara",
+        "text": "Théo ! Tout le village t'a entendu. Va à l'héliport !",
+        "spoken": "[excited] Théo ! Tout le village t'a entendu. [shouts] Va à l'héliport !"
+      }
+    ],
+    "m07_end": [
+      {
+        "speaker": "val",
+        "text": "Mon article sortira demain. Et pour une fois, il finit bien.",
+        "spoken": "[warmly] Mon article sortira demain. [chuckles] Et pour une fois, il finit bien."
+      },
+      {
+        "speaker": "mara",
+        "text": "Reviens quand tu veux, capitaine. Isla Sombra te doit bien un bateau neuf.",
+        "spoken": "[warmly] Reviens quand tu veux, capitaine. [laughs] Isla Sombra te doit bien un bateau neuf."
+      }
+    ],
+    "vargas_taunt": [
+      {
+        "speaker": "vargas",
+        "text": "Vous libérez mes avant-postes un par un… Très bien. Chaque homme que vous tuez, je le remplace.",
+        "spoken": "[sarcastic] Vous libérez mes avant-postes un par un… Très bien. [coldly] Chaque homme que vous tuez, je le remplace."
+      }
+    ],
+    "abuelo_relics": [
+      {
+        "speaker": "abuelo",
+        "text": "Mon garçon… Nos ancêtres ont caché huit idoles d'or sur l'île : au temple, sur le volcan, sur les îlots…",
+        "spoken": "[slowly] Mon garçon… Nos ancêtres ont caché huit idoles d'or sur l'île : au temple, sur le volcan, sur les îlots…"
+      },
+      {
+        "speaker": "abuelo",
+        "text": "Les hommes de Vargas les pillent. Rapporte-les-moi, et je te donnerai le vieux fusil de chasse de mon père.",
+        "spoken": "[sad] Les hommes de Vargas les pillent. [warmly] Rapporte-les-moi, et je te donnerai le vieux fusil de chasse de mon père."
+      }
+    ],
+    "abuelo_done": [
+      {
+        "speaker": "abuelo",
+        "text": "Les huit idoles ! Les esprits de Sombra te remercient. Ce fusil est à toi.",
+        "spoken": "[excited] Les huit idoles ! [emotional] Les esprits de Sombra te remercient. Ce fusil est à toi."
+      }
+    ],
+    "s02_intro": [
+      {
+        "speaker": "mara",
+        "text": "Pedro, le fermier de la Granja, à l'ouest de la route, est retenu chez lui par des mercenaires. Si tu passes par là…",
+        "spoken": "Pedro, le fermier de la Granja, à l'ouest de la route, est retenu chez lui par des mercenaires. [hesitant] Si tu passes par là…"
+      }
+    ],
+    "pedro_thanks": [
+      {
+        "speaker": "pedro",
+        "text": "Merci, señor ! Prenez la jeep si vous voulez, elle ira plus vite que vos jambes.",
+        "spoken": "[relieved] Merci, señor ! [laughs] Prenez la jeep si vous voulez, elle ira plus vite que vos jambes."
+      }
+    ],
+    "s03_intro": [
+      {
+        "speaker": "mara",
+        "text": "Le phare de l'îlot à l'est est éteint depuis que Vargas l'a pris. Prends le bateau au ponton du village."
+      }
+    ]
+  }
+}

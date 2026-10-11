@@ -1,0 +1,6969 @@
+{
+  "version": 1,
+  "name": "Isla Sombra",
+  "player": {
+    "pos": [
+      -510,
+      0.94,
+      524
+    ],
+    "yaw": 0.8685393952858895
+  },
+  "entities": [
+    {
+      "type": "prop",
+      "asset": "boat_wreck",
+      "pos": [
+        -532,
+        1.198,
+        509
+      ],
+      "rot": [
+        0,
+        35,
+        0
+      ],
+      "scale": 1,
+      "id": "prop"
+    },
+    {
+      "type": "prop",
+      "asset": "crate",
+      "pos": [
+        -521,
+        1.198,
+        507
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_2"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_small",
+      "pos": [
+        -519,
+        1.198,
+        509
+      ],
+      "rot": [
+        0,
+        50,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_3"
+    },
+    {
+      "type": "prop",
+      "asset": "barrel",
+      "pos": [
+        -526,
+        1.198,
+        522
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_4"
+    },
+    {
+      "type": "prop",
+      "asset": "jerrycan",
+      "pos": [
+        -523,
+        1.198,
+        521
+      ],
+      "rot": [
+        0,
+        80,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_5"
+    },
+    {
+      "type": "interactable",
+      "pos": [
+        -520.5,
+        1.198,
+        512.5
+      ],
+      "id": "radio_wreck",
+      "asset": "radio_table",
+      "prompt": "Allumer la radio de bord",
+      "once": true,
+      "range": 2.4,
+      "rot": [
+        0,
+        120,
+        0
+      ]
+    },
+    {
+      "type": "pickup",
+      "item": "weapon_machete",
+      "pos": [
+        -523.5,
+        1.248,
+        511
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "pk_machete"
+    },
+    {
+      "type": "pickup",
+      "item": "medkit",
+      "pos": [
+        -520,
+        1.248,
+        505
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup"
+    },
+    {
+      "id": "mk_wreck",
+      "type": "marker",
+      "pos": [
+        -523,
+        1.198,
+        513
+      ],
+      "label": "Épave du Marlin",
+      "icon": "boat"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        -381.8117333157176,
+        1,
+        561.2385192159766
+      ],
+      "rot": [
+        0,
+        15,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_6"
+    },
+    {
+      "type": "prop",
+      "asset": "campfire",
+      "pos": [
+        -380,
+        1,
+        568
+      ],
+      "rot": [
+        0,
+        15,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_7"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_stack",
+      "pos": [
+        -374.98090217757317,
+        1,
+        563.5493082505177
+      ],
+      "rot": [
+        0,
+        -45,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_8"
+    },
+    {
+      "type": "prop",
+      "asset": "barrel",
+      "pos": [
+        -385.01909782242683,
+        1,
+        572.4506917494823
+      ],
+      "rot": [
+        0,
+        15,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_9"
+    },
+    {
+      "type": "prop",
+      "asset": "log_pile",
+      "pos": [
+        -384.64016044046383,
+        1,
+        566.1374987015429
+      ],
+      "rot": [
+        0,
+        45,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_10"
+    },
+    {
+      "type": "prop",
+      "asset": "canoe",
+      "pos": [
+        -374.7728511152101,
+        1,
+        575.9168753012941
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_11"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "beach_patrol",
+      "team": "merc",
+      "pose": "sit",
+      "pos": [
+        -381.4142135623731,
+        1,
+        570.4494897427833
+      ],
+      "rot": [
+        0,
+        135,
+        0
+      ],
+      "id": "enemy"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "beach_patrol",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -377.4867346145103,
+        1,
+        568.8794868402081
+      ],
+      "rot": [
+        0,
+        -105,
+        0
+      ],
+      "id": "enemy_2"
+    },
+    {
+      "type": "pickup",
+      "item": "weapon_pistol",
+      "pos": [
+        -374.59267360991936,
+        3.0999999999999996,
+        564.9981969899512
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "pk_pistol"
+    },
+    {
+      "type": "pickup",
+      "item": "ammo_pistol",
+      "pos": [
+        -376.46446609406723,
+        1.05,
+        561.876275643042
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_2"
+    },
+    {
+      "id": "mk_beach_camp",
+      "type": "marker",
+      "pos": [
+        -380,
+        1,
+        568
+      ],
+      "label": "Campement de plage",
+      "icon": "none"
+    },
+    {
+      "type": "prop",
+      "asset": "hut_ground",
+      "pos": [
+        -196,
+        2.401,
+        585
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_12"
+    },
+    {
+      "type": "prop",
+      "asset": "hut_ground",
+      "pos": [
+        -145,
+        2.401,
+        584
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_13"
+    },
+    {
+      "type": "prop",
+      "asset": "hut_ground",
+      "pos": [
+        -197,
+        2.401,
+        612
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_14"
+    },
+    {
+      "type": "prop",
+      "asset": "house_wood",
+      "pos": [
+        -146,
+        2.401,
+        612
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_15"
+    },
+    {
+      "type": "prop",
+      "asset": "hut_stilt",
+      "pos": [
+        -175,
+        2.169,
+        652
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_16"
+    },
+    {
+      "type": "prop",
+      "asset": "hut_stilt",
+      "pos": [
+        -200,
+        1.708,
+        648
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_17"
+    },
+    {
+      "type": "prop",
+      "asset": "hut_stilt",
+      "pos": [
+        -150,
+        2.224,
+        649
+      ],
+      "rot": [
+        0,
+        -8,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_18"
+    },
+    {
+      "type": "prop",
+      "asset": "market_stall",
+      "pos": [
+        -176,
+        2.401,
+        598
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_19"
+    },
+    {
+      "type": "prop",
+      "asset": "market_stall",
+      "pos": [
+        -164,
+        2.401,
+        599
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_20"
+    },
+    {
+      "type": "prop",
+      "asset": "table",
+      "pos": [
+        -170,
+        2.401,
+        608
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_21"
+    },
+    {
+      "type": "prop",
+      "asset": "bench",
+      "pos": [
+        -172,
+        2.401,
+        610
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_22"
+    },
+    {
+      "type": "prop",
+      "asset": "bench",
+      "pos": [
+        -168,
+        2.401,
+        606
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_23"
+    },
+    {
+      "type": "prop",
+      "asset": "string_lights",
+      "pos": [
+        -170,
+        2.401,
+        590
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_24"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        -182,
+        2.401,
+        580
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_25"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        -158,
+        2.401,
+        620
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_26"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        -180,
+        2.401,
+        630
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_27"
+    },
+    {
+      "type": "prop",
+      "asset": "crate",
+      "pos": [
+        -160,
+        2.401,
+        595
+      ],
+      "rot": [
+        0,
+        15,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_28"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_small",
+      "pos": [
+        -159,
+        2.401,
+        597
+      ],
+      "rot": [
+        0,
+        40,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_29"
+    },
+    {
+      "type": "prop",
+      "asset": "barrel_stack",
+      "pos": [
+        -182,
+        2.401,
+        605
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_30"
+    },
+    {
+      "type": "prop",
+      "asset": "flagpole",
+      "pos": [
+        -170,
+        2.401,
+        575
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_31"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        -174,
+        2.401,
+        556
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_32"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        -165,
+        2.401,
+        556
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_33"
+    },
+    {
+      "type": "prop",
+      "asset": "watchtower",
+      "pos": [
+        -205,
+        2.401,
+        565
+      ],
+      "rot": [
+        0,
+        45,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_34"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -210,
+        2.401,
+        590
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_35"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -210,
+        2.401,
+        594
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_36"
+    },
+    {
+      "type": "prop",
+      "asset": "hammock",
+      "pos": [
+        -140,
+        2.401,
+        630
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_37"
+    },
+    {
+      "type": "prop",
+      "asset": "sign_post",
+      "pos": [
+        -168,
+        2.401,
+        552
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_38"
+    },
+    {
+      "type": "prop",
+      "asset": "dock",
+      "pos": [
+        -120,
+        0,
+        660
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_39"
+    },
+    {
+      "type": "prop",
+      "asset": "dock",
+      "pos": [
+        -120,
+        0,
+        670
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_40"
+    },
+    {
+      "type": "prop",
+      "asset": "dock_end",
+      "pos": [
+        -120,
+        0,
+        677.5
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_41"
+    },
+    {
+      "type": "prop",
+      "asset": "boat_fishing",
+      "pos": [
+        -114,
+        0,
+        666
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_42"
+    },
+    {
+      "type": "prop",
+      "asset": "boat_fishing",
+      "pos": [
+        -215,
+        0,
+        666
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_43"
+    },
+    {
+      "type": "prop",
+      "asset": "canoe",
+      "pos": [
+        -185,
+        0,
+        664
+      ],
+      "rot": [
+        0,
+        80,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_44"
+    },
+    {
+      "id": "boat_village",
+      "type": "vehicle",
+      "vehicle": "boat",
+      "pos": [
+        -126,
+        0,
+        672
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "alarm",
+      "pos": [
+        -167,
+        2.401,
+        576
+      ],
+      "id": "alarm_village",
+      "outpost": "outpost_village",
+      "rot": [
+        0,
+        180,
+        0
+      ]
+    },
+    {
+      "id": "mk_village",
+      "type": "marker",
+      "pos": [
+        -170,
+        2.401,
+        600
+      ],
+      "label": "Puerto Viejo",
+      "icon": "village"
+    },
+    {
+      "id": "mk_village_edge",
+      "type": "marker",
+      "pos": [
+        -228,
+        6.117,
+        588
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "id": "mk_village_rf",
+      "type": "marker",
+      "pos": [
+        -150,
+        5.451,
+        520
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "id": "path_village",
+      "type": "path",
+      "pos": [
+        -185,
+        2.401,
+        585
+      ],
+      "points": [
+        [
+          -185,
+          2.401,
+          585
+        ],
+        [
+          -155,
+          2.401,
+          585
+        ],
+        [
+          -155,
+          2.401,
+          620
+        ],
+        [
+          -185,
+          2.401,
+          620
+        ]
+      ],
+      "loop": true,
+      "wait": 4
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "village_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -180,
+        2.401,
+        588
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "patrol": "path_village",
+      "id": "enemy_3"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "village_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -156,
+        2.401,
+        602
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "id": "enemy_4"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "village_mercs",
+      "team": "merc",
+      "pose": "sit",
+      "pos": [
+        -188,
+        2.401,
+        606
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "id": "enemy_5"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_shotgun",
+      "group": "village_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -164,
+        2.401,
+        573
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_6"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "village_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -205,
+        8.100999999999999,
+        565
+      ],
+      "rot": [
+        0,
+        200,
+        0
+      ],
+      "id": "enemy_7"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "village_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -168,
+        2.401,
+        560
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_8"
+    },
+    {
+      "id": "outpost_village",
+      "type": "outpost",
+      "name": "Puerto Viejo",
+      "pos": [
+        -170,
+        2.401,
+        600
+      ],
+      "radius": 55,
+      "group": "village_mercs",
+      "alarm": "alarm_village",
+      "reinforcements": [
+        {
+          "archetype": "merc_rifle",
+          "count": 2
+        },
+        {
+          "archetype": "merc_smg",
+          "count": 1
+        }
+      ],
+      "reinforceFrom": "mk_village_rf",
+      "fastTravel": true,
+      "reward": [
+        "ammo_rifle"
+      ]
+    },
+    {
+      "id": "npc_mara",
+      "type": "npc",
+      "name": "Mara",
+      "archetype": "villager",
+      "team": "ally",
+      "calm": true,
+      "pose": "sit",
+      "dialogue": "mara_meet",
+      "pos": [
+        -175,
+        4.069,
+        653
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ]
+    },
+    {
+      "id": "npc_abuelo",
+      "type": "npc",
+      "name": "Abuelo Tomás",
+      "archetype": "villager",
+      "team": "civilian",
+      "calm": true,
+      "pose": "sit",
+      "dialogue": "abuelo_relics",
+      "group": "village_civ",
+      "dormant": true,
+      "pos": [
+        -171,
+        2.401,
+        609
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ]
+    },
+    {
+      "type": "npc",
+      "name": "Villageois",
+      "archetype": "villager",
+      "team": "civilian",
+      "group": "village_civ",
+      "dormant": true,
+      "pose": "talk",
+      "pos": [
+        -178,
+        2.401,
+        600
+      ],
+      "rot": [
+        0,
+        170,
+        0
+      ],
+      "id": "npc"
+    },
+    {
+      "type": "npc",
+      "name": "Villageois",
+      "archetype": "villager",
+      "team": "civilian",
+      "group": "village_civ",
+      "dormant": true,
+      "pose": "stand",
+      "pos": [
+        -161,
+        2.401,
+        614
+      ],
+      "rot": [
+        0,
+        103,
+        0
+      ],
+      "id": "npc_2"
+    },
+    {
+      "type": "npc",
+      "name": "Villageois",
+      "archetype": "villager",
+      "team": "civilian",
+      "group": "village_civ",
+      "dormant": true,
+      "pose": "work",
+      "pos": [
+        -190,
+        2.401,
+        630
+      ],
+      "rot": [
+        0,
+        264,
+        0
+      ],
+      "id": "npc_3"
+    },
+    {
+      "type": "pickup",
+      "item": "intel",
+      "pos": [
+        -146,
+        3.3509999999999995,
+        614
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "intel_village"
+    },
+    {
+      "type": "pickup",
+      "item": "medkit",
+      "pos": [
+        -195,
+        2.4509999999999996,
+        586
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_3"
+    },
+    {
+      "id": "zone_village",
+      "type": "zone",
+      "shape": "sphere",
+      "radius": 70,
+      "pos": [
+        -170,
+        2.401,
+        600
+      ]
+    },
+    {
+      "type": "prop",
+      "asset": "watchtower",
+      "pos": [
+        0.41154273188010304,
+        25.654,
+        30.607695154586736
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_45"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        29.124355652982143,
+        25.654,
+        44.875644347017854
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_46"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        25.320508075688775,
+        25.654,
+        63.46410161513776
+      ],
+      "rot": [
+        0,
+        -120,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_47"
+    },
+    {
+      "type": "prop",
+      "asset": "tarp",
+      "pos": [
+        -0.4641016151377544,
+        25.654,
+        60.124355652982146
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_48"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        -11.660254037844386,
+        25.654,
+        67.51666049839541
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_49"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        3.4282032302755123,
+        25.654,
+        77.38268590217984
+      ],
+      "rot": [
+        0,
+        -20,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_50"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags_round",
+      "pos": [
+        19.052558883257653,
+        25.654,
+        78.32050807568878
+      ],
+      "rot": [
+        0,
+        150,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_51"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_stack",
+      "pos": [
+        9.196152422706632,
+        25.654,
+        63.392304845413264
+      ],
+      "rot": [
+        0,
+        -10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_52"
+    },
+    {
+      "type": "prop",
+      "asset": "ammo_box",
+      "pos": [
+        8.464101615137757,
+        25.654,
+        60.66025403784439
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_53"
+    },
+    {
+      "type": "prop",
+      "asset": "barrel_stack",
+      "pos": [
+        -5.124355652982143,
+        25.654,
+        48.19615242270663
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_54"
+    },
+    {
+      "type": "prop",
+      "asset": "generator",
+      "pos": [
+        34.12435565298214,
+        25.654,
+        36.21539030917347
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_55"
+    },
+    {
+      "type": "prop",
+      "asset": "fuel_tank",
+      "pos": [
+        28.196152422706632,
+        25.654,
+        30.483339501604593
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_56"
+    },
+    {
+      "type": "prop",
+      "asset": "flagpole",
+      "pos": [
+        10,
+        25.654,
+        50
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_57"
+    },
+    {
+      "type": "prop",
+      "asset": "radio_table",
+      "pos": [
+        -2.696152422706631,
+        25.654,
+        59.99038105676658
+      ],
+      "rot": [
+        0,
+        150,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_58"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -1.650635094610971,
+        25.654,
+        20.179491924311225
+      ],
+      "rot": [
+        0,
+        60,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_59"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -3.65063509461097,
+        25.654,
+        23.64359353944898
+      ],
+      "rot": [
+        0,
+        60,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_60"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        43.248711305964285,
+        25.654,
+        48.411542731880104
+      ],
+      "rot": [
+        0,
+        60,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_61"
+    },
+    {
+      "type": "prop",
+      "asset": "sign_post",
+      "pos": [
+        -19.12435565298214,
+        25.653,
+        72.44486372867092
+      ],
+      "rot": [
+        0,
+        130,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_62"
+    },
+    {
+      "type": "explosive",
+      "pos": [
+        36.588457268119896,
+        25.654,
+        39.94744111674235
+      ],
+      "asset": "barrel_explosive",
+      "health": 30,
+      "radius": 6,
+      "damage": 180,
+      "id": "explosive"
+    },
+    {
+      "type": "explosive",
+      "pos": [
+        30.026279441628823,
+        25.654,
+        37.31346652052679
+      ],
+      "asset": "barrel_explosive",
+      "health": 30,
+      "radius": 6,
+      "damage": 180,
+      "id": "explosive_2"
+    },
+    {
+      "type": "explosive",
+      "pos": [
+        41.32050807568877,
+        25.654,
+        35.751288694035715
+      ],
+      "asset": "barrel_explosive",
+      "health": 30,
+      "radius": 6,
+      "damage": 180,
+      "id": "explosive_3"
+    },
+    {
+      "type": "alarm",
+      "pos": [
+        12.267949192431123,
+        25.654,
+        42.07179676972449
+      ],
+      "id": "alarm_river",
+      "outpost": "outpost_river",
+      "rot": [
+        0,
+        60,
+        0
+      ]
+    },
+    {
+      "id": "jeep_river",
+      "type": "vehicle",
+      "vehicle": "jeep",
+      "pos": [
+        -9.392304845413262,
+        25.654,
+        59.588457268119896
+      ],
+      "rot": [
+        0,
+        40,
+        0
+      ]
+    },
+    {
+      "id": "path_river",
+      "type": "path",
+      "pos": [
+        2.6794919243112236,
+        25.654,
+        22.679491924311225
+      ],
+      "points": [
+        [
+          2.68,
+          25.654,
+          22.68
+        ],
+        [
+          39.05,
+          25.654,
+          43.68
+        ],
+        [
+          19.78,
+          25.654,
+          81.05
+        ],
+        [
+          -18.32,
+          25.654,
+          59.05
+        ]
+      ],
+      "loop": true,
+      "wait": 3
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "river_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        2.411542731880103,
+        25.654,
+        27.14359353944898
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "patrol": "path_river",
+      "id": "enemy_9"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "river_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        3.598076211353318,
+        25.654,
+        67.0884572681199
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "id": "enemy_10"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "river_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        19.99038105676658,
+        25.654,
+        62.69615242270663
+      ],
+      "rot": [
+        0,
+        -130,
+        0
+      ],
+      "id": "enemy_11"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_shotgun",
+      "group": "river_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        25.588457268119896,
+        25.654,
+        59
+      ],
+      "rot": [
+        0,
+        50,
+        0
+      ],
+      "id": "enemy_12"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "river_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        0.41154273188010304,
+        31.354,
+        30.607695154586736
+      ],
+      "rot": [
+        0,
+        150,
+        0
+      ],
+      "id": "enemy_13"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_heavy",
+      "group": "river_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        10.267949192431123,
+        25.654,
+        45.53589838486224
+      ],
+      "rot": [
+        0,
+        130,
+        0
+      ],
+      "id": "enemy_14"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "river_mercs",
+      "team": "merc",
+      "pose": "sit",
+      "pos": [
+        27.66025403784439,
+        25.654,
+        39.411542731880104
+      ],
+      "rot": [
+        0,
+        -30,
+        0
+      ],
+      "id": "enemy_15"
+    },
+    {
+      "id": "mk_river",
+      "type": "marker",
+      "pos": [
+        10,
+        25.654,
+        50
+      ],
+      "label": "Avant-poste du Fleuve",
+      "icon": "camp"
+    },
+    {
+      "id": "mk_river_rf",
+      "type": "marker",
+      "pos": [
+        80,
+        13.638,
+        150
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "id": "outpost_river",
+      "type": "outpost",
+      "name": "Avant-poste du Fleuve",
+      "pos": [
+        10,
+        25.654,
+        50
+      ],
+      "radius": 45,
+      "group": "river_mercs",
+      "alarm": "alarm_river",
+      "reinforcements": [
+        {
+          "archetype": "merc_rifle",
+          "count": 2
+        },
+        {
+          "archetype": "merc_smg",
+          "count": 2
+        }
+      ],
+      "reinforceFrom": "mk_river_rf",
+      "fastTravel": true,
+      "reward": [
+        "grenades"
+      ]
+    },
+    {
+      "type": "pickup",
+      "item": "weapon_shotgun",
+      "pos": [
+        7.964101615137756,
+        26.104,
+        61.52627944162883
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "pickup_4"
+    },
+    {
+      "type": "pickup",
+      "item": "ammo_shells",
+      "pos": [
+        10.696152422706632,
+        25.704,
+        60.79422863405995
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_5"
+    },
+    {
+      "type": "pickup",
+      "item": "intel",
+      "pos": [
+        -2.696152422706631,
+        26.554000000000002,
+        59.99038105676658
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "intel_river"
+    },
+    {
+      "type": "pickup",
+      "item": "grenades",
+      "pos": [
+        24.320508075688775,
+        25.704,
+        65.19615242270663
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_6"
+    },
+    {
+      "type": "prop",
+      "asset": "bridge_road",
+      "pos": [
+        -68,
+        15.995000000000001,
+        12
+      ],
+      "rot": [
+        0,
+        -122,
+        0
+      ],
+      "scale": 1,
+      "collide": true,
+      "id": "prop_63"
+    },
+    {
+      "type": "prop",
+      "asset": "radio_tower",
+      "pos": [
+        -470,
+        58.144,
+        -92
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_64"
+    },
+    {
+      "type": "prop",
+      "asset": "shack_tin",
+      "pos": [
+        -459,
+        58.144,
+        -82
+      ],
+      "rot": [
+        0,
+        54,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_65"
+    },
+    {
+      "type": "prop",
+      "asset": "antenna_small",
+      "pos": [
+        -479,
+        58.144,
+        -83
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_66"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        -476,
+        58.144,
+        -76
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_67"
+    },
+    {
+      "type": "prop",
+      "asset": "crate",
+      "pos": [
+        -464,
+        58.144,
+        -99
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_68"
+    },
+    {
+      "type": "prop",
+      "asset": "barrel",
+      "pos": [
+        -462,
+        58.144,
+        -100
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_69"
+    },
+    {
+      "type": "destructible",
+      "pos": [
+        -478,
+        58.144,
+        -96
+      ],
+      "id": "jammer",
+      "asset": "generator",
+      "health": 160,
+      "explode": true,
+      "rot": [
+        0,
+        30,
+        0
+      ]
+    },
+    {
+      "type": "prop",
+      "asset": "satellite_dish",
+      "pos": [
+        -481,
+        58.144,
+        -98
+      ],
+      "rot": [
+        0,
+        120,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_70"
+    },
+    {
+      "type": "interactable",
+      "pos": [
+        -459,
+        58.144,
+        -82
+      ],
+      "id": "radio_antenna",
+      "asset": "radio_table",
+      "prompt": "Émettre sur la fréquence de Mara",
+      "once": true,
+      "range": 2.6,
+      "rot": [
+        0,
+        54,
+        0
+      ]
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "antenna_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -474,
+        58.144,
+        -80
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_16"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "antenna_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -461,
+        58.144,
+        -94
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "id": "enemy_17"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "antenna_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -466,
+        58.144,
+        -78
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_18"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "antenna_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -446,
+        55.506,
+        -68
+      ],
+      "rot": [
+        0,
+        135,
+        0
+      ],
+      "id": "enemy_19"
+    },
+    {
+      "id": "outpost_antenna",
+      "type": "outpost",
+      "name": "Cerro Antena",
+      "pos": [
+        -470,
+        58.144,
+        -90
+      ],
+      "radius": 38,
+      "group": "antenna_mercs",
+      "fastTravel": true,
+      "reinforcements": []
+    },
+    {
+      "id": "mk_antenna",
+      "type": "marker",
+      "pos": [
+        -470,
+        58.144,
+        -90
+      ],
+      "label": "Cerro Antena",
+      "icon": "tower"
+    },
+    {
+      "type": "prop",
+      "asset": "house_wood",
+      "pos": [
+        -345.1764939635064,
+        23.335,
+        154.55261246323934
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_71"
+    },
+    {
+      "type": "prop",
+      "asset": "water_tower",
+      "pos": [
+        -318.6437659451661,
+        23.335,
+        143.78161697049208
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_72"
+    },
+    {
+      "type": "prop",
+      "asset": "log_pile",
+      "pos": [
+        -337.06489821005357,
+        23.335,
+        142.96805315644798
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_73"
+    },
+    {
+      "type": "prop",
+      "asset": "wooden_cart",
+      "pos": [
+        -321.07964890990075,
+        23.335,
+        164.51966109673782
+      ],
+      "rot": [
+        0,
+        70,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_74"
+    },
+    {
+      "type": "prop",
+      "asset": "tire_stack",
+      "pos": [
+        -316.4458251871842,
+        23.335,
+        167.7642993981189
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_75"
+    },
+    {
+      "type": "prop",
+      "asset": "barrel_stack",
+      "pos": [
+        -314.5903723071385,
+        23.335,
+        155.2520136513047
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_76"
+    },
+    {
+      "type": "prop",
+      "asset": "tarp",
+      "pos": [
+        -327.79725076462046,
+        23.335,
+        149.45732975921018
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_77"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -345.8758951515717,
+        23.335,
+        185.1387341196072
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_78"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -341.93666413952286,
+        23.335,
+        184.44414140893946
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_79"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -337.99743312747404,
+        23.335,
+        183.74954869827175
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_80"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -334.05820211542516,
+        23.335,
+        183.05495598760402
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_81"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -330.11897110337634,
+        23.335,
+        182.3603632769363
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_82"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -326.1797400913275,
+        23.335,
+        181.66577056626858
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_83"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -322.2405090792787,
+        23.335,
+        180.97117785560084
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_84"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -301.26933122367785,
+        23.335,
+        173.21168693487957
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_85"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -301.9639239343456,
+        23.335,
+        169.27245592283072
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_86"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -302.6585166450133,
+        23.335,
+        165.3332249107819
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_87"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -303.353109355681,
+        23.335,
+        161.39399389873307
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_88"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wood",
+      "pos": [
+        -304.04770206634873,
+        23.335,
+        157.45476288668422
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_89"
+    },
+    {
+      "type": "alarm",
+      "pos": [
+        -326.86952432459765,
+        23.335,
+        143.2011868858031
+      ],
+      "id": "alarm_farm",
+      "outpost": "outpost_farm",
+      "rot": [
+        0,
+        10,
+        0
+      ]
+    },
+    {
+      "id": "jeep_farm",
+      "type": "vehicle",
+      "vehicle": "jeep",
+      "pos": [
+        -329.88583737402126,
+        23.335,
+        172.16498939148036
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ]
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "farm_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -335.56155016273937,
+        23.335,
+        163.01150457202598
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "id": "enemy_20"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "farm_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -331.44867097302364,
+        23.335,
+        163.30171961437048
+      ],
+      "rot": [
+        0,
+        -80,
+        0
+      ],
+      "id": "enemy_21"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "farm_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -317.94917323449835,
+        23.335,
+        147.7208479825409
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "id": "enemy_22"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_shotgun",
+      "group": "farm_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -342.74541947616933,
+        23.335,
+        168.33992100541028
+      ],
+      "rot": [
+        0,
+        210,
+        0
+      ],
+      "id": "enemy_23"
+    },
+    {
+      "id": "path_farm",
+      "type": "path",
+      "pos": [
+        -357.80294233629934,
+        23.335,
+        140.53217019171333
+      ],
+      "points": [
+        [
+          -357.8,
+          23.335,
+          140.53
+        ],
+        [
+          -310.53,
+          23.335,
+          132.2
+        ],
+        [
+          -302.2,
+          23.335,
+          179.47
+        ],
+        [
+          -349.47,
+          23.335,
+          187.8
+        ]
+      ],
+      "loop": true,
+      "wait": 3
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "farm_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -357.1083496256316,
+        23.335,
+        144.47140120376216
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "patrol": "path_farm",
+      "id": "enemy_24"
+    },
+    {
+      "id": "outpost_farm",
+      "type": "outpost",
+      "name": "La Granja",
+      "pos": [
+        -330,
+        23.335,
+        160
+      ],
+      "radius": 45,
+      "group": "farm_mercs",
+      "alarm": "alarm_farm",
+      "reinforcements": [
+        {
+          "archetype": "merc_rifle",
+          "count": 2
+        }
+      ],
+      "fastTravel": true,
+      "reward": [
+        "medkit"
+      ]
+    },
+    {
+      "id": "npc_pedro",
+      "type": "npc",
+      "name": "Pedro",
+      "archetype": "villager",
+      "team": "civilian",
+      "calm": true,
+      "pose": "work",
+      "dialogue": "pedro_thanks",
+      "group": "farm_civ",
+      "dormant": true,
+      "pos": [
+        -339.6149438007669,
+        23.335,
+        151.54110789121336
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "pickup",
+      "item": "intel",
+      "pos": [
+        -344.82919760817254,
+        24.285,
+        156.52222796926375
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "intel_farm"
+    },
+    {
+      "id": "mk_farm",
+      "type": "marker",
+      "pos": [
+        -330,
+        23.335,
+        160
+      ],
+      "label": "La Granja",
+      "icon": "village"
+    },
+    {
+      "type": "prop",
+      "asset": "lab_building",
+      "pos": [
+        -430,
+        3,
+        -470
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_90"
+    },
+    {
+      "type": "prop",
+      "asset": "warehouse",
+      "pos": [
+        -395,
+        3,
+        -485
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_91"
+    },
+    {
+      "type": "prop",
+      "asset": "helipad",
+      "pos": [
+        -468,
+        3,
+        -488
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_92"
+    },
+    {
+      "type": "prop",
+      "asset": "container",
+      "pos": [
+        -402,
+        3,
+        -448
+      ],
+      "rot": [
+        0,
+        10,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_93"
+    },
+    {
+      "type": "prop",
+      "asset": "container",
+      "pos": [
+        -397,
+        3,
+        -444
+      ],
+      "rot": [
+        0,
+        80,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_94"
+    },
+    {
+      "type": "prop",
+      "asset": "container",
+      "pos": [
+        -406,
+        3,
+        -442
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_95"
+    },
+    {
+      "type": "prop",
+      "asset": "guard_tower",
+      "pos": [
+        -475,
+        3,
+        -445
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_96"
+    },
+    {
+      "type": "prop",
+      "asset": "guard_tower",
+      "pos": [
+        -385,
+        3,
+        -505
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_97"
+    },
+    {
+      "type": "prop",
+      "asset": "satellite_dish",
+      "pos": [
+        -444,
+        3,
+        -476
+      ],
+      "rot": [
+        0,
+        200,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_98"
+    },
+    {
+      "type": "prop",
+      "asset": "generator",
+      "pos": [
+        -410,
+        3,
+        -468
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_99"
+    },
+    {
+      "type": "prop",
+      "asset": "fuel_tank",
+      "pos": [
+        -408,
+        3,
+        -462
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_100"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        -440,
+        3,
+        -448
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_101"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        -420,
+        3,
+        -448
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_102"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        -460,
+        3,
+        -470
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_103"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        -436,
+        3,
+        -430
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_104"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        -424,
+        3,
+        -430
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_105"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_stack",
+      "pos": [
+        -390,
+        3,
+        -475
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_106"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -484,
+        -3.712,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_107"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -408,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_108"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -480,
+        -1.623,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_109"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -404,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_110"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -476,
+        1.381,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_111"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -400,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_112"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -472,
+        2.918,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_113"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -396,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_114"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -468,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_115"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -392,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_116"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -464,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_117"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -388,
+        3.039,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_118"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -460,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_119"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -384,
+        3.673,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_120"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -456,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_121"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -380,
+        4.856,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_122"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -452,
+        3,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_123"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -376,
+        6.148,
+        -426
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_124"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        -3.374,
+        -430
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_125"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        5.241,
+        -430
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_126"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        -2.233,
+        -434
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_127"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        4.233,
+        -434
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_128"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        -0.307,
+        -438
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_129"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3.525,
+        -438
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_130"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        1.673,
+        -442
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_131"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3.163,
+        -442
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_132"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        2.821,
+        -446
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_133"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3.023,
+        -446
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_134"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -450
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_135"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -450
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_136"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -454
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_137"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -454
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_138"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -458
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_139"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -458
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_140"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -462
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_141"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -462
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_142"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -466
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_143"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -466
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_144"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -470
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_145"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -470
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_146"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -474
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_147"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -474
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_148"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -478
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_149"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -478
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_150"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -482
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_151"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -482
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_152"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -486
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_153"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -486
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_154"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        3,
+        -490
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_155"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3,
+        -490
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_156"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        2.899,
+        -494
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_157"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3.016,
+        -494
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_158"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -486,
+        2.284,
+        -498
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_159"
+    },
+    {
+      "type": "prop",
+      "asset": "fence_wire",
+      "pos": [
+        -374,
+        3.058,
+        -498
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_160"
+    },
+    {
+      "type": "prop",
+      "asset": "dock",
+      "pos": [
+        -430,
+        0,
+        -530
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_161"
+    },
+    {
+      "type": "prop",
+      "asset": "dock",
+      "pos": [
+        -430,
+        0,
+        -540
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_162"
+    },
+    {
+      "type": "prop",
+      "asset": "dock_end",
+      "pos": [
+        -430,
+        0,
+        -547.5
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_163"
+    },
+    {
+      "id": "boat_lab",
+      "type": "vehicle",
+      "vehicle": "boat",
+      "pos": [
+        -424,
+        0,
+        -542
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "mk_lab_boat",
+      "type": "marker",
+      "pos": [
+        -430,
+        3,
+        -528
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "id": "mk_lab_approach",
+      "type": "marker",
+      "pos": [
+        -430,
+        4.568,
+        -400
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "id": "mk_lab_rf",
+      "type": "marker",
+      "pos": [
+        -370,
+        8.374,
+        -420
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "type": "alarm",
+      "pos": [
+        -448,
+        3,
+        -458
+      ],
+      "id": "alarm_lab",
+      "outpost": "outpost_lab",
+      "rot": [
+        0,
+        180,
+        0
+      ]
+    },
+    {
+      "type": "interactable",
+      "pos": [
+        -424,
+        3,
+        -459.5
+      ],
+      "id": "lab_door",
+      "asset": "radio_table",
+      "prompt": "Ouvrir la porte du laboratoire",
+      "requires": "key_card",
+      "once": true,
+      "range": 2.6,
+      "rot": [
+        0,
+        180,
+        0
+      ]
+    },
+    {
+      "type": "pickup",
+      "item": "key_card",
+      "pos": [
+        -394,
+        3.9499999999999997,
+        -482
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "pk_keycard"
+    },
+    {
+      "type": "prop",
+      "asset": "table",
+      "pos": [
+        -394,
+        3,
+        -482
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_164"
+    },
+    {
+      "id": "npc_val",
+      "type": "npc",
+      "name": "Valérie",
+      "archetype": "scientist",
+      "team": "ally",
+      "calm": true,
+      "pose": "sit",
+      "dialogue": "val_found",
+      "group": "val",
+      "pos": [
+        -430,
+        3.2,
+        -474
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "talkIf": {
+        "objectiveActive": {
+          "mission": "m05",
+          "id": "val"
+        }
+      }
+    },
+    {
+      "id": "path_lab_a",
+      "type": "path",
+      "pos": [
+        -460,
+        3,
+        -435
+      ],
+      "points": [
+        [
+          -460,
+          3,
+          -435
+        ],
+        [
+          -400,
+          3,
+          -435
+        ],
+        [
+          -400,
+          3,
+          -500
+        ],
+        [
+          -460,
+          3,
+          -500
+        ]
+      ],
+      "loop": true,
+      "wait": 3
+    },
+    {
+      "id": "path_lab_b",
+      "type": "path",
+      "pos": [
+        -478,
+        3,
+        -440
+      ],
+      "points": [
+        [
+          -478,
+          3,
+          -440
+        ],
+        [
+          -478,
+          2.132,
+          -510
+        ],
+        [
+          -430,
+          3,
+          -518
+        ],
+        [
+          -382,
+          2.619,
+          -510
+        ],
+        [
+          -382,
+          3,
+          -440
+        ]
+      ],
+      "loop": false,
+      "wait": 3
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -460,
+        3,
+        -435
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "patrol": "path_lab_a",
+      "id": "enemy_25"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -400,
+        3,
+        -500
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "patrol": "path_lab_a",
+      "id": "enemy_26"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -478,
+        3,
+        -450
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "patrol": "path_lab_b",
+      "id": "enemy_27"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_shotgun",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -426,
+        3,
+        -456
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_28"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_heavy",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -434,
+        3,
+        -456
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_29"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -475,
+        11.3,
+        -445
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_30"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -385,
+        11.3,
+        -505
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "id": "enemy_31"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -396,
+        3,
+        -476
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "id": "enemy_32"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -399,
+        3,
+        -478
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "id": "enemy_33"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "lab_guards",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -466,
+        3,
+        -482
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_34"
+    },
+    {
+      "id": "outpost_lab",
+      "type": "outpost",
+      "name": "Laboratoire",
+      "pos": [
+        -430,
+        3,
+        -470
+      ],
+      "radius": 60,
+      "group": "lab_guards",
+      "alarm": "alarm_lab",
+      "reinforcements": [
+        {
+          "archetype": "merc_rifle",
+          "count": 3
+        },
+        {
+          "archetype": "merc_heavy",
+          "count": 1
+        }
+      ],
+      "reinforceFrom": "mk_lab_rf",
+      "fastTravel": true
+    },
+    {
+      "type": "pickup",
+      "item": "intel",
+      "pos": [
+        -436,
+        3.9499999999999997,
+        -468
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "intel_lab"
+    },
+    {
+      "type": "pickup",
+      "item": "medkit",
+      "pos": [
+        -420,
+        3.3499999999999996,
+        -468
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_7"
+    },
+    {
+      "type": "pickup",
+      "item": "weapon_sniper",
+      "pos": [
+        -392,
+        3.3499999999999996,
+        -484
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "pickup_8"
+    },
+    {
+      "id": "mk_lab",
+      "type": "marker",
+      "pos": [
+        -430,
+        3,
+        -470
+      ],
+      "label": "Laboratoire",
+      "icon": "objective"
+    },
+    {
+      "id": "zone_lab",
+      "type": "zone",
+      "shape": "sphere",
+      "radius": 110,
+      "pos": [
+        -430,
+        3,
+        -470
+      ]
+    },
+    {
+      "type": "prop",
+      "asset": "hangar",
+      "pos": [
+        300,
+        20.848,
+        256
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_165"
+    },
+    {
+      "type": "prop",
+      "asset": "watchtower",
+      "pos": [
+        268,
+        21.409,
+        234
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_166"
+    },
+    {
+      "type": "prop",
+      "asset": "container",
+      "pos": [
+        322,
+        20.852,
+        268
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_167"
+    },
+    {
+      "type": "prop",
+      "asset": "container",
+      "pos": [
+        326,
+        20.86,
+        262
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_168"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_stack",
+      "pos": [
+        282,
+        20.848,
+        262
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_169"
+    },
+    {
+      "type": "prop",
+      "asset": "truck_body",
+      "pos": [
+        286,
+        20.848,
+        244
+      ],
+      "rot": [
+        0,
+        70,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_170"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags_round",
+      "pos": [
+        310,
+        20.848,
+        232
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_171"
+    },
+    {
+      "type": "prop",
+      "asset": "gas_pump",
+      "pos": [
+        318,
+        20.848,
+        242
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_172"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        276,
+        20.848,
+        244
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_173"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        324,
+        20.848,
+        244
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_174"
+    },
+    {
+      "type": "prop",
+      "asset": "oil_drum_rack",
+      "pos": [
+        330,
+        21.125,
+        246
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_175"
+    },
+    {
+      "type": "destructible",
+      "pos": [
+        318,
+        20.848,
+        238
+      ],
+      "id": "fuel_1",
+      "asset": "fuel_tank",
+      "health": 120,
+      "explode": true,
+      "rot": [
+        0,
+        90,
+        0
+      ]
+    },
+    {
+      "type": "destructible",
+      "pos": [
+        323,
+        20.848,
+        238
+      ],
+      "id": "fuel_2",
+      "asset": "fuel_tank",
+      "health": 120,
+      "explode": true,
+      "rot": [
+        0,
+        90,
+        0
+      ]
+    },
+    {
+      "type": "destructible",
+      "pos": [
+        328,
+        20.922,
+        238
+      ],
+      "id": "fuel_3",
+      "asset": "fuel_tank",
+      "health": 120,
+      "explode": true,
+      "rot": [
+        0,
+        90,
+        0
+      ]
+    },
+    {
+      "type": "alarm",
+      "pos": [
+        294,
+        20.848,
+        240
+      ],
+      "id": "alarm_airfield",
+      "outpost": "outpost_airfield",
+      "rot": [
+        0,
+        180,
+        0
+      ]
+    },
+    {
+      "id": "path_air",
+      "type": "path",
+      "pos": [
+        160,
+        21.798,
+        220
+      ],
+      "points": [
+        [
+          160,
+          21.798,
+          220
+        ],
+        [
+          460,
+          21.798,
+          202
+        ]
+      ],
+      "loop": false,
+      "wait": 6
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "airfield_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        240,
+        21.798,
+        218
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "patrol": "path_air",
+      "id": "enemy_35"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "airfield_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        304,
+        20.848,
+        244
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "id": "enemy_36"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "airfield_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        307,
+        20.848,
+        244
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "id": "enemy_37"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rocket",
+      "group": "airfield_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        310,
+        20.848,
+        232
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_38"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "airfield_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        268,
+        27.108999999999998,
+        234
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_39"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_heavy",
+      "group": "airfield_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        322,
+        20.848,
+        252
+      ],
+      "rot": [
+        0,
+        200,
+        0
+      ],
+      "id": "enemy_40"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "airfield_mercs",
+      "team": "merc",
+      "pose": "work",
+      "pos": [
+        290,
+        20.848,
+        270
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_41"
+    },
+    {
+      "id": "outpost_airfield",
+      "type": "outpost",
+      "name": "Aérodrome",
+      "pos": [
+        300,
+        20.848,
+        250
+      ],
+      "radius": 60,
+      "group": "airfield_mercs",
+      "alarm": "alarm_airfield",
+      "reinforcements": [
+        {
+          "archetype": "merc_rifle",
+          "count": 2
+        },
+        {
+          "archetype": "merc_rocket",
+          "count": 1
+        }
+      ],
+      "fastTravel": true,
+      "reward": [
+        "ammo_rocket"
+      ]
+    },
+    {
+      "type": "pickup",
+      "item": "intel",
+      "pos": [
+        282,
+        22.998,
+        264
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "intel_airfield"
+    },
+    {
+      "type": "pickup",
+      "item": "weapon_rifle_m4",
+      "pos": [
+        296,
+        20.898,
+        264
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "pickup_9"
+    },
+    {
+      "id": "mk_airfield",
+      "type": "marker",
+      "pos": [
+        300,
+        20.848,
+        250
+      ],
+      "label": "Aérodrome",
+      "icon": "camp"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        500,
+        62,
+        -65
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_176"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        510,
+        62,
+        -65
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_177"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        520,
+        62,
+        -65
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_178"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        530,
+        62,
+        -65
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_179"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        540,
+        62,
+        -65
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_180"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        545,
+        62,
+        -60
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_181"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        495,
+        62,
+        -60
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_182"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        545,
+        62,
+        -50
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_183"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        495,
+        62,
+        -50
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_184"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        545,
+        62,
+        -40
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_185"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        495,
+        62,
+        -40
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_186"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        545,
+        62,
+        -30
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_187"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        495,
+        62,
+        -30
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_188"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        545,
+        62,
+        -20
+      ],
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_189"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        495,
+        62,
+        -20
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_190"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        500,
+        62,
+        -15
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_191"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        509,
+        62,
+        -15
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_192"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        531,
+        62,
+        -15
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_193"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_wall",
+      "pos": [
+        540,
+        62,
+        -15
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_194"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_gate",
+      "pos": [
+        520,
+        62,
+        -15
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_195"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_tower",
+      "pos": [
+        495,
+        62,
+        -65
+      ],
+      "rot": [
+        0,
+        45,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_196"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_tower",
+      "pos": [
+        545,
+        62,
+        -65
+      ],
+      "rot": [
+        0,
+        315,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_197"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_tower",
+      "pos": [
+        495,
+        62,
+        -15
+      ],
+      "rot": [
+        0,
+        135,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_198"
+    },
+    {
+      "type": "prop",
+      "asset": "fort_tower",
+      "pos": [
+        545,
+        62,
+        -15
+      ],
+      "rot": [
+        0,
+        225,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_199"
+    },
+    {
+      "type": "prop",
+      "asset": "bunker",
+      "pos": [
+        520,
+        62,
+        -52
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_200"
+    },
+    {
+      "type": "prop",
+      "asset": "guard_tower",
+      "pos": [
+        534,
+        62,
+        -32
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_201"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        506,
+        62,
+        -36
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_202"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        506,
+        62,
+        -26
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_203"
+    },
+    {
+      "type": "prop",
+      "asset": "helipad",
+      "pos": [
+        532,
+        62,
+        -50
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_204"
+    },
+    {
+      "type": "prop",
+      "asset": "flagpole",
+      "pos": [
+        520,
+        62,
+        -36
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_205"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_stack",
+      "pos": [
+        512,
+        62,
+        -22
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_206"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags_round",
+      "pos": [
+        520,
+        62,
+        -22
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_207"
+    },
+    {
+      "type": "prop",
+      "asset": "generator",
+      "pos": [
+        538,
+        62,
+        -22
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_208"
+    },
+    {
+      "type": "prop",
+      "asset": "container",
+      "pos": [
+        502,
+        62,
+        -54
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_209"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        514,
+        62,
+        -30
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_210"
+    },
+    {
+      "type": "prop",
+      "asset": "lamp_post",
+      "pos": [
+        526,
+        62,
+        -30
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_211"
+    },
+    {
+      "type": "interactable",
+      "pos": [
+        523,
+        62,
+        -56
+      ],
+      "id": "radio_fort",
+      "asset": "radio_table",
+      "prompt": "Appeler les secours",
+      "once": true,
+      "range": 2.6,
+      "rot": [
+        0,
+        180,
+        0
+      ]
+    },
+    {
+      "type": "alarm",
+      "pos": [
+        526,
+        62,
+        -20
+      ],
+      "id": "alarm_fort",
+      "outpost": "outpost_fort",
+      "rot": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "type": "explosive",
+      "pos": [
+        536,
+        62,
+        -24
+      ],
+      "asset": "barrel_explosive",
+      "health": 30,
+      "radius": 6,
+      "damage": 180,
+      "id": "explosive_4"
+    },
+    {
+      "type": "explosive",
+      "pos": [
+        538,
+        62,
+        -27
+      ],
+      "asset": "barrel_explosive",
+      "health": 30,
+      "radius": 6,
+      "damage": 180,
+      "id": "explosive_5"
+    },
+    {
+      "type": "explosive",
+      "pos": [
+        504,
+        62,
+        -50
+      ],
+      "asset": "barrel_explosive",
+      "health": 30,
+      "radius": 6,
+      "damage": 180,
+      "id": "explosive_6"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        514,
+        62,
+        -26
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_42"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        528,
+        62,
+        -26
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_43"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_heavy",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        520,
+        62,
+        -32
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_44"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_heavy",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        510,
+        62,
+        -44
+      ],
+      "rot": [
+        0,
+        160,
+        0
+      ],
+      "id": "enemy_45"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_shotgun",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        524,
+        62,
+        -46
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_46"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rocket",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        508,
+        62,
+        -20
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_47"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        495,
+        68.1,
+        -15
+      ],
+      "rot": [
+        0,
+        160,
+        0
+      ],
+      "id": "enemy_48"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        545,
+        68.1,
+        -15
+      ],
+      "rot": [
+        0,
+        200,
+        0
+      ],
+      "id": "enemy_49"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        534,
+        70.3,
+        -32
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_50"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        516,
+        62,
+        -7
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_51"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        525,
+        62,
+        -7
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_52"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "fort_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        532,
+        62,
+        -44
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_53"
+    },
+    {
+      "type": "enemy",
+      "archetype": "boss_vargas",
+      "group": "fort_boss",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        520,
+        62,
+        -46
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "boss_vargas"
+    },
+    {
+      "id": "outpost_fort",
+      "type": "outpost",
+      "name": "La Fortaleza",
+      "pos": [
+        520,
+        62,
+        -40
+      ],
+      "radius": 50,
+      "group": "fort_mercs",
+      "alarm": "alarm_fort",
+      "reinforcements": [
+        {
+          "archetype": "merc_rifle",
+          "count": 3
+        },
+        {
+          "archetype": "merc_heavy",
+          "count": 1
+        }
+      ],
+      "fastTravel": false
+    },
+    {
+      "id": "mk_fort",
+      "type": "marker",
+      "pos": [
+        520,
+        62,
+        -40
+      ],
+      "label": "La Fortaleza",
+      "icon": "objective"
+    },
+    {
+      "id": "mk_fort_gate",
+      "type": "marker",
+      "pos": [
+        520,
+        62,
+        -1
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "id": "mk_helipad",
+      "type": "marker",
+      "pos": [
+        532,
+        62,
+        -50
+      ],
+      "label": null,
+      "icon": "none"
+    },
+    {
+      "type": "pickup",
+      "item": "armor",
+      "pos": [
+        512,
+        64.14999999999999,
+        -22
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_10"
+    },
+    {
+      "type": "pickup",
+      "item": "ammo_rifle",
+      "pos": [
+        514,
+        64.14999999999999,
+        -22
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_11"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        500,
+        62,
+        10
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_212"
+    },
+    {
+      "type": "prop",
+      "asset": "watchtower",
+      "pos": [
+        510,
+        62,
+        16
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_213"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "fort_approach",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        498,
+        62,
+        8
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_54"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "fort_approach",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        503,
+        62,
+        9
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_55"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "fort_approach",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        510,
+        67.7,
+        16
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_56"
+    },
+    {
+      "type": "prop",
+      "asset": "lighthouse",
+      "pos": [
+        800,
+        11.14,
+        350
+      ],
+      "rot": [
+        0,
+        200,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_214"
+    },
+    {
+      "type": "prop",
+      "asset": "shack_tin",
+      "pos": [
+        790,
+        11.14,
+        358
+      ],
+      "rot": [
+        0,
+        70,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_215"
+    },
+    {
+      "type": "prop",
+      "asset": "crate",
+      "pos": [
+        807,
+        11.14,
+        356
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_216"
+    },
+    {
+      "type": "prop",
+      "asset": "barrel",
+      "pos": [
+        808,
+        11.14,
+        354
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_217"
+    },
+    {
+      "type": "prop",
+      "asset": "sandbags",
+      "pos": [
+        796,
+        11.14,
+        364
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_218"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "lighthouse_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        794,
+        11.14,
+        360
+      ],
+      "rot": [
+        0,
+        200,
+        0
+      ],
+      "id": "enemy_57"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "lighthouse_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        806,
+        11.14,
+        358
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_58"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_sniper",
+      "group": "lighthouse_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        812,
+        11.14,
+        344
+      ],
+      "rot": [
+        0,
+        250,
+        0
+      ],
+      "id": "enemy_59"
+    },
+    {
+      "id": "outpost_lighthouse",
+      "type": "outpost",
+      "name": "Le Phare",
+      "pos": [
+        800,
+        11.14,
+        350
+      ],
+      "radius": 30,
+      "group": "lighthouse_mercs",
+      "fastTravel": true,
+      "reward": [
+        "armor"
+      ]
+    },
+    {
+      "id": "mk_lighthouse",
+      "type": "marker",
+      "pos": [
+        800,
+        11.14,
+        350
+      ],
+      "label": "Le Phare",
+      "icon": "tower"
+    },
+    {
+      "type": "prop",
+      "asset": "temple",
+      "pos": [
+        -250,
+        21.553,
+        -392
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_219"
+    },
+    {
+      "type": "prop",
+      "asset": "ruin_arch",
+      "pos": [
+        -250,
+        21.553,
+        -364
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_220"
+    },
+    {
+      "type": "prop",
+      "asset": "ruin_pillar",
+      "pos": [
+        -264,
+        21.553,
+        -372
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_221"
+    },
+    {
+      "type": "prop",
+      "asset": "ruin_pillar",
+      "pos": [
+        -236,
+        21.553,
+        -372
+      ],
+      "rot": [
+        0,
+        20,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_222"
+    },
+    {
+      "type": "prop",
+      "asset": "ruin_wall",
+      "pos": [
+        -270,
+        21.553,
+        -386
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_223"
+    },
+    {
+      "type": "prop",
+      "asset": "ruin_wall",
+      "pos": [
+        -229,
+        21.553,
+        -396
+      ],
+      "rot": [
+        0,
+        -80,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_224"
+    },
+    {
+      "type": "prop",
+      "asset": "ruin_pillar",
+      "pos": [
+        -268,
+        21.553,
+        -408
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_225"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        -232,
+        21.553,
+        -374
+      ],
+      "rot": [
+        0,
+        -120,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_226"
+    },
+    {
+      "type": "prop",
+      "asset": "campfire",
+      "pos": [
+        -240,
+        21.553,
+        -370
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_227"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_stack",
+      "pos": [
+        -228,
+        21.553,
+        -382
+      ],
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_228"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "temple_mercs",
+      "team": "merc",
+      "pose": "sit",
+      "pos": [
+        -242,
+        21.553,
+        -368
+      ],
+      "rot": [
+        0,
+        60,
+        0
+      ],
+      "id": "enemy_60"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "temple_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        -238,
+        21.553,
+        -367
+      ],
+      "rot": [
+        0,
+        -60,
+        0
+      ],
+      "id": "enemy_61"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_shotgun",
+      "group": "temple_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -260,
+        21.553,
+        -370
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_62"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "temple_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        -250,
+        30.753,
+        -394
+      ],
+      "rot": [
+        0,
+        180,
+        0
+      ],
+      "id": "enemy_63"
+    },
+    {
+      "id": "outpost_temple",
+      "type": "outpost",
+      "name": "Temple de Sombra",
+      "pos": [
+        -250,
+        21.553,
+        -390
+      ],
+      "radius": 38,
+      "group": "temple_mercs",
+      "fastTravel": true,
+      "reward": [
+        "grenades"
+      ]
+    },
+    {
+      "id": "mk_temple",
+      "type": "marker",
+      "pos": [
+        -250,
+        21.553,
+        -390
+      ],
+      "label": "Temple de Sombra",
+      "icon": "cave"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        390.2138281332626,
+        13,
+        347.9430993717057
+      ],
+      "rot": [
+        0,
+        55,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_229"
+    },
+    {
+      "type": "prop",
+      "asset": "tent",
+      "pos": [
+        403.8695162023676,
+        13,
+        339.36859160978116
+      ],
+      "rot": [
+        0,
+        -5,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_230"
+    },
+    {
+      "type": "prop",
+      "asset": "tarp",
+      "pos": [
+        402.53570957044417,
+        13,
+        355.4378467222199
+      ],
+      "rot": [
+        0,
+        25,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_231"
+    },
+    {
+      "type": "prop",
+      "asset": "campfire",
+      "pos": [
+        399.5773817382593,
+        13,
+        349.09369221296333
+      ],
+      "rot": [
+        0,
+        25,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_232"
+    },
+    {
+      "type": "prop",
+      "asset": "container",
+      "pos": [
+        416.0692551124387,
+        13,
+        351.33380663192344
+      ],
+      "rot": [
+        0,
+        125,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_233"
+    },
+    {
+      "type": "prop",
+      "asset": "crate_stack",
+      "pos": [
+        392.50525264948584,
+        13,
+        362.3218814371816
+      ],
+      "rot": [
+        0,
+        25,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_234"
+    },
+    {
+      "type": "prop",
+      "asset": "hammock",
+      "pos": [
+        382.2402718405985,
+        13,
+        345.04096221993
+      ],
+      "rot": [
+        0,
+        115,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_235"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "loma_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        397.70369490063075,
+        13,
+        352.17416257225875
+      ],
+      "rot": [
+        0,
+        115,
+        0
+      ],
+      "id": "enemy_64"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "loma_mercs",
+      "team": "merc",
+      "pose": "talk",
+      "pos": [
+        402.71892336110994,
+        13,
+        348.7321452147779
+      ],
+      "rot": [
+        0,
+        -65,
+        0
+      ],
+      "id": "enemy_65"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rocket",
+      "group": "loma_mercs",
+      "team": "merc",
+      "pose": "stand",
+      "pos": [
+        410.7535509173293,
+        13,
+        349.3990485307396
+      ],
+      "rot": [
+        0,
+        25,
+        0
+      ],
+      "id": "enemy_66"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "loma_mercs",
+      "team": "merc",
+      "pose": "sit",
+      "pos": [
+        385.0202664652637,
+        13,
+        341.5378735988939
+      ],
+      "rot": [
+        0,
+        205,
+        0
+      ],
+      "id": "enemy_67"
+    },
+    {
+      "id": "outpost_loma",
+      "type": "outpost",
+      "name": "Camp de la Loma",
+      "pos": [
+        400,
+        13,
+        350
+      ],
+      "radius": 32,
+      "group": "loma_mercs",
+      "fastTravel": true,
+      "reward": [
+        "ammo_rocket"
+      ]
+    },
+    {
+      "type": "pickup",
+      "item": "weapon_rpg",
+      "pos": [
+        403.8646356192216,
+        13.450000000000001,
+        355.92153624751586
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "pickup_12"
+    },
+    {
+      "type": "pickup",
+      "item": "intel",
+      "pos": [
+        414.3787820654759,
+        15.75,
+        347.7085754837768
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "intel_loma"
+    },
+    {
+      "id": "mk_loma",
+      "type": "marker",
+      "pos": [
+        400,
+        13,
+        350
+      ],
+      "label": "Camp de la Loma",
+      "icon": "camp"
+    },
+    {
+      "id": "path_road_1",
+      "type": "path",
+      "pos": [
+        -160,
+        12.424,
+        470
+      ],
+      "points": [
+        [
+          -160,
+          12.424,
+          470
+        ],
+        [
+          -140,
+          22.825,
+          330
+        ],
+        [
+          -80,
+          15.595,
+          200
+        ],
+        [
+          -20,
+          28.401,
+          110
+        ]
+      ],
+      "loop": false,
+      "wait": 5
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "road_patrol_1",
+      "team": "merc",
+      "patrol": "path_road_1",
+      "pos": [
+        -140,
+        22.825,
+        330
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_68"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_smg",
+      "group": "road_patrol_1",
+      "team": "merc",
+      "patrol": "path_road_1",
+      "pos": [
+        -142,
+        22.669,
+        334
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_69"
+    },
+    {
+      "id": "path_road_2",
+      "type": "path",
+      "pos": [
+        -120,
+        20.759,
+        -20
+      ],
+      "points": [
+        [
+          -120,
+          20.759,
+          -20
+        ],
+        [
+          -300,
+          22.082,
+          -60
+        ],
+        [
+          -420,
+          51.696,
+          -100
+        ]
+      ],
+      "loop": false,
+      "wait": 5
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_rifle",
+      "group": "road_patrol_2",
+      "team": "merc",
+      "patrol": "path_road_2",
+      "pos": [
+        -300,
+        22.082,
+        -60
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_70"
+    },
+    {
+      "type": "enemy",
+      "archetype": "merc_shotgun",
+      "group": "road_patrol_2",
+      "team": "merc",
+      "patrol": "path_road_2",
+      "pos": [
+        -303,
+        22.459,
+        -58
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "enemy_71"
+    },
+    {
+      "type": "prop",
+      "asset": "sign_post",
+      "pos": [
+        -15,
+        28.928,
+        114
+      ],
+      "rot": [
+        0,
+        30,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_236"
+    },
+    {
+      "type": "prop",
+      "asset": "sign_post",
+      "pos": [
+        155,
+        21.798,
+        229
+      ],
+      "rot": [
+        0,
+        100,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_237"
+    },
+    {
+      "type": "prop",
+      "asset": "sign_post",
+      "pos": [
+        -295,
+        22.944,
+        -56
+      ],
+      "rot": [
+        0,
+        60,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_238"
+    },
+    {
+      "type": "prop",
+      "asset": "sign_post",
+      "pos": [
+        -415,
+        51.169,
+        -96
+      ],
+      "rot": [
+        0,
+        200,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_239"
+    },
+    {
+      "type": "prop",
+      "asset": "sign_post",
+      "pos": [
+        -325,
+        23.335,
+        164
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "scale": 1,
+      "id": "prop_240"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        -250,
+        30.703,
+        -394
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_1"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        300,
+        138.94500000000002,
+        -330
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_2"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        -770,
+        12.898000000000001,
+        -560
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_3"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        330,
+        5.12,
+        760
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_4"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        806,
+        11.190000000000001,
+        343
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_5"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        -600,
+        9.859,
+        150
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_6"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        -462,
+        58.193999999999996,
+        -100
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_7"
+    },
+    {
+      "type": "pickup",
+      "item": "relic",
+      "pos": [
+        128,
+        46.138999999999996,
+        -214
+      ],
+      "auto": false,
+      "respawn": 0,
+      "id": "relic_8"
+    },
+    {
+      "id": "mk_volcano",
+      "type": "marker",
+      "pos": [
+        260,
+        105.428,
+        -330
+      ],
+      "label": "El Cono",
+      "icon": "cave"
+    },
+    {
+      "id": "zone_crater",
+      "type": "zone",
+      "shape": "sphere",
+      "radius": 70,
+      "pos": [
+        260,
+        105.428,
+        -330
+      ]
+    },
+    {
+      "id": "mk_islet",
+      "type": "marker",
+      "pos": [
+        -770,
+        12.848,
+        -560
+      ],
+      "label": "Islote Norte",
+      "icon": "none"
+    },
+    {
+      "id": "mk_cayo",
+      "type": "marker",
+      "pos": [
+        330,
+        5.07,
+        760
+      ],
+      "label": "Cayo Sur",
+      "icon": "none"
+    },
+    {
+      "type": "pickup",
+      "item": "medkit",
+      "pos": [
+        -260,
+        9.844000000000001,
+        420
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_13"
+    },
+    {
+      "type": "pickup",
+      "item": "ammo_rifle",
+      "pos": [
+        -60,
+        16.35,
+        230
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_14"
+    },
+    {
+      "type": "pickup",
+      "item": "grenades",
+      "pos": [
+        120,
+        21.715,
+        120
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_15"
+    },
+    {
+      "type": "pickup",
+      "item": "ammo_rifle",
+      "pos": [
+        -380,
+        17.525000000000002,
+        -250
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_16"
+    },
+    {
+      "type": "pickup",
+      "item": "medkit",
+      "pos": [
+        200,
+        74.961,
+        -150
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_17"
+    },
+    {
+      "type": "pickup",
+      "item": "armor",
+      "pos": [
+        450,
+        25.171,
+        120
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_18"
+    },
+    {
+      "type": "pickup",
+      "item": "ammo_sniper",
+      "pos": [
+        -520,
+        6.960999999999999,
+        -300
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_19"
+    },
+    {
+      "type": "pickup",
+      "item": "ammo_shells",
+      "pos": [
+        60,
+        13.700000000000001,
+        400
+      ],
+      "auto": true,
+      "respawn": 0,
+      "id": "pickup_20"
+    },
+    {
+      "type": "sound",
+      "sound": "radio_static",
+      "volume": 0.35,
+      "radius": 25,
+      "pos": [
+        -146,
+        3.401,
+        612
+      ],
+      "id": "sound"
+    },
+    {
+      "type": "sound",
+      "sound": "radio_static",
+      "volume": 0.3,
+      "radius": 25,
+      "pos": [
+        -2.696152422706631,
+        26.654,
+        59.99038105676658
+      ],
+      "id": "sound_2"
+    },
+    {
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "type": "pickup",
+      "pos": [
+        -521.07,
+        1.198,
+        515.61
+      ],
+      "id": "prop_1",
+      "item": "weapon_rpg",
+      "still": true,
+      "auto": false,
+      "respawn": 0
+    },
+    {
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "type": "pickup",
+      "pos": [
+        -519.18,
+        1.198,
+        515.85
+      ],
+      "id": "prop_241",
+      "item": "weapon_rifle_m4",
+      "still": true,
+      "auto": false,
+      "respawn": 0
+    },
+    {
+      "vehicle": "jeep",
+      "type": "vehicle",
+      "pos": [
+        -492.46,
+        1.545,
+        533.6
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "vehicle_1"
+    },
+    {
+      "vehicle": "jeep",
+      "type": "vehicle",
+      "pos": [
+        -481.39,
+        58.144,
+        -89.6
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "vehicle_2"
+    }
+  ]
+}

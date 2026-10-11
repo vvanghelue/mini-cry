@@ -1,0 +1,387 @@
+{
+  "seed": 1337,
+  "size": 2048,
+  "res": 1025,
+  "seaLevel": 0,
+  "islands": [
+    {
+      "name": "Isla Sombra",
+      "x": 0,
+      "z": 0,
+      "rx": 760,
+      "rz": 600,
+      "rot": 0.25,
+      "height": 36
+    },
+    {
+      "name": "Isla Faro",
+      "x": 790,
+      "z": 360,
+      "rx": 125,
+      "rz": 95,
+      "rot": 0.6,
+      "height": 14
+    },
+    {
+      "name": "Islote Norte",
+      "x": -770,
+      "z": -560,
+      "rx": 140,
+      "rz": 110,
+      "rot": -0.4,
+      "height": 18
+    },
+    {
+      "name": "Cayo Sur",
+      "x": 330,
+      "z": 760,
+      "rx": 70,
+      "rz": 55,
+      "height": 5
+    }
+  ],
+  "mountains": [
+    {
+      "name": "El Cono",
+      "x": 260,
+      "z": -330,
+      "r": 320,
+      "height": 200,
+      "crater": 42,
+      "ridged": 0.35
+    },
+    {
+      "name": "Cerro Antena",
+      "x": -470,
+      "z": -90,
+      "r": 170,
+      "height": 78,
+      "ridged": 0.5
+    },
+    {
+      "name": "Loma Este",
+      "x": 560,
+      "z": 160,
+      "r": 150,
+      "height": 42,
+      "ridged": 0.4
+    }
+  ],
+  "plateaus": [
+    {
+      "name": "Fortaleza",
+      "x": 520,
+      "z": -40,
+      "r": 105,
+      "height": 62
+    }
+  ],
+  "lagoons": [
+    {
+      "name": "Laguna Azul",
+      "x": -130,
+      "z": 570,
+      "r": 280,
+      "depth": 2.2
+    }
+  ],
+  "rivers": [
+    {
+      "name": "Rio Negro",
+      "points": [
+        [
+          110,
+          -200
+        ],
+        [
+          20,
+          -80
+        ],
+        [
+          -80,
+          30
+        ],
+        [
+          -150,
+          160
+        ],
+        [
+          -230,
+          300
+        ],
+        [
+          -300,
+          450
+        ],
+        [
+          -330,
+          640
+        ]
+      ],
+      "width": 16,
+      "depth": 2.4,
+      "source": 30,
+      "mouth": 0.1,
+      "bank": 26
+    }
+  ],
+  "roads": [
+    {
+      "name": "Ruta Puerto",
+      "points": [
+        [
+          -170,
+          570
+        ],
+        [
+          -140,
+          330
+        ],
+        [
+          -80,
+          200
+        ],
+        [
+          -20,
+          110
+        ],
+        [
+          10,
+          60
+        ]
+      ],
+      "width": 6
+    },
+    {
+      "name": "Ruta Pista",
+      "points": [
+        [
+          10,
+          60
+        ],
+        [
+          80,
+          150
+        ],
+        [
+          150,
+          225
+        ]
+      ],
+      "width": 6
+    },
+    {
+      "name": "Pista",
+      "points": [
+        [
+          150,
+          228
+        ],
+        [
+          480,
+          205
+        ]
+      ],
+      "width": 26,
+      "shoulder": 10
+    },
+    {
+      "name": "Ruta Fortaleza",
+      "points": [
+        [
+          480,
+          205
+        ],
+        [
+          500,
+          120
+        ],
+        [
+          470,
+          60
+        ],
+        [
+          500,
+          0
+        ]
+      ],
+      "width": 6
+    },
+    {
+      "name": "Ruta Antena",
+      "points": [
+        [
+          10,
+          60
+        ],
+        [
+          -120,
+          -20
+        ],
+        [
+          -300,
+          -60
+        ],
+        [
+          -420,
+          -100
+        ],
+        [
+          -470,
+          -90
+        ]
+      ],
+      "width": 5
+    },
+    {
+      "name": "Ruta Lab",
+      "points": [
+        [
+          -420,
+          -100
+        ],
+        [
+          -470,
+          -250
+        ],
+        [
+          -430,
+          -445
+        ]
+      ],
+      "width": 5
+    },
+    {
+      "name": "Ruta Granja",
+      "points": [
+        [
+          -200,
+          585
+        ],
+        [
+          -280,
+          330
+        ],
+        [
+          -330,
+          160
+        ],
+        [
+          -300,
+          -60
+        ]
+      ],
+      "width": 5
+    },
+    {
+      "name": "Sentier Temple",
+      "points": [
+        [
+          -300,
+          -60
+        ],
+        [
+          -280,
+          -200
+        ],
+        [
+          -250,
+          -360
+        ]
+      ],
+      "width": 3
+    }
+  ],
+  "flats": [
+    {
+      "name": "Puerto Viejo",
+      "x": -170,
+      "z": 600,
+      "r": 50,
+      "height": 2.4,
+      "material": "sand"
+    },
+    {
+      "name": "Avant-poste du Fleuve",
+      "x": 10,
+      "z": 50,
+      "r": 38,
+      "material": "dirt"
+    },
+    {
+      "name": "Antenne",
+      "x": -470,
+      "z": -90,
+      "r": 16,
+      "material": "dirt"
+    },
+    {
+      "name": "Laboratoire",
+      "x": -430,
+      "z": -470,
+      "r": 60,
+      "height": 3,
+      "material": "concrete"
+    },
+    {
+      "name": "Granja",
+      "x": -330,
+      "z": 160,
+      "r": 45,
+      "material": "field"
+    },
+    {
+      "name": "Fortaleza Patio",
+      "x": 520,
+      "z": -40,
+      "r": 70,
+      "height": 62,
+      "material": "dirt"
+    },
+    {
+      "name": "Faro",
+      "x": 800,
+      "z": 350,
+      "r": 18,
+      "material": "rock"
+    },
+    {
+      "name": "Hangar",
+      "x": 300,
+      "z": 250,
+      "r": 28,
+      "material": "concrete"
+    },
+    {
+      "name": "Epave",
+      "x": -525,
+      "z": 515,
+      "r": 14,
+      "height": 1.2,
+      "material": "sand"
+    },
+    {
+      "name": "Temple",
+      "x": -250,
+      "z": -390,
+      "r": 28,
+      "material": "moss",
+      "margin": 16
+    },
+    {
+      "name": "Camp de la Loma",
+      "x": 400,
+      "z": 350,
+      "r": 24,
+      "material": "dirt"
+    },
+    {
+      "name": "Camp de plage",
+      "x": -380,
+      "z": 568,
+      "r": 14,
+      "height": 1,
+      "material": "sand"
+    }
+  ]
+}

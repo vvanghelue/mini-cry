@@ -1,0 +1,21 @@
+{
+  "name": "jerrycan",
+  "category": "prop",
+  "label": "Jerrican",
+  "material": "metal",
+  "tags": ["camp","military","fuel"],
+  "parts": [
+    {"shape":"box","size":[0.34,0.42,0.165],"pos":[0,0.21,0],"color":"#56623a"},
+    {"shape":"box","size":[0.35,0.43,0.03],"pos":[0,0.212,0],"color":"#4d5834"},
+    {"shape":"box","size":[0.42,0.035,0.012],"pos":[0,0.21,-0.083],"rot":[0,0,50],"color":"#63713f"},
+    {"shape":"box","size":[0.42,0.035,0.012],"pos":[0,0.21,-0.083],"rot":[0,0,-50],"color":"#63713f"},
+    {"shape":"box","size":[0.42,0.035,0.012],"pos":[0,0.21,0.083],"rot":[0,0,50],"color":"#63713f"},
+    {"shape":"box","size":[0.42,0.035,0.012],"pos":[0,0.21,0.083],"rot":[0,0,-50],"color":"#63713f"},
+    {"shape":"box","size":[0.028,0.05,0.12],"pos":[-0.11,0.44,0],"color":"#4a5531","repeat":{"count":3,"offset":[0.09,0,0]}},
+    {"shape":"box","size":[0.21,0.018,0.03],"pos":[-0.02,0.47,0],"color":"#4a5531"},
+    {"shape":"cylinder","radius":0.03,"height":0.06,"pos":[0.125,0.44,0],"color":"#4d5834","rot":[0,0,-25],"segments":7},
+    {"shape":"box","size":[0.05,0.02,0.06],"pos":[0.15,0.475,0],"rot":[0,0,-25],"color":"#3f4a2a"},
+    {"shape":"box","size":[0.1,0.05,0.004],"pos":[0,0.34,-0.084],"color":"#d8d2bc","minQuality":0.75}
+  ],
+  "collider": "auto"
+}

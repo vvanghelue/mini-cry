@@ -1,0 +1,11 @@
+# Aim at an enemy and shoot it: hitscan vs animated hitboxes, damage, death, loot.
+# spawn: -505,2,525,0.6
+eval (()=>{ game.player.godMode = true; const p = game.player.pos, f = game.player.forward(); const e = game.world.entities.add({ type: 'enemy', archetype: 'merc_rifle', pos: [p.x + f.x * 14, 0, p.z + f.z * 14], group: 'target' }); game.weapons.give('rifle_ak', { ammo: { rifle: 120 } }); return e.id })()
+wait 1
+aimbot on
+adsfire 1.2
+wait 1.5
+aimbot off
+eval (()=>{ const a = game.actors.byGroup('target')[0]; return { hp: Math.round(a.health), alive: a.alive, anim: a.character.current?.getClip().name, stats: game.stats, loot: game.world.entities.list.filter(e => e.temp).map(e => e.item) } })()
+shot shooting
+expect !game.actors.byGroup('target')[0].alive && game.stats.kills === 1

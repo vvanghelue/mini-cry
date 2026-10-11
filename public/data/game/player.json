@@ -1,0 +1,46 @@
+{
+  "health": 100,
+  "armor": 0,
+  "maxArmor": 100,
+  "radius": 0.35,
+  "height": 1.8,
+  "crouchHeight": 1.15,
+  "eyeHeight": 1.65,
+  "crouchEyeHeight": 1.05,
+  "walkSpeed": 4.3,
+  "sprintSpeed": 7.6,
+  "crouchSpeed": 2.2,
+  "adsSpeed": 2.8,
+  "swimSpeed": 3,
+  "swimSprintSpeed": 4.6,
+  "ladderSpeed": 2.6,
+  "acceleration": 40,
+  "airControl": 0.25,
+  "jumpSpeed": 5.6,
+  "gravity": 19,
+  "stepHeight": 0.45,
+  "staminaSeconds": 20,
+  "staminaRegen": 2,
+  "fallDamage": {
+    "minHeight": 5.5,
+    "perMeter": 14
+  },
+  "regen": {
+    "delay": 4,
+    "rate": 8,
+    "max": 70
+  },
+  "breath": {
+    "seconds": 30,
+    "drownDamage": 8
+  },
+  "fov": 72,
+  "sprintFov": 80,
+  "mouseSensitivity": 0.0022,
+  "adsSensitivity": 0.55,
+  "headBob": 0.045,
+  "startWeapons": [],
+  "startAmmo": {},
+  "startGrenades": 0,
+  "maxGrenades": 4
+}

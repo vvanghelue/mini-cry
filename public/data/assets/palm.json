@@ -1,0 +1,42 @@
+{
+  "name": "palm",
+  "category": "vegetation",
+  "label": "Palmier",
+  "generator": {
+    "type": "palm",
+    "params": {
+      "forms": [
+        {},
+        {
+          "height": 12.5,
+          "lean": 2,
+          "curve": 0.04,
+          "trunkRadius": 0.24,
+          "flare": 1.4,
+          "trunkColor": "#a39b8d",
+          "ringColor": "#8e8679",
+          "crownshaft": "#6d8c3a",
+          "fronds": 13,
+          "frondLength": 4.2,
+          "droop": 2.3,
+          "coconuts": 0,
+          "dead": 0
+        },
+        {
+          "lean": 18,
+          "curve": 0.45
+        },
+        {
+          "height": 5.5,
+          "lean": 7,
+          "curve": 0.15,
+          "trunkRadius": 0.23,
+          "fronds": 17,
+          "frondLength": 3.3,
+          "droop": 1.4,
+          "coconuts": 2
+        }
+      ]
+    }
+  }
+}

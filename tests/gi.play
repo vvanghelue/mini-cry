@@ -1,0 +1,14 @@
+# spawn: -480,9,416,0.8
+# Baked probe GI (render/GI.js, data from `mc gi bake`): loaded and active, the jungle canopy hides
+# most of the sky (low openness at the eye) and auto exposure opens up there, the open beach is
+# lit like open air and needs no compensation. The view model takes the probe light too.
+wait 2
+eval (()=>{ const g = app.engine.lighting.gi; window.__gi = { loaded: g.loaded, active: g.active, jungle: { open: +g.openness.toFixed(2), exposure: +g.exposure.toFixed(2) } }; return window.__gi })()
+expect window.__gi.active
+expect window.__gi.jungle.open < 0.6 && window.__gi.jungle.exposure > 1.2
+shot gi_jungle
+eval game.player.teleport([348, 2.5, -628])
+wait 4
+eval (()=>{ const g = app.engine.lighting.gi; window.__gi.beach = { open: +g.openness.toFixed(2), exposure: +g.exposure.toFixed(2) }; return window.__gi })()
+expect window.__gi.beach.open > 0.8 && window.__gi.beach.exposure < 1.1
+shot gi_beach

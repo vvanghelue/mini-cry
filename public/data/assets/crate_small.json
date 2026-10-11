@@ -1,0 +1,21 @@
+{
+  "name": "crate_small",
+  "category": "prop",
+  "label": "Petite caisse",
+  "material": "wood",
+  "tags": ["cover","camp","storage"],
+  "parts": [
+    {"shape":"box","size":[0.54,0.28,0.54],"pos":[0,0.17,0],"color":"#b08a56","jitter":0.07},
+    {"shape":"box","size":[0.53,0.27,0.53],"pos":[0,0.445,0],"color":"#9c7745","jitter":0.07},
+    {"shape":"box","size":[0.6,0.04,0.6],"pos":[0,0.6,0],"color":"#a7814d"},
+    {"shape":"box","size":[0.62,0.03,0.09],"pos":[0,0.635,-0.18],"color":"#7b5b37","repeat":{"count":2,"offset":[0,0,0.36]}},
+    {"shape":"box","size":[0.075,0.56,0.075],"pos":[-0.27,0.3,-0.27],"color":"#6f5132","repeat":{"count":2,"offset":[0.54,0,0]}},
+    {"shape":"box","size":[0.075,0.56,0.075],"pos":[-0.27,0.3,0.27],"color":"#74552f","repeat":{"count":2,"offset":[0.54,0,0]}},
+    {"shape":"box","size":[0.6,0.05,0.09],"pos":[0,0.025,-0.2],"color":"#5e4429","repeat":{"count":2,"offset":[0,0,0.4]}},
+    {"shape":"box","size":[0.035,0.05,0.22],"pos":[-0.29,0.44,0],"color":"#5e4429","repeat":{"count":2,"offset":[0.58,0,0]}},
+    {"shape":"box","size":[0.24,0.03,0.006],"pos":[0,0.34,-0.273],"color":"#3d3528","minQuality":0.75},
+    {"shape":"box","size":[0.16,0.03,0.006],"pos":[-0.04,0.29,-0.273],"color":"#3d3528","minQuality":0.75},
+    {"shape":"box","size":[0.006,0.03,0.2],"pos":[0.273,0.2,0],"color":"#3d3528","minQuality":0.75}
+  ],
+  "collider": "auto"
+}
