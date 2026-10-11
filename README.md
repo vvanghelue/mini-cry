@@ -1,5 +1,7 @@
 # Mini Cry — Isla Sombra
 
+[![Puerto Viejo et le lagon](docs/screenshot.jpg)](https://vvanghelue.github.io/mini-cry/)
+
 Un FPS en monde ouvert **low-poly** dans l'esprit de *Far Cry 1* : une île tropicale de 2 × 2 km
 (jungle, lagon, volcan, rivière, îlots), des avant-postes de mercenaires à libérer, une histoire
 scriptée en 7 missions + missions secondaires — avec son **moteur**, son **éditeur** et des
