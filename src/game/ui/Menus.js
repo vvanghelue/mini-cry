@@ -44,7 +44,7 @@ export class Menus {
       ${cont ? '<button class="b-cont">Continue</button>' : ''}
       <button class="b-opt">Options</button>
       <button class="b-edit">Editor</button>
-      <div class="help">WASD/ZQSD move · Mouse look · Click fire · Right-click aim · R reload · E use · G grenade · V machete strike · Shift sprint · Ctrl crouch · Space jump · B binoculars · M map · 1-5 weapons</div>
+      <div class="help">WASD/ZQSD move · Mouse look · Click / T fire · Right-click aim · R reload · E use · G grenade · V machete strike · Shift sprint · Ctrl crouch · Space jump · B binoculars · M map · 1-5 / Q (A on AZERTY) / wheel weapons</div>
       <div class="load">${g.loadMs ? `Loaded in ${(g.loadMs / 1000).toFixed(1)} s` : ''}</div>`, {
       '.b-new': () => { try { localStorage.removeItem('minicry.save.v1'); } catch { /* */ } g.newGame(); },
       '.b-cont': () => g.newGame({ fromCheckpoint: true }),
