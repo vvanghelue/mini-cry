@@ -11,7 +11,6 @@ import { DebugPanel } from './ui/DebugPanel.js';
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'play';
 const engine = new Engine({ container: document.getElementById('app'), quality: params.get('quality') ?? 'medium' });
-if (params.has('nodynres') || params.has('bench')) engine.dynamicResolution.enabled = false;
 const input = new Input(engine.canvas);
 const app = { engine, input, THREE, mode, params, ready: false };
 // loading screen

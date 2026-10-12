@@ -53,7 +53,6 @@ export class EditorCore {
     const params = new URLSearchParams(location.search);
     const engine = (this.engine = new Engine({ container, quality: params.get('quality') ?? 'medium' }));
     engine.camera.layers.enable(LAYERS.EDITOR);
-    engine.dynamicResolution.enabled = false;
     this.input = new Input(engine.canvas);
     this.input.requireLock = false;
     const world = (this.world = new World(engine, { mode: 'editor' }));

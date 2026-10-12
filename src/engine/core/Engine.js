@@ -1,5 +1,5 @@
-// Engine core: renderer, scene, main camera, lighting, the frame loop with ordered systems,
-// performance counters (CPU / GPU ms, draw calls) and dynamic resolution.
+// Engine core: renderer, scene, main camera, lighting, the frame loop (ordered systems, optional
+// frame rate cap) and performance counters (CPU / GPU ms, draw calls).
 //
 // A "system" is any object with update(dt, engine) (and optionally lateUpdate(dt, engine) after
 // every system updated, before rendering). Systems run in the order they were added.
@@ -14,7 +14,7 @@ export class Engine {
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
     this.quality = QUALITY[quality] ? quality : 'medium';
     this.maxDpr = Math.min(devicePixelRatio, QUALITY[this.quality].dpr * Math.max(1, devicePixelRatio / 2));
-    this.resScale = 1; // dynamic resolution factor (x maxDpr)
+    this.resScale = 1; // resolution factor (x maxDpr, debug panel)
     renderer.setPixelRatio(this.maxDpr);
     renderer.setSize(container.clientWidth || innerWidth, container.clientHeight || innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -39,7 +39,8 @@ export class Engine {
     this.running = false;
     this.frameCount = 0;
     this.elapsed = 0;
-    this.dynamicResolution = { enabled: true, targetMs: 7.5, min: 0.55, cooldown: 0 };
+    this.maxFps = 0; // frame rate cap (0 = one frame per display refresh)
+    this._nextFrame = 0;
     // optional overlay pass (first-person weapon): { scene, camera } rendered after clearing depth
     this.overlay = null;
     this.clock = new THREE.Timer();
@@ -97,6 +98,14 @@ export class Engine {
     this.running = true;
     const loop = (t) => {
       this._raf = requestAnimationFrame(loop);
+      if (this.maxFps > 0) {
+        // skip the display refreshes that come before the next frame is due (2 ms early is fine:
+        // rAF timestamps jitter around the vsync); the schedule advances by whole steps so 60 on
+        // a 120 Hz display is exactly every other refresh, and restarts after a stall
+        const step = 1000 / this.maxFps;
+        if (t < this._nextFrame - 2) return;
+        this._nextFrame = t - this._nextFrame > step ? t + step : this._nextFrame + step;
+      }
       this.frame(t);
     };
     this._raf = requestAnimationFrame(loop);
@@ -116,9 +125,6 @@ export class Engine {
     this.dt = dt;
     this.elapsed += dt;
     this.frameCount++;
-    // before rendering: resizing the canvas clears its drawing buffer, and a resize done after
-    // render() would present that empty (transparent -> black page) buffer for one frame
-    this._dynamicResolution(real);
     this.renderer.info.reset();
     for (const s of this.systems) if (s.update && s.enabled !== false) s.update(dt, this);
     for (const s of this.systems) if (s.lateUpdate && s.enabled !== false) s.lateUpdate(dt, this);
@@ -147,23 +153,6 @@ export class Engine {
     } finally {
       scene.matrixWorldAutoUpdate = auto;
     }
-  }
-
-  _dynamicResolution(realDt) {
-    const d = this.dynamicResolution;
-    if (!d.enabled) return;
-    d.cooldown -= realDt;
-    if (d.cooldown > 0) return;
-    const gpu = this.perf.gpuMs;
-    if (!gpu) return; // needs GPU timings
-    let s = this.resScale;
-    if (gpu > d.targetMs * 1.08 && s > d.min) s = Math.max(d.min, s * 0.9);
-    else if (gpu < d.targetMs * 0.7 && s < 1) s = Math.min(1, s * 1.07);
-    if (s !== this.resScale) {
-      this.resScale = s;
-      this.renderer.setPixelRatio(this.maxDpr * s);
-      d.cooldown = 1.5;
-    } else d.cooldown = 0.5;
   }
 
   /** Screen-space -> world ray through the main camera (ndc in [-1, 1]). */
