@@ -6907,9 +6907,9 @@
       ],
       "type": "pickup",
       "pos": [
-        -521.07,
-        1.198,
-        515.61
+        -521.001,
+        1.217,
+        515.647
       ],
       "id": "prop_1",
       "item": "weapon_rpg",
@@ -6918,30 +6918,12 @@
       "respawn": 0
     },
     {
-      "rot": [
-        0,
-        0,
-        0
-      ],
-      "type": "pickup",
-      "pos": [
-        -519.18,
-        1.198,
-        515.85
-      ],
-      "id": "prop_241",
-      "item": "weapon_rifle_m4",
-      "still": true,
-      "auto": false,
-      "respawn": 0
-    },
-    {
       "vehicle": "jeep",
       "type": "vehicle",
       "pos": [
-        -520.388,
+        -521.518,
         1.198,
-        524.649
+        524.988
       ],
       "rot": [
         0,
@@ -6987,9 +6969,9 @@
       "type": "pickup",
       "still": true,
       "pos": [
-        -517.33,
-        1.199,
-        512.46
+        -517.463,
+        1.181,
+        514.271
       ],
       "rot": [
         0,
@@ -6997,6 +6979,24 @@
         0
       ],
       "id": "pickup_1"
+    },
+    {
+      "item": "weapon_rifle_ak",
+      "auto": false,
+      "respawn": 0,
+      "type": "pickup",
+      "still": true,
+      "pos": [
+        -518.34,
+        1.198,
+        516.73
+      ],
+      "rot": [
+        0,
+        0,
+        0
+      ],
+      "id": "pickup_21"
     }
   ]
 }
