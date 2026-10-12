@@ -1,7 +1,7 @@
 // Rigged characters (Quaternius GLBs) — ported from three-rigged-game/src/main.js:
 //   - the 10–15 skinned parts of a character are merged into ONE skinned mesh (1 draw call,
-//     1 bone texture), part colours baked into vertex colours, Lambert material (cheap, matches
-//     the low-poly world)
+//     1 bone texture), part colours baked into vertex colours, the shared textured PBR material
+//     (clothes in a woven fabric layer, uvs boxed from the bind pose)
 //   - smooth normals rebuilt (the exports are flat-split) with a crease angle
 //   - the Universal Animation Library clips (ual_base.glb: crouch, sprint, pistol aim, swim,
 //     driving...) are retargeted once at load onto the character rig and shared by all
@@ -9,6 +9,7 @@
 //   - capsule hitboxes following the animated skeleton (head / body / limbs) + ray test
 //   - skeletons update once per frame (not once per render pass: shadows render them again)
 import * as THREE from 'three';
+import { surfaceInfo } from '../assets/surfaces.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { LAYERS } from '../render/layers.js';
@@ -60,6 +61,16 @@ function smoothGeometryNormals(geo, creaseAngle) {
   geo.setAttribute('normal', new THREE.BufferAttribute(out, 3));
 }
 
+// texture repeats per model unit (the models are ~1.8 units tall): a fabric weave of ~2 cm
+const CHAR_UV = 3.5;
+
+/** Surface layer of a character part from its material name. */
+function characterSurface(name = '') {
+  if (/skin|eye|hair|brow|joint/i.test(name)) return 'plain';
+  if (/gold|earring|metal|buckle/i.test(name)) return 'metal_smooth';
+  return 'fabric';
+}
+
 /** Merge all skinned parts into one skinned mesh with vertex colours (see file header). */
 function mergeCharacterMeshes(root, lighting) {
   const parts = [];
@@ -93,8 +104,7 @@ function mergeCharacterMeshes(root, lighting) {
       return t;
     };
     let flip = false;
-    // matte look: darken metals a bit (no specular in Lambert)
-    const tint = /gold|earring|metal|buckle/i.test(mat.name) ? 0.85 : 1;
+    const tint = 1;
     for (let i = 0; i < P.count; i++) {
       const o = vo + i;
       let main = 0, best = -1;
@@ -123,12 +133,26 @@ function mergeCharacterMeshes(root, lighting) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  // textured surfaces (render/Surfaces.js): clothes get a woven fabric, metal bits a smooth metal,
+  // skin / hair / eyes stay plain; tiling uvs boxed from the bind pose (no texture atlas needed)
+  const uv = new Float32Array(n * 2), surf = new Float32Array(n);
+  for (const r of ranges) {
+    const id = surfaceInfo(characterSurface(r.name)).id;
+    for (let i = r.start; i < r.start + r.count; i++) {
+      surf[i] = id;
+      const ax = Math.abs(nor[i * 3]), ay = Math.abs(nor[i * 3 + 1]), az = Math.abs(nor[i * 3 + 2]);
+      const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+      const [u, w] = ax >= ay && ax >= az ? [z, y] : ay >= az ? [x, z] : [x, y];
+      uv[i * 2] = u * CHAR_UV; uv[i * 2 + 1] = -w * CHAR_UV;
+    }
+  }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute('surface', new THREE.BufferAttribute(surf, 1));
   geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
   geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   geo.userData.parts = ranges;
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, name: 'Character' });
-  lighting.patch(mat);
+  const mat = lighting.material({ textured: true });
   const mesh = new THREE.SkinnedMesh(geo, mat);
   mesh.name = `${root.name || 'Character'}_Merged`;
   mesh.position.copy(base.position);
@@ -426,7 +450,15 @@ export class Character {
     this.meshes = [];
     this.model.traverse((o) => {
       o.layers.set(layer);
-      if (o.isMesh) { this.meshes.push(o); o.material = o.material.clone(); }
+      if (o.isMesh) {
+        // own material (hit tint); clone() drops the lighting patch (sun, shadows, SSAO, GI,
+        // textures): carry it over — same program cache key, no extra compile
+        const src = o.material;
+        o.material = src.clone();
+        o.material.onBeforeCompile = src.onBeforeCompile;
+        o.material.customProgramCacheKey = src.customProgramCacheKey;
+        this.meshes.push(o);
+      }
       if (o.isSkinnedMesh && !this.skeletons.has(o.skeleton)) { this.skeletons.add(o.skeleton); o.skeleton.update = updateSkeletonOncePerFrame; }
     });
     this.material = this.meshes[0]?.material;

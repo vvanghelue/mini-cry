@@ -1,5 +1,6 @@
 // Static batching for placed props (buildings, crates, fences...): every 128 m sector merges
-// its props into one mesh per (material variant, LOD) — two draw calls for a whole village
+// its props into one mesh per (material variant, LOD) — textures come from arrays indexed by a
+// per-vertex surface id (render/Surfaces.js), so this stays two draw calls for a whole village
 // instead of one per asset type. Sectors are rebuilt lazily and only when their content
 // changes (editor moves), LOD 1 (quality 0.5) replaces LOD 0 past `nearDist`.
 import * as THREE from 'three';
@@ -68,7 +69,7 @@ export class StaticBatch {
     for (const it of s.items) {
       let b;
       try { b = this.assets.build(it.asset, { quality: q }); } catch { continue; }
-      const key = `${b.hasWind ? 'w' : ''}${b.hasEmissive ? 'e' : ''}${b.doubleSided ? 'd' : ''}${b.hasFoliage ? 'l' : ''}`;
+      const key = `${b.hasWind ? 'w' : ''}${b.hasEmissive ? 'e' : ''}${b.doubleSided ? 'd' : ''}${b.hasFoliage ? 'l' : ''}${b.hasCutout ? 'c' : ''}`;
       let list = byMat.get(key);
       if (!list) byMat.set(key, (list = { b, parts: [] }));
       list.parts.push({ b, matrix: it.matrix });
@@ -78,7 +79,7 @@ export class StaticBatch {
       let n = 0;
       for (const p of parts) n += p.b.geometry.attributes.position.count;
       const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), wind = new Float32Array(n), emis = new Float32Array(n);
-      const nrm = proto.hasFoliage ? new Float32Array(n * 3) : null;
+      const nrm = new Float32Array(n * 3), uv = new Float32Array(n * 2), surf = new Float32Array(n);
       let o = 0;
       for (const p of parts) {
         const g = p.b.geometry;
@@ -92,23 +93,25 @@ export class StaticBatch {
           pos[(o + i) * 3 + 1] = e[1] * x + e[5] * y + e[9] * z + e[13];
           pos[(o + i) * 3 + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
         }
-        if (nrm) {
-          // leaf / facet normals follow the prop's rotation (their length flags leaves)
-          const N = g.attributes.normal.array;
-          _n.getNormalMatrix(_m);
-          for (let i = 0; i < cnt; i++) { _v.fromArray(N, i * 3); const l = _v.length(); _v.applyMatrix3(_n).normalize().multiplyScalar(l).toArray(nrm, (o + i) * 3); }
-        }
+        // normals follow the prop's rotation (their length flags leaves)
+        const N = g.attributes.normal.array;
+        _n.getNormalMatrix(_m);
+        for (let i = 0; i < cnt; i++) { _v.fromArray(N, i * 3); const l = _v.length(); _v.applyMatrix3(_n).normalize().multiplyScalar(l).toArray(nrm, (o + i) * 3); }
         col.set(C, o * 3);
         wind.set(W, o);
         emis.set(E, o);
+        uv.set(g.attributes.uv.array, o * 2);
+        surf.set(g.attributes.surface.array, o);
         o += cnt;
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      geo.setAttribute('surface', new THREE.BufferAttribute(surf, 1));
       geo.setAttribute('wind', new THREE.BufferAttribute(wind, 1));
       geo.setAttribute('emissive', new THREE.BufferAttribute(emis, 1));
-      if (nrm) geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
       geo.computeBoundingSphere();
       const mesh = new THREE.Mesh(geo, this.assets.material(proto));
       mesh.matrixAutoUpdate = false;
@@ -175,4 +178,3 @@ function signature(items) {
   }
   return s;
 }
-void _n;

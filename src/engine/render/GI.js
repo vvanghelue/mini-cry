@@ -21,6 +21,7 @@ uniform vec4 giGrid;   // world -> uv: x, z offset, 1 / size; w = on
 uniform vec4 giLayer;  // H0, 1 / log2(ratio), layers - 1, normal offset (m)
 uniform float giDebug, giFloor;
 vec3 giDbg = vec3(0.0);
+float giOcc = 1.0; // probe light / open-sky light at the shaded point (sky reflections, Lighting.js)
 vec3 giIrradiance(vec3 P, vec3 N) {
   P += N * giLayer.w;
   vec2 uv = (P.xz + giGrid.xy) * giGrid.z;
@@ -37,6 +38,7 @@ vec3 giHemi(const in HemisphereLight hemi, const in vec3 normal, const in vec3 P
   vec3 h = getHemisphereLightIrradiance(hemi, normal);
   // floor: keep a part of the flat ambient so nothing goes pitch black (artistic)
   vec3 e = giGrid.w > 0.5 ? mix(giIrradiance(P, N), h, giFloor) : h;
+  giOcc = clamp(luminance(e) / max(luminance(h), 1e-4), 0.0, 1.0);
   giDbg = e;
   return e;
 }

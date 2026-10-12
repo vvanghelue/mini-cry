@@ -226,6 +226,13 @@ export class DebugPanel {
     fl.add(envKey('glows', 'intensity'), 'v', 0, 3, 0.01).name('light halos');
     fl.add(envKey('glows', 'distance'), 'v', 50, 1500, 10).name('halos: distance (m)');
     fl.close();
+    // textured PBR surfaces (values live in lighting.env.surface; detail 0 = plain vertex colours, A/B)
+    const fs = f.addFolder('Textures');
+    const su = L.surfaces.uniforms;
+    fs.add(su.surfDetail, 'value', 0, 1, 0.01).name('texture detail');
+    fs.add(su.surfNormalScale, 'value', 0, 2, 0.01).name('normal maps');
+    fs.add({ get v() { return L.env.surface.skySpecular; }, set v(x) { L.env.surface.skySpecular = x; L.setTimeOfDay(L.timeOfDay); } }, 'v', 0, 3, 0.01).name('sky reflections');
+    fs.close();
     // probe GI + auto exposure (values live in lighting.env.gi / autoExposure, saved by the editor)
     const gi = L.gi, relight = () => L.setTimeOfDay(L.timeOfDay);
     const fg = f.addFolder('GI (probes)');

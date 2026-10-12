@@ -1,12 +1,14 @@
-# Mini Cry — low-poly asset format
+# Mini Cry — asset format
 
 Every 3D model of the game (except the rigged characters, which are Quaternius GLBs in
 `public/models/`) is a JSON file in `public/data/assets/<name>.json`, built at load time by
-`src/engine/assets/ModelBuilder.js` into one merged, flat-shaded, vertex-coloured geometry.
-No textures: colour comes from the parts, the faceted look from flat shading. Flat-coloured
-GLB models (e.g. the CC0 Quaternius guns) are converted to this format by `mc asset import`:
-one `tris` part per material colour, plus a `source` block (URL, author, licence, import
-parameters) so the import can be redone.
+`src/engine/assets/ModelBuilder.js` into one merged geometry with normals (smooth on round parts,
+crisp on boxes), metric texture coordinates and a per-vertex texture layer (`surface`). Colour
+comes from the parts, the material detail from photo textures (docs/TEXTURES.md): each texel is
+divided by its layer's mean colour, so a part's `color` still sets its colour.
+Flat-coloured GLB models (e.g. the CC0 Quaternius guns) are converted to this format by
+`mc asset import`: one `tris` part per material colour, plus a `source` block (URL, author,
+licence, import parameters) so the import can be redone; give the parts a `surface` afterwards.
 
 ## Conventions
 
@@ -17,10 +19,14 @@ parameters) so the import can be redone.
 - Weapons: origin at the **grip** (where the right hand holds it), barrel along **-Z**, sights
   along +Y. Real-world size (a pistol is ~0.2 m long, a rifle ~0.9 m). See *Weapons* below for
   `muzzle`, `sight`, `magazine` and the first-person `hands`.
-- Keep triangle counts low: props 20–400 tris, buildings 100–1500 tris. Cylinders 5–8 segments.
-- Palette: saturated but slightly dusty tropical colours, sRGB hex strings (`"#8a6a3a"`).
+- Keep triangle counts reasonable: props 20–600 tris, buildings 100–2500 tris. Cylinders 5–8
+  segments (the builder adds ~60 % at LOD 0 and smooths them).
+- Palette: natural, slightly dusty tropical colours, sRGB hex strings (`"#8a6a3a"`).
   Avoid pure black/white; vary tones between parts (planks alternate 2–3 browns). `jitter`
-  (default 0.06) randomises each face's brightness by ±jitter for the faceted look.
+  (default 0.06) varies each part's brightness by ±jitter.
+- Texture: give each part a `surface` that matches what it is made of (`wood_planks` walls,
+  `corrugated` / `thatch` roofs, `burlap` sandbags, `stone_block` fort walls...). Without one, a
+  part uses the asset's `surface`, else the default of its `material`.
 
 ## File structure
 
@@ -39,7 +45,13 @@ parameters) so the import can be redone.
 
 ## Parts
 
-All parts accept `pos: [x,y,z]`, `rot: [x,y,z]` (deg), `scale: n | [x,y,z]`, `color`, `jitter`,
+All parts accept `pos: [x,y,z]`, `rot: [x,y,z]` (deg), `scale: n | [x,y,z]`, `color`,
+`surface` (texture layer: `plain`, `wood_planks`, `wood`, `metal`, `metal_smooth`, `corrugated`,
+`concrete`, `plaster`, `stone_block`, `stone_rubble`, `thatch`, `fabric`, `burlap`, `bark`,
+`palm_bark`, `rock`; foliage: `leaves_broad`, `leaves_jungle`, `leaf_mass`, `palm_frond`, `fern`,
+`grass`, `banana`, `strap`, `flowers`, `bush` — see `textures.json`), `uvScale` (metres per texture
+repeat, default: the layer's), `smooth` (smooth / faceted normals, default smooth for round
+shapes), `jitter`,
 `wind` (0 rigid … 1 leaf tip, or `[bottom, top]` gradient), `emissive` (0..2, self-lit: bulbs,
 fire, screens), `minQuality` (part kept only when the LOD quality >= minQuality; props switch to quality 0.5
 at distance, so use `minQuality: 0.6` for details that should vanish there).
@@ -71,7 +83,9 @@ uses its own sphere normal. An asset with foliage is drawn smooth-shaded from ba
 | `limb` | `from: [x,y,z]`, `to: [x,y,z]`, `r0`, `r1`, `segments` | tapered tube between two points (posts, ropes, pipes, branches) |
 | `wedge` | `size: [w,h,d]` | triangular prism, ridge along Z at the top: roofs |
 | `plane` | `size: [w,d]`, `doubleSided` | horizontal quad (rotate it) |
-| `frond` | `base`, `yaw`, `pitch` (deg), `length`, `width`, `droop`, `segs`, `fold`, `taper`, `pinnate` | drooping leaf strip; `pinnate: true` = one leaflet triangle per segment and side (coconut fronds: `leafletBase` 0..1 share of the segment the leaflet base covers, `leafletReach`, `pinnateStart`) |
+| `frond` | `base`, `yaw`, `pitch` (deg), `length`, `width`, `droop`, `segs`, `fold`, `taper`, `pinnate`, `twist` | drooping leaf strip; with a foliage `surface` (palm_frond, fern, banana, strap): a V-folded strip of constant half-width `width`, the leaf outline from the texture (u across, base at the bottom of the image). Untextured: `pinnate: true` = one leaflet triangle per segment and side |
+| `card` | `size: [w, h]` | upright quad, base centred on `pos`, uv 0..1 (leaf / grass cards) |
+| `cards` | `cards: [[x,y,z, dx,dy,dz, ux,uy,uz, w, h], ...]` | many quads in one part: base point, unit direction to the tip, unit width axis, size (tree crowns: generators emit them) |
 | `tris` | `positions: [x,y,z, ...]` | raw triangles (CCW = front) |
 | `ref` | `asset`, `pos`, `rot`, `scale` | embeds another asset |
 
@@ -81,15 +95,18 @@ Modifiers on any part:
 
 Generators (`"generator": { "type": "palm", "params": {...} }`, see `src/engine/assets/generators.js`):
 palm, tree (generic branching tree; jungleTree and broadleaf are presets of it), pandanus, bush,
-fern, banana, grass, flowers, rock, bamboo, deadTree. Each seed gives a variant (the world uses
+fern, banana, grass, flowers, rock, bamboo, deadTree. They texture their parts themselves: bark /
+palm bark trunks, fronds and leaves as alpha-cut textured strips and cards, tree crowns as a core
+in the `leaf_mass` layer wrapped in leaf-cluster cards (`leafTexture`, `leafCards` per clump),
+grass as crossed cards. Each seed gives a variant (the world uses
 seed = variant + 1). `params.forms: [{...}, ...]` gives one asset several sub-types: variant v uses
 the params merged with `forms[v % forms.length]` (e.g. round / spreading / tall broadleaf trees,
 coconut / royal / young palms).
 
 Tree generators keep their LODs coherent: the structure (trunk, lean toward +X, branches, leaf
 clumps, fronds, colours) is drawn once from the seed whatever the quality; quality only changes
-tessellation and drops small details (lianas, leaf fringe, coconuts), and the far LOD (quality
-≤ 0.3) merges the leaf clumps into a few ellipsoids covering the same crown. Keep that rule when
+tessellation and drops small details (lianas, coconuts), and the mid / far LODs merge the leaf
+clumps into a few ellipsoids covering the same crown (fewer, bigger leaf cards). Keep that rule when
 writing a generator: never branch on quality before all random numbers are drawn. Check with
 `mc asset shot <name> --lineup` (every variant at qualities 1 / 0.5 / 0.25 side by side).
 

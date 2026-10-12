@@ -5,9 +5,10 @@ import { useMemo, useState } from 'preact/hooks';
 import { Row, NumberField, TextField, Vec3Field, ColorField, EnumField, BoolField, JsonField, ListField } from '../../ui/Fields.jsx';
 import { GENERATORS } from '../../../engine/assets/generators.js';
 import { A } from './session.js';
+import { surfaceNames } from '../../../engine/assets/surfaces.js';
 import { CATEGORIES, MATERIALS, POINT_KEYS, POINT_LIST_KEYS, patchObj } from './shapes.js';
 
-const KNOWN = new Set(['name', 'category', 'label', 'material', 'tags', 'doubleSided', 'lods', 'muzzle', 'sight', 'magazine', 'generator', 'parts', 'collider']);
+const KNOWN = new Set(['name', 'category', 'label', 'material', 'surface', 'tags', 'doubleSided', 'lods', 'muzzle', 'sight', 'magazine', 'generator', 'parts', 'collider']);
 const DEFAULT_POINT = { muzzle: [0, 0.05, -0.6], sight: [0, 0.12, -0.1], magazine: [0, -0.05, -0.1] };
 const DEFAULT_LODS = [{ distance: 160, quality: 1 }, { distance: 900, quality: 0.5 }];
 const INT_PARAM = /count|segments|fronds|branches|canopy$|buttress|lianas|blobs|berries|leaves|blades|stalks|coconuts|dead|detail/i;
@@ -27,6 +28,7 @@ export function AssetTab({ ses }) {
       <Row label="Label"><TextField value={d.label} placeholder="Display name" onChange={(v) => set('label', v || undefined)} /></Row>
       <Row label="Category"><EnumField value={d.category ?? 'prop'} options={CATEGORIES} onChange={(v) => set('category', v)} /></Row>
       <Row label="Material" title="Impact and footstep material"><EnumField value={d.material} options={MATERIALS} allowEmpty onChange={(v) => set('material', v)} /></Row>
+      <Row label="Surface" title="Default texture layer of the parts (empty: from the material)"><EnumField value={d.surface} options={surfaceNames().map((n) => ({ value: n, label: n }))} allowEmpty onChange={(v) => set('surface', v || undefined)} /></Row>
       <Row label="Tags"><ListField value={d.tags ?? []} onChange={(v) => set('tags', v.length ? v : undefined)} /></Row>
       <Row label="Double-sided" title="Render both faces (default for vegetation)"><BoolField value={d.doubleSided ?? d.category === 'vegetation'} onChange={(v) => set('doubleSided', v === (d.category === 'vegetation') ? undefined : v)} /></Row>
       <p class="hint">

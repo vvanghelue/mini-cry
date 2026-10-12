@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { Lighting, QUALITY } from '../render/Lighting.js';
 import { LAYERS } from '../render/layers.js';
 import { Perf } from './Perf.js';
+import { TONE_MAPPING } from '../render/Grade.js';
 
 export class Engine {
   constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600 } = {}) {
@@ -18,7 +19,7 @@ export class Engine {
     renderer.setPixelRatio(this.maxDpr);
     renderer.setSize(container.clientWidth || innerWidth, container.clientHeight || innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMapping = TONE_MAPPING; // AgX + grade (render/Grade.js)
     renderer.info.autoReset = false;
     renderer.domElement.tabIndex = 0;
     container.appendChild(renderer.domElement);

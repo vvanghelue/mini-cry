@@ -16,9 +16,9 @@
           "clumps": 11,
           "clumpRadius": 1.4,
           "leafColors": [
-            "#4c6c37",
-            "#577a3e",
-            "#436031"
+            "#2f5f1c",
+            "#386b20",
+            "#2a5419"
           ]
         },
         {
@@ -33,9 +33,9 @@
           "clumpRadius": 1.35,
           "clumpSquash": 0.62,
           "leafColors": [
-            "#6b8e4b",
-            "#789d54",
-            "#618249"
+            "#4a7d28",
+            "#558a2e",
+            "#43722a"
           ]
         },
         {
@@ -49,9 +49,9 @@
           "clumps": 15,
           "clumpRadius": 1.15,
           "leafColors": [
-            "#628b45",
-            "#729d51",
-            "#577c3d"
+            "#3f7a22",
+            "#4b8a2a",
+            "#376d1e"
           ],
           "clumpSquash": 0.9
         }

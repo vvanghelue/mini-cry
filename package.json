@@ -1,7 +1,7 @@
 {
   "name": "mini-cry",
   "version": "1.0.0",
-  "description": "Mini Cry — low-poly open-world FPS engine + game + editor",
+  "description": "Mini Cry — open-world FPS engine + game + editor (realistic, photo-textured)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "playwright": "^1.64.0",
+    "sharp": "^0.35.5",
     "vite": "^8.3.4"
   }
 }
