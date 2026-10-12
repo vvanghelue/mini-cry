@@ -41,6 +41,10 @@ The same views with the former flat-shaded low-poly look and with the textured r
 
 ![Lab at night, before / after](realistic/lab_night.jpg)
 
+![Fortress at dusk, before / after](realistic/fortress.jpg)
+
+![Airfield edge, before / after](realistic/airfield.jpg)
+
 ![In game](realistic/gameplay.jpg)
 
 ## Packing
