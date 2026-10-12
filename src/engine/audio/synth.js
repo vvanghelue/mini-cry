@@ -1,7 +1,8 @@
 // Procedural sound synthesis. Pure JS with no DOM, no AudioContext and no three.js, so the same
 // module runs on the browser main thread, inside a Web Worker (see the bottom of this file) and
 // in Node (the `mc sound ...` CLI). A sound is a JSON "recipe", rendered offline to mono
-// Float32 samples at 44100 Hz.
+// Float32 samples at 44100 Hz. Layers can also play recorded WAV files (type "sample"), which
+// must be loaded first with loadSamples().
 //
 // RECIPE (all fields optional except layers)
 // {
@@ -27,7 +28,7 @@
 //
 // LAYER
 // {
-//   "type": "noise" | "sine" | "square" | "saw" | "triangle" | "fm" | "click",
+//   "type": "noise" | "sine" | "square" | "saw" | "triangle" | "fm" | "click" | "sample",
 //   "start": 0,           // s, when the layer starts (alias "delay")
 //   "length": 0.2,        // s. Default: attack+hold+decay if env.sustain is 0, else to the end of the sound
 //   "gain": 1,
@@ -44,6 +45,10 @@
 //                         // start) and timing randomness 0..1. A click is a one-sample impulse;
 //                         // filter it to get ticks / pings / pulses: the impulse is scaled so the
 //                         // first filter's ringing peaks near 1 (gains stay comparable to noise)
+//   "file": "sfx/ak47_1.wav",   // type sample: WAV path relative to public/data. An array = one file
+//                         // per rendered variation (variation k plays file k % n)
+//   "offset": 0,          // type sample: s into the file (default 0). Default length: the rest of the file
+//   "pitch": 1,           // type sample: playback rate (also changes the length)
 //   "env": { "attack": 0.002, "hold": 0, "decay": 0.1, "sustain": 0, "release": 0, "curve": 4 },
 //                         // s. Linear attack, hold at 1, decay to sustain (curve: 0 linear,
 //                         // higher = more exponential), release = fade over the last `release` s.
@@ -66,7 +71,7 @@
 
 export const SAMPLE_RATE = 44100;
 const TAU = Math.PI * 2;
-const TYPES = { noise: 0, sine: 1, square: 2, saw: 3, triangle: 4, fm: 5, click: 6 };
+const TYPES = { noise: 0, sine: 1, square: 2, saw: 3, triangle: 4, fm: 5, click: 6, sample: 7 };
 const SHAPES = { sine: 0, triangle: 1, tri: 1, square: 2, saw: 3, noise: 4 };
 const FILTERS = { lowpass: 0, highpass: 1, bandpass: 2, notch: 3 };
 const COLORS = { white: 0, pink: 1, brown: 2 };
@@ -110,6 +115,95 @@ export function variationCount(recipe) {
   return Math.max(1, Math.min(8, Math.round(Number.isFinite(+c) ? +c : recipe?.loop ? 1 : 3)));
 }
 
+// ------------------------------------------------------------------ samples (recorded WAV files)
+// Each realm (main thread, worker, Node) has its own bank: file path -> mono Float32 at SAMPLE_RATE.
+
+const SAMPLES = new Map();
+const LOADING = new Map();
+
+/** The WAV files used by the (non-muted) sample layers of a recipe. */
+export function sampleFiles(recipe) {
+  const out = new Set();
+  for (const L of Array.isArray(recipe?.layers) ? recipe.layers : []) {
+    if (L && typeof L === 'object' && L.type === 'sample' && !L.mute) for (const f of list(L.file)) out.add(String(f));
+  }
+  return [...out];
+}
+export const missingSamples = (recipe) => sampleFiles(recipe).filter((f) => !SAMPLES.has(f));
+export function setSample(file, samples) { SAMPLES.set(file, samples); }
+/** Length in s of a loaded sample file (null until loaded in this realm). */
+export const sampleSeconds = (file) => { const s = SAMPLES.get(file); return s ? s.length / SAMPLE_RATE : null; };
+
+/**
+ * Load the files a recipe needs into this realm's bank. read(file) returns the file bytes
+ * (Uint8Array / ArrayBuffer) or a Promise of them; a synchronous reader fills the bank at once
+ * (and throws on errors). Resolves when every file is loaded.
+ */
+export function loadSamples(recipe, read) {
+  const jobs = [];
+  for (const f of missingSamples(recipe)) {
+    let p = LOADING.get(f);
+    if (!p) {
+      const r = read(f);
+      if (!r || typeof r.then !== 'function') { SAMPLES.set(f, decodeWAV(r, f)); continue; }
+      p = r.then((b) => { SAMPLES.set(f, decodeWAV(b, f)); }).finally(() => LOADING.delete(f));
+      LOADING.set(f, p);
+    }
+    jobs.push(p);
+  }
+  return Promise.all(jobs).then(() => undefined);
+}
+
+/** A loadSamples() reader that fetches files relative to `base` (absolute URL of public/data/). */
+export const urlReader = (base) => async (f) => {
+  const r = await fetch(new URL(f, base));
+  if (!r.ok) throw new Error(`${f}: HTTP ${r.status}`);
+  return r.arrayBuffer();
+};
+
+/** WAV bytes (PCM 8/16/24/32 bit or float 32/64, any channel count) -> mono Float32 at SAMPLE_RATE. */
+export function decodeWAV(bytes, name = 'WAV') {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const tag = (o) => String.fromCharCode(u8[o], u8[o + 1], u8[o + 2], u8[o + 3]);
+  if (u8.length < 12 || tag(0) !== 'RIFF' || tag(8) !== 'WAVE') throw new Error(`${name}: not a WAV file`);
+  let fmt = null, data = null;
+  for (let p = 12; p + 8 <= u8.length;) {
+    const id = tag(p), size = dv.getUint32(p + 4, true);
+    if (id === 'fmt ') {
+      fmt = { format: dv.getUint16(p + 8, true), ch: dv.getUint16(p + 10, true), sr: dv.getUint32(p + 12, true), bits: dv.getUint16(p + 22, true) };
+      if (fmt.format === 0xfffe && size >= 26) fmt.format = dv.getUint16(p + 32, true); // WAVE_FORMAT_EXTENSIBLE
+    } else if (id === 'data') data = { off: p + 8, size: Math.min(size, u8.length - p - 8) };
+    p += 8 + size + (size & 1);
+  }
+  if (!fmt || !data) throw new Error(`${name}: no fmt / data chunk`);
+  const { format, ch, bits } = fmt, B = bits >> 3;
+  if (!(format === 1 && B >= 1 && B <= 4) && !(format === 3 && (B === 4 || B === 8)) || !(ch > 0) || !(fmt.sr > 0)) {
+    throw new Error(`${name}: unsupported WAV encoding (format ${format}, ${bits} bit)`);
+  }
+  const n = Math.floor(data.size / (B * ch)), mono = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0;
+    for (let c = 0; c < ch; c++) {
+      const o = data.off + (i * ch + c) * B;
+      if (format === 3) s += B === 4 ? dv.getFloat32(o, true) : dv.getFloat64(o, true);
+      else if (B === 2) s += dv.getInt16(o, true) / 32768;
+      else if (B === 1) s += (u8[o] - 128) / 128;
+      else if (B === 3) s += ((u8[o] | (u8[o + 1] << 8) | (u8[o + 2] << 16)) << 8 >> 8) / 8388608;
+      else s += dv.getInt32(o, true) / 2147483648;
+    }
+    mono[i] = s / ch;
+  }
+  if (fmt.sr === SAMPLE_RATE) return mono;
+  // linear resampling (ship 44.1 kHz files to skip it)
+  const k = fmt.sr / SAMPLE_RATE, out = new Float32Array(Math.max(1, Math.round(n / k)));
+  for (let i = 0; i < out.length; i++) {
+    const x = i * k, j = Math.floor(x), f = x - j;
+    out[i] = j + 1 < n ? mono[j] + (mono[j + 1] - mono[j]) * f : mono[Math.min(j, n - 1)];
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------ planning
 
 function resolveFilter(f, rng, pitchMul) {
@@ -126,9 +220,19 @@ function resolveFilter(f, rng, pitchMul) {
   };
 }
 
-function resolveLayer(L, rng, start, pitchMul, gainMul) {
+function resolveLayer(L, rng, start, pitchMul, gainMul, variant) {
   const type = TYPES[L.type ?? 'sine'];
   if (type === undefined) throw new Error(`unknown layer type "${L.type}"`);
+  let smp = null, sOff = 0, sRate = 1;
+  if (type === 7) {
+    const files = list(L.file);
+    if (!files.length) throw new Error('sample layer without "file"');
+    const file = String(files[variant % files.length]);
+    smp = SAMPLES.get(file);
+    if (!smp) throw new Error(`sample "${file}" not loaded`);
+    sOff = Math.max(0, val(L.offset, rng, 0));
+    sRate = Math.max(0.05, val(L.pitch, rng, 1)) * pitchMul;
+  }
   const e = L.env;
   let env = null;
   if (e) {
@@ -142,6 +246,7 @@ function resolveLayer(L, rng, start, pitchMul, gainMul) {
     };
   }
   let len = L.length != null ? Math.max(0, val(L.length, rng, 0.1)) : env && env.s === 0 ? env.a + env.h + env.d : null;
+  if (smp && len == null) len = Math.max(0, (smp.length / SAMPLE_RATE - sOff) / sRate);
   const freq = Math.max(0.01, val(L.freq, rng, 440)) * pitchMul;
   return {
     type, start: Math.max(0, start), len,
@@ -164,10 +269,11 @@ function resolveLayer(L, rng, start, pitchMul, gainMul) {
     filters: list(L.filter).map((f) => resolveFilter(f, rng, pitchMul)),
     vib: L.vibrato ?? null,
     trem: list(L.tremolo),
+    smp, sOff, sRate,
   };
 }
 
-function planLayers(recipe, rng) {
+function planLayers(recipe, rng, variant = 0) {
   const out = [];
   for (const L of recipe.layers ?? []) {
     if (!L || typeof L !== 'object' || L.mute) continue;
@@ -181,7 +287,7 @@ function planLayers(recipe, rng) {
     const start0 = val(L.start ?? L.delay, rng, 0);
     for (let k = 0; k < count; k++) {
       const pm = notes ? Math.pow(2, val(notes[k % notes.length], rng, 0) / 12) : Math.pow(pStep, k);
-      out.push(resolveLayer(L, rng, start0 + k * interval + (jit ? rng() * jit : 0), pm, Math.pow(gStep, k)));
+      out.push(resolveLayer(L, rng, start0 + k * interval + (jit ? rng() * jit : 0), pm, Math.pow(gStep, k), variant));
     }
   }
   return out;
@@ -387,7 +493,11 @@ function renderInstance(out, s, sr, rng, loopDur) {
   const env = s.env;
   let ec = 0, einv = 1;
   if (env && env.c > 0.01) { ec = Math.exp(-env.c); einv = 1 / (1 - ec); }
-  const fa = loopDur || T === 6 ? 0 : 0.002, fr = loopDur ? 0 : 0.005;
+  // sample files are cut with their own fades: no fade-in unless the layer starts inside the file
+  const fa = loopDur || T === 6 || (T === 7 && !s.sOff) ? 0 : T === 7 ? 0.001 : 0.002, fr = loopDur ? 0 : 0.005;
+  // samples: read position (in file samples) and step per output sample
+  const sd = s.smp, sn = sd ? sd.length : 0, sStep = (s.sRate * SAMPLE_RATE) / sr;
+  let sPos = s.sOff * SAMPLE_RATE;
   const trem = s.trem.map((o) => makeLfo(o, rng, ld, len)).filter(Boolean);
   const nt = trem.length;
   const drive = s.drive > 0 ? 1 + s.drive * 12 : 0, dnorm = drive ? 1 / Math.tanh(drive) : 1;
@@ -410,6 +520,10 @@ function renderInstance(out, s, sr, rng, loopDur) {
         br = (br + 0.02 * w) / 1.02;
         x = br * 3.5;
       }
+    } else if (T === 7) {
+      const j = Math.floor(sPos);
+      if (j + 1 < sn) { const f = sPos - j; x = sd[j] + (sd[j + 1] - sd[j]) * f; } else if (j < sn) x = sd[j];
+      sPos += sStep;
     } else if (T === 6) {
       if (i >= nextClick) {
         x = clickAmp;
@@ -540,7 +654,7 @@ export function renderSound(recipe, { seed = 1, sampleRate = SAMPLE_RATE, info }
   if (recipe.layers != null && !Array.isArray(recipe.layers)) throw new Error('layers must be an array');
   const sr = sampleRate;
   const rng = mulberry32(Math.imul(seed | 0, 2654435761) ^ 0x5bd1e995);
-  const insts = planLayers(recipe, rng);
+  const insts = planLayers(recipe, rng, Math.max(0, (seed | 0) - 1));
   const { loop, dry, fade, tail } = lengths(recipe, insts, rng);
   const nDry = Math.max(1, Math.round(dry * sr));
   const N = nDry + Math.round((fade + tail) * sr);
@@ -622,11 +736,13 @@ export function encodeWAV(samples, sampleRate = SAMPLE_RATE) {
 
 // ------------------------------------------------------------------ worker mode
 // Audio.js loads this module as a module Web Worker so recipes render off the main thread.
-// Messages: { id, recipe, seed } -> { id, samples } (transferred) | { id, error }.
+// Messages: { id, recipe, seed, base } -> { id, samples } (transferred) | { id, error }. `base`
+// (absolute URL of public/data/) is where the worker fetches the WAV files of sample layers.
 if (typeof WorkerGlobalScope !== 'undefined' && typeof self !== 'undefined' && self instanceof WorkerGlobalScope) {
-  self.onmessage = (ev) => {
-    const { id, recipe, seed } = ev.data ?? {};
+  self.onmessage = async (ev) => {
+    const { id, recipe, seed, base } = ev.data ?? {};
     try {
+      if (missingSamples(recipe).length) await loadSamples(recipe, urlReader(base ?? self.location.href));
       const samples = renderSound(recipe, { seed });
       self.postMessage({ id, samples }, [samples.buffer]);
     } catch (err) {

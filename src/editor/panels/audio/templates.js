@@ -72,9 +72,10 @@ export const LAYER_PRESETS = {
   saw: { type: 'saw', gain: 0.6, freq: 110, env: { attack: 0.005, decay: 0.3, curve: 4 }, filter: { type: 'lowpass', freq: 1500 } },
   triangle: { type: 'triangle', gain: 1, freq: 330, env: { attack: 0.002, decay: 0.2, curve: 4 } },
   fm: { type: 'fm', gain: 0.8, freq: 600, fm: { ratio: 1.4, index: 3, indexEnd: 0 }, env: { attack: 0.001, decay: 0.6, curve: 5 } },
+  sample: { type: 'sample', gain: 1, file: 'sfx/ak47_1.wav' },
 };
 
-export const LAYER_TYPES = ['sine', 'noise', 'click', 'square', 'saw', 'triangle', 'fm'];
+export const LAYER_TYPES = ['sine', 'noise', 'click', 'square', 'saw', 'triangle', 'fm', 'sample'];
 export const FILTER_TYPES = ['lowpass', 'highpass', 'bandpass', 'notch'];
 export const LFO_SHAPES = ['sine', 'triangle', 'square', 'saw', 'noise'];
 export const NOISE_COLORS = ['white', 'pink', 'brown'];

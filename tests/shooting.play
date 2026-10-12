@@ -9,3 +9,5 @@ aimbot off
 eval (()=>{ const a = game.actors.byGroup('target')[0]; return { hp: Math.round(a.health), alive: a.alive, anim: a.character.current?.getClip().name, stats: game.stats, loot: game.world.entities.list.filter(e => e.temp).map(e => e.item) } })()
 shot shooting
 expect !game.actors.byGroup('target')[0].alive && game.stats.kills === 1
+# the gunshot / reload sounds play recorded WAVs (public/data/sfx): the audio worker must have rendered them
+expect !game.audio?.enabled || ['rifle_shot', 'reload_mag_out', 'reload_mag_in', 'dry_fire'].every((n) => { const e = game.audio._entry(n); return e && !e.failed && e.ready > 0; })

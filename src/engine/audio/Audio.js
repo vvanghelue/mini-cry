@@ -1,4 +1,5 @@
-// Runtime audio (Web Audio). Every sound is a procedural recipe from public/data/sounds.json,
+// Runtime audio (Web Audio). Every sound is a recipe from public/data/sounds.json (procedural
+// layers and / or recorded WAV files from public/data/sfx/),
 // rendered once by synth.js (lazily, in a Web Worker) into a few AudioBuffer variations, then
 // played through cheap AudioBufferSourceNodes. Also runs the ambient soundscape (beds + spot
 // sounds driven by an ambient state) and a light generative music layer. Never throws: without
@@ -14,7 +15,8 @@
 //        ambient -> duck -> ambient lowpass (indoor) -> world lowpass;  music (calm + combat) -> duck -> master;  ui -> master
 // Clips (recorded files, e.g. dialogue voices): playClip(url) -> gain -> [radio band-pass] -> voice bus -> master
 // (they duck music and ambience while they play).
-import { renderSound, estimateDuration, variationCount, soundMap, SAMPLE_RATE } from './synth.js';
+import { renderSound, estimateDuration, variationCount, soundMap, SAMPLE_RATE, missingSamples, loadSamples, urlReader } from './synth.js';
+import { Data } from '../core/Data.js';
 
 const BUSES = ['master', 'sfx', 'ambient', 'music', 'ui', 'voice'];
 const DEFAULT_VOLUMES = { master: 0.9, sfx: 1, ambient: 0.8, music: 0.5, ui: 0.8, voice: 1 };
@@ -137,6 +139,9 @@ export class AudioSystem {
     const g = typeof window !== 'undefined' ? window : null;
     this._AC = g ? g.AudioContext ?? g.webkitAudioContext ?? null : null;
     this.enabled = !!this._AC;
+    // sample layers: WAV files under public/data/ (the worker fetches its own copy)
+    this._base = g?.location ? new URL(Data.base, g.location.href).href : null;
+    this._read = urlReader(this._base);
     this._extra = new Map(); // unsaved recipes (preview)
     this._cache = new Map(); // name -> { recipe, key, count, data[], bufs[], ready, ... }
     this._queue = [];
@@ -551,7 +556,7 @@ export class AudioSystem {
       if (!this._live(job)) continue;
       const id = ++this._jobId;
       this._inflight.set(id, job);
-      try { w.postMessage({ id, recipe: job.e.recipe, seed: job.v + 1 }); }
+      try { w.postMessage({ id, recipe: job.e.recipe, seed: job.v + 1, base: this._base }); }
       catch { this._inflight.delete(id); this._queue.unshift(job); this._workerFailed(); return; }
     }
   }
@@ -567,8 +572,19 @@ export class AudioSystem {
 
   _renderNow(job) {
     if (!this._live(job)) return;
+    if (missingSamples(job.e.recipe).length) { this._loadSamples(job); return; }
     try { this._store(job, renderSound(job.e.recipe, { seed: job.v + 1 })); }
     catch (err) { job.e.failed = true; this._warn(`sound "${job.e.name}": ${err.message}`); }
+  }
+
+  /** Main-thread renders of recipes with sample layers wait for their WAV files (then re-queue without a worker). */
+  _loadSamples(job) {
+    const e = job.e;
+    e.loading ??= loadSamples(e.recipe, this._read).then(
+      () => { e.dur = estimateDuration(e.recipe); },
+      (err) => { e.failed = true; this._warn(`sound "${e.name}": ${err.message}`); },
+    );
+    e.loading.then(() => { if (!this._worker && this._live(job)) this._queue.push(job); });
   }
 
   _renderBudget(ms) {

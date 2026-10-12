@@ -1,13 +1,17 @@
-// mc sound commands: list / render to WAV / check the procedural sound recipes of
-// public/data/sounds.json (format: src/engine/audio/synth.js, docs/AUDIO.md). Pure Node: renders
-// with the same synth the game uses, no browser needed.
+// mc sound commands: list / render to WAV / check the sound recipes of public/data/sounds.json
+// (format: src/engine/audio/synth.js, docs/AUDIO.md). Pure Node: renders with the same synth the
+// game uses, no browser needed. Sample layers read their WAV files from public/data/.
 import fs from 'node:fs';
 import path from 'node:path';
-import { readJSON, ROOT } from './data.js';
-import { renderSound, analyze, encodeWAV, estimateDuration, variationCount, soundMap, SAMPLE_RATE } from '../../src/engine/audio/synth.js';
+import { readJSON, ROOT, dataPath } from './data.js';
+import { renderSound, analyze, encodeWAV, estimateDuration, variationCount, soundMap, SAMPLE_RATE, loadSamples, sampleFiles } from '../../src/engine/audio/synth.js';
 
 const BUSES = ['sfx', 'ambient', 'music', 'ui'];
 const r3 = (v) => +(+v).toFixed(3);
+/** Load the WAV files of a recipe's sample layers (synchronous). Returns an error message or null. */
+export function loadRecipeSamples(recipe) {
+  try { loadSamples(recipe, (f) => fs.readFileSync(dataPath(f))); return null; } catch (e) { return e.code === 'ENOENT' ? `sample file not found: ${path.relative(ROOT, e.path ?? '')}` : e.message; }
+}
 const loadSounds = () => soundMap(readJSON('sounds.json'));
 function getRecipe(name) {
   const all = loadSounds();
@@ -21,6 +25,10 @@ export function checkRecipe(name, recipe) {
   const row = { name, bus: recipe.bus ?? 'sfx', loop: !!recipe.loop, variations: variationCount(recipe), duration: 0, peak: 0, rms: 0, ms: 0, problems: [] };
   if (!BUSES.includes(row.bus)) row.problems.push(`unknown bus "${row.bus}" (${BUSES.join(', ')})`);
   if (!Array.isArray(recipe.layers) || !recipe.layers.length) row.problems.push('no layers');
+  const err = loadRecipeSamples(recipe);
+  if (err) { row.problems.push(err); return row; }
+  const files = sampleFiles(recipe).length, perLayer = Math.max(0, ...(recipe.layers ?? []).map((L) => (L?.type === 'sample' && Array.isArray(L.file) ? L.file.length : 0)));
+  if (files && perLayer > variationCount(recipe)) row.problems.push(`${perLayer} files but ${variationCount(recipe)} variations: some files are never played`);
   let samples = 0;
   for (let v = 0; v < row.variations; v++) {
     const info = {};
@@ -78,7 +86,7 @@ export const soundCommands = {
     run(_, opts) {
       return Object.entries(loadSounds())
         .filter(([, r]) => !opts.bus || (r.bus ?? 'sfx') === opts.bus)
-        .map(([name, r]) => `${name.padEnd(22)} ${(r.bus ?? 'sfx').padEnd(8)} ${(r.loop ? 'loop' : 'once').padEnd(5)} ${estimateDuration(r).toFixed(2).padStart(6)} s  ${String(r.layers?.length ?? 0).padStart(2)} layers  x${variationCount(r)}`)
+        .map(([name, r]) => (loadRecipeSamples(r), `${name.padEnd(22)} ${(r.bus ?? 'sfx').padEnd(8)} ${(r.loop ? 'loop' : 'once').padEnd(5)} ${estimateDuration(r).toFixed(2).padStart(6)} s  ${String(r.layers?.length ?? 0).padStart(2)} layers  x${variationCount(r)}`))
         .join('\n');
     },
   },
@@ -87,6 +95,8 @@ export const soundCommands = {
     help: 'Render one recipe to a 16-bit mono WAV (loops: --loops N repeats it N times to hear the seam).',
     run([name], opts) {
       const recipe = getRecipe(name);
+      const err = loadRecipeSamples(recipe);
+      if (err) throw new Error(err);
       const variation = opts.variation !== undefined ? Math.max(0, Math.round(Number(opts.variation)) || 0) : 0;
       let s = renderSound(recipe, { seed: variation + 1 });
       const reps = recipe.loop ? Math.max(1, Math.min(16, Math.round(Number(opts.loops ?? 1)) || 1)) : 1;
@@ -110,6 +120,7 @@ export const soundCommands = {
       if (name) {
         const recipe = getRecipe(name);
         const row = checkRecipe(name, recipe);
+        if (row.problems.some((p) => p.startsWith('sample'))) return row;
         return opts.layers ? { ...row, layers: layerReport(recipe) } : row;
       }
       const rows = Object.entries(all).map(([n, r]) => checkRecipe(n, r));

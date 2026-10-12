@@ -1,7 +1,8 @@
 # Mini Cry: procedural audio
 
-Apart from the recorded dialogue voices (`public/data/voice/`, see docs/MISSIONS.md), there are no
-audio files. Every sound is a JSON **recipe** in `public/data/sounds.json`, rendered
+Apart from the recorded dialogue voices (`public/data/voice/`, see docs/MISSIONS.md) and the
+recorded weapon sounds (`public/data/sfx/`, see [Recorded samples](#recorded-samples)), there are
+no audio files. Every sound is a JSON **recipe** in `public/data/sounds.json`, rendered
 to samples by `src/engine/audio/synth.js`. That module is pure JS with no AudioContext, so it runs in
 the browser, in a Web Worker and in Node. `src/engine/audio/Audio.js` (`AudioSystem`) plays the
 rendered sounds through Web Audio. It also runs the ambient soundscape and a light generative
@@ -46,7 +47,8 @@ play(name) ─> source ─> gain ─> [air lowpass ─> panner] ─> bus ─> ma
 
 | field | meaning |
 |---|---|
-| `type` | `noise`, `sine`, `square`, `saw`, `triangle`, `fm` or `click` (a one-sample impulse, auto-scaled so its filtered ring peaks near 1) |
+| `type` | `noise`, `sine`, `square`, `saw`, `triangle`, `fm`, `click` (a one-sample impulse, auto-scaled so its filtered ring peaks near 1) or `sample` (a WAV file) |
+| `file`, `offset`, `pitch` | `sample` layers: WAV path relative to `public/data` (an array = one file per variation: variation k plays file k % n), start position in the file (s) and playback rate. The default length is the rest of the file. |
 | `start` (alias `delay`), `length`, `gain`, `mute` | timing in s. The default length is attack+hold+decay when `env.sustain` is 0, otherwise until the end. |
 | `freq`, `freqEnd`, `sweep`, `curve` | exponential glide over `sweep` s (default: the whole layer). `curve` < 1 front-loads the glide (kick drums). |
 | `noiseColor` | `white`, `pink` or `brown` |
@@ -68,6 +70,22 @@ levels, 16-step patterns (`x` hit, `o` soft, `?` random, `.` rest) and phrase / 
 the sounds a bed uses. These spot sounds stand for unseen birds; the visible flocks
 (`src/game/fx/Birds.js`, `game/birds.json`) also play their species' `call` and `bird_takeoff`
 when they are startled.
+
+## Recorded samples
+
+The gunshots, reloads, pump, dry fire and RPG launch play real recordings: `sample` layers that
+read the WAV files of `public/data/sfx/` (sources and licences in `public/data/sfx/CREDITS.md`,
+all CC0). The rest of the recipe still applies (filters, envelope, reverb, echo, variations,
+normalisation), so a recording can be layered with synthetic parts: the gunshots add a short sine
+"thump" under the 128 kbps sources. Ship 16-bit (or float) mono 44.1 kHz WAVs, already cut and
+faded (other rates are resampled linearly; MP3 is not supported, so the Node CLI can render
+everything).
+
+Every realm decodes its own copy with `loadSamples(recipe, read)` (synth.js): the audio worker
+fetches the files the first time a recipe needs them, the main thread only when it renders a
+sound itself (no worker, or a one-shot played before it is ready), and `mc sound` reads them from
+disk. A missing file fails the recipe (`[audio] sound "x": ...` in the console) and
+`mc validate` / `mc sound check` report it.
 
 ## CLI
 

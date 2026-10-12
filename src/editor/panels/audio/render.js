@@ -1,6 +1,9 @@
 // Off-main-thread rendering of the edited recipe for the waveform display (synth.js in worker mode,
 // with a main-thread fallback), plus the layer timeline (when each layer plays).
-import { renderSound, SAMPLE_RATE } from '../../../engine/audio/synth.js';
+import { renderSound, SAMPLE_RATE, loadSamples, urlReader, sampleSeconds } from '../../../engine/audio/synth.js';
+import { Data } from '../../../engine/core/Data.js';
+
+const BASE = new URL(Data.base, location.href).href; // where sample layers' WAV files are fetched
 
 let worker = null, failed = false, nextId = 0;
 const waiting = new Map();
@@ -28,22 +31,24 @@ function getWorker() {
 }
 
 function renderMain(recipe, seed) {
-  return new Promise((resolve, reject) => {
-    try { resolve(renderSound(recipe, { seed })); } catch (e) { reject(e); }
-  });
+  return loadSamples(recipe, urlReader(BASE)).then(() => renderSound(recipe, { seed }));
 }
 
-/** Render a recipe variation (seed = variation index + 1). Resolves { samples, ms }. */
+/**
+ * Render a recipe variation (seed = variation index + 1). Resolves { samples, ms }. The WAV files
+ * of sample layers are also loaded here (main thread) so layerTimeline() knows their length.
+ */
 export function renderAsync(recipe, seed = 1) {
   const t0 = performance.now();
   const done = (samples) => ({ samples, ms: performance.now() - t0 });
   const w = getWorker();
   if (!w) return renderMain(recipe, seed).then(done);
+  const files = loadSamples(recipe, urlReader(BASE)).catch(() => {}); // errors come back from the worker
   return new Promise((resolve, reject) => {
     const id = ++nextId;
     waiting.set(id, { resolve, reject, retry: () => renderMain(recipe, seed).then(resolve, reject) });
-    try { w.postMessage({ id, recipe, seed }); } catch (e) { waiting.delete(id); renderMain(recipe, seed).then(resolve, reject); }
-  }).then(done);
+    try { w.postMessage({ id, recipe, seed, base: BASE }); } catch (e) { waiting.delete(id); renderMain(recipe, seed).then(resolve, reject); }
+  }).then((samples) => files.then(() => done(samples)));
 }
 
 export function disposeRenderer() {
@@ -79,6 +84,11 @@ export function layerTimeline(recipe) {
     let len = null;
     if (L.length != null) len = Math.max(0, hi(L.length, 0.1));
     else if (e && !(first(e.sustain, 0) > 0)) len = Math.max(0, hi(e.attack, L.type === 'click' ? 0 : 0.002)) + Math.max(0, hi(e.hold, 0)) + Math.max(0, hi(e.decay, 0.1));
+    else if (L.type === 'sample') {
+      // the rest of the longest file (once loaded by renderAsync), at the lowest pitch
+      const secs = [].concat(L.file ?? []).map((f) => sampleSeconds(String(f))).filter((s) => s != null);
+      if (secs.length) len = Math.max(0, Math.max(...secs) - Math.max(0, first(L.offset, 0))) / Math.max(0.05, first(L.pitch, 1));
+    }
     const start = Math.max(0, first(L.start ?? L.delay, 0));
     const rep = L.repeat;
     const count = rep ? Math.max(1, Math.min(256, Math.round(hi(rep.count, 1)))) : 1;
@@ -104,7 +114,8 @@ export function layerSummary(L) {
   if (!L || typeof L !== 'object') return '';
   const f = (v) => (Array.isArray(v) ? `${fmt(v[0])}~${fmt(v[1])}` : fmt(v));
   const parts = [];
-  if (L.type === 'noise') parts.push(L.noiseColor ?? 'white');
+  if (L.type === 'sample') parts.push([].concat(L.file ?? '?').map((f) => String(f).split('/').pop()).join(' | ') + (L.pitch != null ? ` ×${f(L.pitch)}` : ''));
+  else if (L.type === 'noise') parts.push(L.noiseColor ?? 'white');
   else if (L.type === 'click') parts.push(L.rate ? `${f(L.rate)}/s` : 'impulse');
   else parts.push(`${f(L.freq ?? 440)}${L.freqEnd != null ? '→' + f(L.freqEnd) : ''} Hz`);
   const fl = L.filter == null ? [] : Array.isArray(L.filter) ? L.filter : [L.filter];

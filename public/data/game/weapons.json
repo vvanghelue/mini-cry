@@ -200,7 +200,7 @@
       "tracerEvery": 3,
       "adsFov": 48,
       "adsTime": 0.2,
-      "sound": "rifle_shot",
+      "sound": "m4_shot",
       "noise": 120,
       "view": {
         "pos": [

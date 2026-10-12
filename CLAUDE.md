@@ -57,7 +57,8 @@ character names stay French.
 | `game/weapons.json`, `archetypes.json`, `items.json`, `player.json`, `birds.json` | gameplay tuning (birds: species → asset, flight, habitat, flocks, calls) | `mc data get|set`, editor 📊 |
 | `environment.json` | time of day, light, SSAO (`ao`), GI / auto exposure (`gi`, `autoExposure`), lens flare (`flare`), light halos (`glows`), fog, sky / ocean colours | `mc data set`, editor ☀ |
 | `gi/probes.json` + `gi/probes.bin` | baked GI probes (derived: re-bake after terrain / vegetation / prop / asset / sunTilt edits; `mc validate` warns when stale) | `mc gi bake|info` (docs/GI.md) |
-| `sounds.json` | procedural sound recipes (docs/AUDIO.md) | `mc sound list|render|check`, editor 🔊 |
+| `sounds.json` | sound recipes: procedural layers + `sample` layers (docs/AUDIO.md) | `mc sound list|render|check`, editor 🔊 |
+| `sfx/*.wav` + `sfx/CREDITS.md` | recorded weapon sounds (CC0, Freesound): shots, reloads, pump, RPG | cut / faded 16-bit mono 44.1 kHz WAVs, played by `sample` layers |
 | `voice/*.mp3` + `voice/manifest.json` | recorded dialogue voices (TTS via OpenRouter, key in `.env`; casting = `speakers.*.tts.voice`, acting = line `spoken` with `[tags]`, docs/MISSIONS.md) | `mc voice list|generate|say|check`, editor 💬 |
 
 `tools/content/seed-world.mjs` generated the initial world, missions and dialogue; it is kept for

@@ -2,74 +2,65 @@
   "sounds": {
     "pistol_shot": {
       "bus": "sfx", "refDistance": 8, "maxDistance": 450, "priority": 5, "maxInstances": 6, "gain": 0.95,
-      "reverb": 0.22, "reverbSize": 0.4, "distortion": 0.15,
-      "variations": { "count": 3, "pitch": [0.95, 1.05], "gain": [0.9, 1] },
+      "reverb": 0.1, "reverbSize": 0.4,
+      "variations": { "count": 3, "pitch": [0.96, 1.04], "gain": [0.9, 1] },
       "layers": [
-        { "type": "noise", "gain": 0.8, "env": { "attack": 0, "decay": 0.03, "curve": 6 }, "filter": { "type": "highpass", "freq": 2000 } },
-        { "type": "noise", "gain": 1.6, "env": { "attack": 0.0005, "decay": 0.11, "curve": 5 }, "filter": { "type": "lowpass", "freq": 5000, "freqEnd": 900, "q": 0.9 }, "distortion": 0.4 },
-        { "type": "sine", "gain": 0.8, "freq": 170, "freqEnd": 55, "curve": 0.5, "env": { "attack": 0.0005, "decay": 0.12, "curve": 4 }, "distortion": 0.5 },
-        { "type": "click", "gain": 0.5, "filter": { "type": "bandpass", "freq": 3200, "q": 2.5 } },
-        { "type": "noise", "noiseColor": "brown", "gain": 0.5, "start": 0.015, "env": { "attack": 0.01, "decay": 0.4, "curve": 4 }, "filter": { "type": "lowpass", "freq": 1400, "freqEnd": 300 } }
+        { "type": "sample", "file": "sfx/pistol_1.wav", "pitch": [0.96, 1.04] },
+        { "type": "sine", "gain": 0.3, "freq": 160, "freqEnd": 50, "curve": 0.45, "env": { "attack": 0.0005, "decay": 0.1, "curve": 4 }, "distortion": 0.3 }
       ]
     },
     "smg_shot": {
       "bus": "sfx", "refDistance": 8, "maxDistance": 450, "priority": 5, "maxInstances": 8, "gain": 0.85,
-      "reverb": 0.16, "reverbSize": 0.3, "distortion": 0.2,
-      "variations": { "count": 4, "pitch": [0.96, 1.04], "gain": [0.85, 1] },
+      "reverb": 0.08, "reverbSize": 0.3,
+      "variations": { "count": 4, "pitch": [0.97, 1.03], "gain": [0.85, 1] },
       "layers": [
-        { "type": "noise", "gain": 0.9, "env": { "attack": 0, "decay": 0.02, "curve": 6 }, "filter": { "type": "highpass", "freq": 2600 } },
-        { "type": "noise", "gain": 1.5, "env": { "attack": 0.0005, "decay": 0.06, "curve": 5 }, "filter": { "type": "bandpass", "freq": 2400, "freqEnd": 1200, "q": 0.8 }, "distortion": 0.5 },
-        { "type": "sine", "gain": 0.6, "freq": 210, "freqEnd": 85, "curve": 0.5, "env": { "attack": 0.0005, "decay": 0.06, "curve": 4 }, "distortion": 0.4 },
-        { "type": "click", "gain": 0.4, "start": 0.004, "filter": { "type": "bandpass", "freq": 4200, "q": 3 } },
-        { "type": "noise", "noiseColor": "brown", "gain": 0.35, "start": 0.01, "env": { "attack": 0.008, "decay": 0.22, "curve": 4 }, "filter": { "type": "lowpass", "freq": 1600, "freqEnd": 400 } }
+        { "type": "sample", "file": ["sfx/smg_1.wav", "sfx/smg_2.wav", "sfx/smg_3.wav", "sfx/smg_4.wav"] },
+        { "type": "sine", "gain": 0.25, "freq": 150, "freqEnd": 50, "curve": 0.45, "env": { "attack": 0.0005, "decay": 0.08, "curve": 4 }, "distortion": 0.3 }
       ]
     },
     "rifle_shot": {
       "bus": "sfx", "refDistance": 12, "maxDistance": 650, "priority": 6, "maxInstances": 8, "gain": 1,
-      "reverb": 0.28, "reverbSize": 0.55, "distortion": 0.2,
-      "variations": { "count": 4, "pitch": [0.95, 1.04], "gain": [0.9, 1] },
+      "reverb": 0.12, "reverbSize": 0.55,
+      "variations": { "count": 4, "pitch": [0.97, 1.03], "gain": [0.9, 1] },
       "layers": [
-        { "type": "noise", "gain": 1.4, "env": { "attack": 0, "decay": 0.028, "curve": 6 }, "filter": { "type": "highpass", "freq": 1500 } },
-        { "type": "noise", "noiseColor": "pink", "gain": 1.8, "env": { "attack": 0.0005, "decay": 0.13, "curve": 5 }, "filter": { "type": "lowpass", "freq": 5000, "freqEnd": 700, "q": 0.9, "curve": 0.6 }, "distortion": 0.35 },
-        { "type": "sine", "gain": 0.9, "freq": 125, "freqEnd": 40, "curve": 0.45, "env": { "attack": 0.0005, "decay": 0.16, "curve": 4 }, "distortion": 0.4 },
-        { "type": "click", "gain": 0.35, "filter": { "type": "bandpass", "freq": 2600, "q": 2 } },
-        { "type": "noise", "noiseColor": "brown", "gain": 0.9, "start": 0.02, "env": { "attack": 0.02, "decay": 0.9, "curve": 4 }, "filter": { "type": "lowpass", "freq": 900, "freqEnd": 200 } }
+        { "type": "sample", "file": ["sfx/ak47_1.wav", "sfx/ak47_2.wav", "sfx/ak47_3.wav", "sfx/ak47_4.wav"] },
+        { "type": "sine", "gain": 0.35, "freq": 120, "freqEnd": 40, "curve": 0.45, "env": { "attack": 0.0005, "decay": 0.16, "curve": 4 }, "distortion": 0.3 }
+      ]
+    },
+    "m4_shot": {
+      "bus": "sfx", "refDistance": 12, "maxDistance": 650, "priority": 6, "maxInstances": 8, "gain": 1,
+      "reverb": 0.12, "reverbSize": 0.5,
+      "variations": { "count": 3, "pitch": [0.96, 1.04], "gain": [0.9, 1] },
+      "layers": [
+        { "type": "sample", "file": "sfx/m4_1.wav", "pitch": [0.97, 1.05] },
+        { "type": "sine", "gain": 0.3, "freq": 130, "freqEnd": 45, "curve": 0.45, "env": { "attack": 0.0005, "decay": 0.12, "curve": 4 }, "distortion": 0.3 }
       ]
     },
     "shotgun_shot": {
       "bus": "sfx", "refDistance": 12, "maxDistance": 550, "priority": 6, "maxInstances": 4, "gain": 1,
-      "reverb": 0.3, "reverbSize": 0.55, "distortion": 0.3,
-      "variations": { "count": 3, "pitch": [0.95, 1.04], "gain": [0.9, 1] },
+      "reverb": 0.12, "reverbSize": 0.55,
+      "variations": { "count": 2, "pitch": [0.96, 1.03], "gain": [0.9, 1] },
       "layers": [
-        { "type": "noise", "gain": 0.9, "env": { "attack": 0, "decay": 0.05, "curve": 5 }, "filter": { "type": "highpass", "freq": 1000 } },
-        { "type": "noise", "noiseColor": "pink", "gain": 2.2, "env": { "attack": 0.001, "decay": 0.24, "curve": 4.5 }, "filter": { "type": "lowpass", "freq": 3500, "freqEnd": 380, "q": 0.8, "curve": 0.6 }, "distortion": 0.45 },
-        { "type": "sine", "gain": 1.1, "freq": 95, "freqEnd": 32, "curve": 0.45, "env": { "attack": 0.001, "decay": 0.28, "curve": 4 }, "distortion": 0.5 },
-        { "type": "noise", "noiseColor": "brown", "gain": 0.7, "start": 0.03, "env": { "attack": 0.03, "decay": 1.1, "curve": 4 }, "filter": { "type": "lowpass", "freq": 700, "freqEnd": 160 } }
+        { "type": "sample", "file": "sfx/shotgun_1.wav", "pitch": [0.97, 1.02] },
+        { "type": "sine", "gain": 0.4, "freq": 100, "freqEnd": 35, "curve": 0.45, "env": { "attack": 0.0005, "decay": 0.2, "curve": 4 }, "distortion": 0.3 }
       ]
     },
     "sniper_shot": {
       "bus": "sfx", "refDistance": 16, "maxDistance": 1000, "priority": 7, "maxInstances": 3, "gain": 1,
-      "reverb": 0.3, "reverbSize": 0.75, "distortion": 0.25,
-      "echo": { "time": 0.42, "feedback": 0.32, "mix": 0.45, "lowpass": 1400 },
-      "variations": { "count": 3, "pitch": [0.97, 1.03], "gain": [0.92, 1] },
+      "reverb": 0.15, "reverbSize": 0.75,
+      "echo": { "time": 0.42, "feedback": 0.3, "mix": 0.25, "lowpass": 1200 },
+      "variations": { "count": 2, "pitch": [0.98, 1.02], "gain": [0.92, 1] },
       "layers": [
-        { "type": "noise", "gain": 1.4, "env": { "attack": 0, "decay": 0.018, "curve": 6 }, "filter": { "type": "highpass", "freq": 3000 } },
-        { "type": "click", "gain": 0.8, "filter": { "type": "highpass", "freq": 2500, "q": 0.8 } },
-        { "type": "noise", "noiseColor": "pink", "gain": 2, "env": { "attack": 0.0005, "decay": 0.2, "curve": 5 }, "filter": { "type": "lowpass", "freq": 6000, "freqEnd": 500, "q": 0.9, "curve": 0.5 }, "distortion": 0.4 },
-        { "type": "sine", "gain": 1, "freq": 85, "freqEnd": 28, "curve": 0.4, "env": { "attack": 0.0005, "decay": 0.35, "curve": 4 }, "distortion": 0.45 },
-        { "type": "noise", "noiseColor": "brown", "gain": 0.8, "start": 0.03, "env": { "attack": 0.04, "decay": 1.5, "curve": 4 }, "filter": { "type": "lowpass", "freq": 700, "freqEnd": 150 } }
+        { "type": "sample", "file": "sfx/sniper_1.wav", "pitch": [0.98, 1.02] },
+        { "type": "sine", "gain": 0.35, "freq": 85, "freqEnd": 28, "curve": 0.45, "env": { "attack": 0.0005, "decay": 0.35, "curve": 4 }, "distortion": 0.3 }
       ]
     },
     "rpg_launch": {
       "bus": "sfx", "refDistance": 12, "maxDistance": 600, "priority": 7, "maxInstances": 3, "gain": 0.95,
-      "reverb": 0.25, "reverbSize": 0.5,
+      "reverb": 0.15, "reverbSize": 0.5,
       "variations": { "count": 2, "pitch": [0.96, 1.04], "gain": [0.92, 1] },
       "layers": [
-        { "type": "sine", "gain": 1, "freq": 120, "freqEnd": 45, "curve": 0.5, "env": { "attack": 0.001, "decay": 0.18, "curve": 4 }, "distortion": 0.6 },
-        { "type": "noise", "gain": 1.2, "env": { "attack": 0, "decay": 0.08, "curve": 5 }, "filter": { "type": "lowpass", "freq": 3000, "freqEnd": 600 }, "distortion": 0.5 },
-        { "type": "noise", "noiseColor": "pink", "gain": 2.4, "start": 0.02, "env": { "attack": 0.06, "hold": 0.15, "decay": 0.9, "curve": 2.5 }, "filter": { "type": "bandpass", "freq": 450, "freqEnd": 2600, "q": 1.2, "curve": 0.6 } },
-        { "type": "noise", "gain": 0.35, "start": 0.03, "env": { "attack": 0.1, "hold": 0.1, "decay": 0.8, "curve": 3 }, "filter": { "type": "highpass", "freq": 4000 } },
-        { "type": "noise", "noiseColor": "brown", "gain": 0.6, "start": 0.05, "env": { "attack": 0.05, "decay": 1, "curve": 3 }, "filter": { "type": "lowpass", "freq": 400 } }
+        { "type": "sample", "file": ["sfx/rpg_1.wav", "sfx/rpg_2.wav"] }
       ]
     },
     "explosion": {
@@ -106,58 +97,44 @@
     },
     "dry_fire": {
       "bus": "sfx", "refDistance": 2, "maxDistance": 25, "priority": 3, "gain": 0.55,
-      "variations": { "count": 2, "pitch": [0.95, 1.05], "gain": [0.9, 1] },
+      "variations": { "count": 1, "pitch": [0.94, 1.06], "gain": [0.9, 1] },
       "layers": [
-        { "type": "click", "gain": 1, "filter": { "type": "bandpass", "freq": 2800, "q": 6 } },
-        { "type": "click", "gain": 0.6, "start": 0.028, "filter": { "type": "bandpass", "freq": 1700, "q": 4 } },
-        { "type": "noise", "gain": 0.25, "env": { "attack": 0, "decay": 0.02, "curve": 4 }, "filter": { "type": "highpass", "freq": 3000 } },
-        { "type": "fm", "gain": 0.15, "start": 0.028, "freq": 1250, "fm": { "ratio": 2.1, "index": 1.5, "indexEnd": 0 }, "env": { "attack": 0, "decay": 0.06, "curve": 4 } }
+        { "type": "sample", "file": "sfx/dry_fire_1.wav", "filter": { "type": "highpass", "freq": 450 } }
       ]
     },
     "reload_mag_out": {
       "bus": "sfx", "refDistance": 2, "maxDistance": 30, "priority": 3, "gain": 0.55,
-      "variations": { "count": 2, "pitch": [0.95, 1.05], "gain": [0.9, 1] },
+      "variations": { "count": 1, "pitch": [0.96, 1.04], "gain": [0.9, 1] },
       "layers": [
-        { "type": "click", "gain": 0.8, "filter": { "type": "bandpass", "freq": 3400, "q": 5 } },
-        { "type": "noise", "gain": 0.5, "env": { "attack": 0.02, "decay": 0.07, "curve": 2 }, "filter": { "type": "bandpass", "freq": 2000, "freqEnd": 2600, "q": 2 } },
-        { "type": "fm", "gain": 0.3, "start": 0.05, "freq": 1300, "fm": { "ratio": 2.1, "index": 1.8, "indexEnd": 0 }, "env": { "attack": 0, "decay": 0.09, "curve": 4 } },
-        { "type": "click", "gain": 0.6, "start": 0.05, "filter": { "type": "bandpass", "freq": 2400, "q": 4 } },
-        { "type": "noise", "gain": 0.5, "start": 0.12, "env": { "attack": 0.002, "decay": 0.05, "curve": 4 }, "filter": { "type": "lowpass", "freq": 600 } }
+        { "type": "sample", "file": "sfx/mag_out_1.wav" }
       ]
     },
     "reload_mag_in": {
       "bus": "sfx", "refDistance": 2, "maxDistance": 30, "priority": 3, "gain": 0.6,
-      "variations": { "count": 2, "pitch": [0.95, 1.05], "gain": [0.9, 1] },
+      "variations": { "count": 1, "pitch": [0.96, 1.04], "gain": [0.9, 1] },
       "layers": [
-        { "type": "noise", "gain": 0.4, "env": { "attack": 0.03, "decay": 0.05, "curve": 2 }, "filter": { "type": "bandpass", "freq": 1500, "q": 1.5 } },
-        { "type": "click", "gain": 1, "start": 0.085, "filter": { "type": "bandpass", "freq": 2500, "q": 4 } },
-        { "type": "sine", "gain": 0.5, "start": 0.085, "freq": 230, "freqEnd": 120, "env": { "attack": 0.0005, "decay": 0.06, "curve": 4 } },
-        { "type": "fm", "gain": 0.3, "start": 0.085, "freq": 950, "fm": { "ratio": 2.6, "index": 2, "indexEnd": 0 }, "env": { "attack": 0, "decay": 0.1, "curve": 4 } },
-        { "type": "click", "gain": 0.5, "start": 0.105, "filter": { "type": "bandpass", "freq": 3600, "q": 5 } }
+        { "type": "sample", "file": "sfx/mag_in_1.wav" }
       ]
     },
     "reload_bolt": {
       "bus": "sfx", "refDistance": 2, "maxDistance": 35, "priority": 3, "gain": 0.6,
-      "variations": { "count": 2, "pitch": [0.96, 1.04], "gain": [0.9, 1] },
+      "variations": { "count": 1, "pitch": [0.97, 1.03], "gain": [0.9, 1] },
       "layers": [
-        { "type": "click", "gain": 0.8, "filter": { "type": "bandpass", "freq": 3000, "q": 4 } },
-        { "type": "noise", "gain": 0.5, "env": { "attack": 0.03, "decay": 0.09, "curve": 2 }, "filter": { "type": "bandpass", "freq": 1800, "freqEnd": 3000, "q": 2 } },
-        { "type": "click", "gain": 0.6, "start": 0.12, "filter": { "type": "bandpass", "freq": 2200, "q": 4 } },
-        { "type": "noise", "gain": 0.4, "start": 0.2, "env": { "attack": 0.02, "decay": 0.05, "curve": 2 }, "filter": { "type": "bandpass", "freq": 2600, "freqEnd": 1800, "q": 2 } },
-        { "type": "click", "gain": 1, "start": 0.26, "filter": { "type": "bandpass", "freq": 2800, "q": 3 } },
-        { "type": "sine", "gain": 0.5, "start": 0.26, "freq": 260, "freqEnd": 140, "env": { "attack": 0.0005, "decay": 0.05, "curve": 4 } },
-        { "type": "fm", "gain": 0.35, "start": 0.26, "freq": 1700, "fm": { "ratio": 1.9, "index": 2.5, "indexEnd": 0 }, "env": { "attack": 0, "decay": 0.13, "curve": 4 } }
+        { "type": "sample", "file": "sfx/bolt_1.wav" }
       ]
     },
     "shotgun_pump": {
       "bus": "sfx", "refDistance": 3, "maxDistance": 40, "priority": 3, "gain": 0.65,
-      "variations": { "count": 2, "pitch": [0.96, 1.04], "gain": [0.9, 1] },
+      "variations": { "count": 2, "pitch": [0.97, 1.03], "gain": [0.9, 1] },
       "layers": [
-        { "type": "noise", "gain": 0.8, "env": { "attack": 0.004, "decay": 0.07, "curve": 3 }, "filter": { "type": "bandpass", "freq": 1200, "freqEnd": 1600, "q": 1.5 } },
-        { "type": "click", "gain": 0.8, "start": 0.01, "filter": { "type": "bandpass", "freq": 2000, "q": 3 } },
-        { "type": "noise", "gain": 0.8, "start": 0.2, "env": { "attack": 0.003, "decay": 0.06, "curve": 3 }, "filter": { "type": "bandpass", "freq": 1600, "freqEnd": 1200, "q": 1.5 } },
-        { "type": "click", "gain": 1, "start": 0.21, "filter": { "type": "bandpass", "freq": 2600, "q": 3 } },
-        { "type": "sine", "gain": 0.5, "start": 0.21, "freq": 190, "freqEnd": 110, "env": { "attack": 0.0005, "decay": 0.05, "curve": 4 } }
+        { "type": "sample", "file": ["sfx/shotgun_pump_1.wav", "sfx/shotgun_pump_2.wav"] }
+      ]
+    },
+    "shotgun_shell": {
+      "bus": "sfx", "refDistance": 2, "maxDistance": 30, "priority": 3, "gain": 0.6,
+      "variations": { "count": 3, "pitch": [0.96, 1.04], "gain": [0.9, 1] },
+      "layers": [
+        { "type": "sample", "file": ["sfx/shotgun_shell_1.wav", "sfx/shotgun_shell_2.wav", "sfx/shotgun_shell_3.wav"] }
       ]
     },
     "machete_swing": {

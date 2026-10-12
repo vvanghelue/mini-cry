@@ -322,14 +322,15 @@ export class Weapons {
     this.state = 'reloading';
     this.stateT = 0;
     this.reloadDur = w.reloadPerShell ? w.reload : w.reload;
-    this.game.audio?.play(w.reloadPerShell ? 'shotgun_pump' : 'reload_mag_out', { volume: 0.5 });
+    if (!w.reloadPerShell) this.game.audio?.play('reload_mag_out', { volume: 0.5 });
     this._magInPlayed = false;
+    this._reloadFromEmpty = this.clip[id] <= 0; // shells: rack the pump once the last one is in
   }
 
   _updateReload() {
     const w = this.current, id = this.currentId;
     if (!w) { this.state = 'idle'; return; }
-    if (!this._magInPlayed && this.stateT > this.reloadDur * 0.6) { this._magInPlayed = true; if (!w.reloadPerShell) this.game.audio?.play('reload_mag_in', { volume: 0.5 }); }
+    if (!this._magInPlayed && this.stateT > this.reloadDur * 0.6) { this._magInPlayed = true; this.game.audio?.play(w.reloadPerShell ? 'shotgun_shell' : 'reload_mag_in', { volume: 0.5 }); }
     if (this.stateT < this.reloadDur) return;
     const need = w.mag - this.clip[id];
     const take = Math.min(w.reloadPerShell ? 1 : need, this.ammo[w.ammo] ?? 0);
@@ -338,9 +339,10 @@ export class Weapons {
     this.game.hud?.refreshWeapon();
     if (w.reloadPerShell && this.clip[id] < w.mag && this.ammo[w.ammo] > 0 && !this.game.input.down('fire')) {
       this.stateT = 0;
-      this.game.audio?.play('reload_mag_in', { volume: 0.4, pitch: 1.4 });
+      this._magInPlayed = false;
       return;
     }
+    if (w.reloadPerShell && this._reloadFromEmpty && w.pumpSound) this.game.audio?.play(w.pumpSound, { volume: 0.5 });
     this.state = 'idle';
   }
 

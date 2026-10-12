@@ -8,7 +8,7 @@ import { LAYER_TYPES, LAYER_PRESETS, LAYER_COLORS, NOISE_COLORS, DEF } from './t
 import { layerSummary } from './render.js';
 
 const TONAL = ['sine', 'square', 'saw', 'triangle', 'fm'];
-const TYPE_LABEL = { sine: 'sine', noise: 'noise', click: 'click', square: 'square', saw: 'saw', triangle: 'triangle', fm: 'FM' };
+const TYPE_LABEL = { sine: 'sine', noise: 'noise', click: 'click', square: 'square', saw: 'saw', triangle: 'triangle', fm: 'FM', sample: 'sample' };
 
 export function LayerStack({ layers, sel, onSelect, onChange, solo, onSolo }) {
   const [adding, setAdding] = useState(false);
@@ -77,6 +77,14 @@ export function LayerForm({ L, onChange, lenHint }) {
         {t === 'noise' && <R label="color"><EnumField value={L.noiseColor} options={NOISE_COLORS} allowEmpty onChange={(v) => sub('noiseColor', v)} /></R>}
         {t === 'click' && <R label="rate (/s)" title="Impulses per second (0 = a single impulse)"><P {...b('rate')} def={0} log step={0.1} min={0} /></R>}
         {t === 'click' && <R label="jitter" title="Timing randomness 0..1"><P {...b('jitter')} def={0} step={0.01} min={0} max={1} /></R>}
+        {t === 'sample' && (
+          <R label="file(s)" title="WAV path(s) relative to public/data, e.g. sfx/ak47_1.wav. Several (space separated): variation k plays file k % n">
+            <TextField value={[].concat(L.file ?? []).join(' ')} placeholder="sfx/name.wav"
+              onChange={(s) => { const a = s.split(/[\s,;]+/).filter(Boolean); sub('file', a.length > 1 ? a : a[0]); }} />
+          </R>
+        )}
+        {t === 'sample' && <R label="offset (s)" title="Start position inside the file"><P {...b('offset')} def={0} step={0.001} min={0} /></R>}
+        {t === 'sample' && <R label="pitch ×" title="Playback rate (also changes the length)"><P {...b('pitch')} def={1} log step={0.01} min={0.05} max={8} /></R>}
       </Sect>
       {TONAL.includes(t) && (
         <Sect title="Pitch">

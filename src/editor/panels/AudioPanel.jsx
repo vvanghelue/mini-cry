@@ -251,7 +251,7 @@ function SoundView({ ed, actions }) {
   const nVar = variationCount(r);
   const variation = Math.min(A.variation.value, nVar - 1);
   const res = useRendered(name, eff, variation);
-  const tl = useMemo(() => layerTimeline(eff), [eff]);
+  const tl = useMemo(() => layerTimeline(eff), [eff, res.samples]); // res: sample layers know their length once rendered
   const li = Math.min(A.layer.value, Math.max(0, layers.length - 1));
   const p = playing.value;
   const isPlaying = !!p && p.name === name;

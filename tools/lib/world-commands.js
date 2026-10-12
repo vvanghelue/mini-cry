@@ -1,7 +1,8 @@
 // mc commands for world entities, missions, global validation and live control.
 import fs from 'node:fs';
 import path from 'node:path';
-import { readJSON, writeJSON, listData, ROOT } from './data.js';
+import { readJSON, writeJSON, listData, ROOT, exists } from './data.js';
+import { sampleFiles } from '../../src/engine/audio/synth.js';
 import { loadTerrain } from './terrain.js';
 import { BASE, serverUp } from './browser.js';
 
@@ -168,6 +169,8 @@ export const worldCommands = {
         for (const t of b.perch?.trees ?? []) if (!vegIds.has(t)) warnings.push(`bird ${id}: perch tree ${t} is not a vegetation species`);
         if (!b.orbit && !b.perch && !b.ground) warnings.push(`bird ${id}: no orbit / perch / ground: never spawns`);
       }
+      for (const [id, w] of Object.entries(weapons.weapons)) for (const k of ['sound', 'hitSound', 'boltSound', 'pumpSound']) if (w[k] && !sounds[w[k]]) errors.push(`weapon ${id}: unknown ${k} ${w[k]}`);
+      for (const [n, r] of Object.entries(sounds)) for (const f of sampleFiles(r)) if (!exists(f)) errors.push(`sound ${n}: sample file ${f} not found`);
       // entities
       const w = loadWorld();
       const ids = new Set();
