@@ -65,7 +65,9 @@ Bird chirps use this so they never sing the same phrase twice.
 `sounds.json` also has two optional tuning sections. `music` holds bpm, chords (MIDI), scale,
 levels, 16-step patterns (`x` hit, `o` soft, `?` random, `.` rest) and phrase / rest lengths.
 `ambient` holds `oceanRange`, bed levels, birds / gulls / owls per minute, and `sounds` to rename
-the sounds a bed uses.
+the sounds a bed uses. These spot sounds stand for unseen birds; the visible flocks
+(`src/game/fx/Birds.js`, `game/birds.json`) also play their species' `call` and `bird_takeoff`
+when they are startled.
 
 ## CLI
 

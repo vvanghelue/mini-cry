@@ -97,6 +97,7 @@ export class DebugPanel {
     f.add(C, 'oneShot').name('one-shot kills');
     f.add(C, 'freezeAI').name('freeze AI');
     f.add(C, 'timeScale', 0.05, 3, 0.05).name('game speed').onChange((v) => { if (!g.paused) g.engine.timeScale = v; });
+    if (g.birds) f.add(g.birds, 'enabled').name('birds');
 
     const ammoTypes = Object.keys(g.data.weapons.ammoTypes ?? {});
     const act = {

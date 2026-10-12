@@ -29,7 +29,7 @@ divided by its layer's mean colour, so a part's `color` still sets its colour.
 ```json
 {
   "name": "crate",               // = file name
-  "category": "prop",            // prop | building | vegetation | vehicle | weapon | pickup | fx
+  "category": "prop",            // prop | building | vegetation | vehicle | weapon | pickup | fx | animal
   "label": "Wooden crate",       // display name (editor)
   "material": "wood",            // impact / footstep material: wood | metal | stone | concrete | sand | foliage | cloth | water
   "tags": ["cover", "camp"],     // free tags (editor filters)
@@ -105,6 +105,17 @@ tessellation and drops small details (lianas, coconuts), and the mid / far LODs 
 clumps into a few ellipsoids covering the same crown (fewer, bigger leaf cards). Keep that rule when
 writing a generator: never branch on quality before all random numbers are drawn. Check with
 `mc asset shot <name> --lineup` (every variant at qualities 1 / 0.5 / 0.25 side by side).
+
+## Birds
+
+`bird_*.json` (category `animal`, used by `game/birds.json`, drawn by `src/game/fx/Birds.js`):
+real size, origin at the feet, head toward -Z, wings spread along ±X at rest. The wings are
+animated in the vertex shader with no rig: every vertex farther than the species' `shoulder`
+from the body axis (|x| > shoulder) is a wing vertex, flapped about the shoulder and bent more
+toward the tip, and folded along the body when the bird lands. So keep the body, head, beak, tail
+and legs narrower than the shoulder, and give the wings intermediate vertices (elbow, wrist) to
+bend. Wings are flat `tris`: two single-sided layers for different colours above and below
+(the gull), or `doubleSided`.
 
 ## Vehicles
 

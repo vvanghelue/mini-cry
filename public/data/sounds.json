@@ -628,6 +628,15 @@
         { "type": "saw", "gain": 1, "freq": [1150, 1300], "freqEnd": [800, 950], "curve": 1.5, "env": { "attack": 0.03, "decay": [0.25, 0.32], "curve": 1.5 }, "vibrato": { "rate": 9, "depth": 0.6 }, "filter": { "type": "bandpass", "freq": 1600, "q": 3 }, "repeat": { "count": [2, 4], "interval": [0.3, 0.36], "pitch": [0.95, 1.04], "gain": 0.85 } }
       ]
     },
+    "bird_takeoff": {
+      "bus": "ambient", "refDistance": 8, "maxDistance": 90, "priority": -1, "maxInstances": 3, "gain": 0.6,
+      "variations": { "count": 4, "pitch": [0.9, 1.12], "gain": [0.8, 1] },
+      "layers": [
+        { "type": "noise", "noiseColor": "pink", "gain": 1, "env": { "attack": 0.006, "decay": [0.04, 0.06], "curve": 3 }, "filter": { "type": "bandpass", "freq": [700, 1100], "q": 1.2 }, "repeat": { "count": [10, 15], "interval": [0.065, 0.085], "jitter": 0.012, "gain": 0.94 } },
+        { "type": "noise", "noiseColor": "brown", "gain": 0.6, "env": { "attack": 0.006, "decay": 0.05, "curve": 3 }, "filter": { "type": "lowpass", "freq": 380 }, "repeat": { "count": [10, 15], "interval": [0.07, 0.09], "jitter": 0.015, "gain": 0.92 } },
+        { "type": "noise", "gain": 0.2, "start": 0.02, "env": { "attack": 0.004, "decay": 0.03, "curve": 4 }, "filter": { "type": "highpass", "freq": 2500 }, "repeat": { "count": [8, 12], "interval": [0.075, 0.095], "jitter": 0.02, "gain": 0.9 } }
+      ]
+    },
     "owl_hoot": {
       "bus": "ambient", "refDistance": 12, "maxDistance": 220, "priority": -1, "maxInstances": 2, "gain": 0.45,
       "reverb": 0.3, "reverbSize": 0.8,

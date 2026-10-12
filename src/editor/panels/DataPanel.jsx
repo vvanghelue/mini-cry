@@ -1,4 +1,4 @@
-// Gameplay data editor: weapons, enemy archetypes, player, items, vegetation species, ammo.
+// Gameplay data editor: weapons, enemy archetypes, player, items, birds, vegetation species, ammo.
 // Generic: any JSON object of records is shown as a list + a form inferred from the values
 // (numbers, strings, booleans, colours, arrays of numbers, nested objects as JSON).
 import { useEffect, useState } from 'preact/hooks';
@@ -14,6 +14,7 @@ const FILES = [
   { file: 'game/archetypes.json', path: 'palettes', label: 'Colour palettes' },
   { file: 'game/player.json', path: '', label: 'Player', single: true },
   { file: 'game/items.json', path: 'items', label: 'Items' },
+  { file: 'game/birds.json', path: 'species', label: 'Birds' },
   { file: 'vegetation.json', path: 'species', label: 'Plant species', array: true },
   { file: 'vegetation.json', path: 'grass', label: 'Grass', single: true },
 ];

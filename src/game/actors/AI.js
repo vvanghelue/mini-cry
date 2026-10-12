@@ -620,6 +620,7 @@ export class AIDirector {
 
   /** A noise at pos audible within radius (m). kind: gunshot | explosion | footstep | melee | death */
   noise(pos, radius, kind, source) {
+    this.game.birds?.noise(pos, radius, kind);
     for (const a of this.game.actors.list) {
       if (!a.alive || a === source || !a.ai) continue;
       const d = a.pos.distanceTo(pos);

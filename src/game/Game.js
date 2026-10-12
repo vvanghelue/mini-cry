@@ -8,6 +8,7 @@ import { CharacterLibrary, nextCharacterFrame } from '../engine/anim/Characters.
 import { Player } from './player/Player.js';
 import { Weapons } from './player/Weapons.js';
 import { Effects } from './fx/Effects.js';
+import { Birds } from './fx/Birds.js';
 import { ActorManager } from './actors/Actors.js';
 import { AIDirector } from './actors/AI.js';
 import { HUD } from './ui/HUD.js';
@@ -66,12 +67,12 @@ export class Game {
 
   async init() {
     const t0 = performance.now();
-    const [player, weapons, archetypes, items, missions, dialogue, sounds, voices] = await Promise.all([
+    const [player, weapons, archetypes, items, missions, dialogue, sounds, voices, birds] = await Promise.all([
       Data.json('game/player.json'), Data.json('game/weapons.json'), Data.json('game/archetypes.json'), Data.json('game/items.json'),
       Data.jsonOr('game/missions.json', { missions: [] }), Data.jsonOr('game/dialogue.json', { speakers: {}, dialogues: {} }), Data.jsonOr('sounds.json', { sounds: {} }),
-      Data.jsonOr(VOICE_MANIFEST, { lines: {} }),
+      Data.jsonOr(VOICE_MANIFEST, { lines: {} }), Data.jsonOr('game/birds.json', { species: {} }),
     ]);
-    this.data = { player, weapons, archetypes, items, missions, dialogue, sounds };
+    this.data = { player, weapons, archetypes, items, missions, dialogue, sounds, birds };
     // characters (all archetype models)
     const models = [...new Set(Object.values(archetypes.archetypes).map((a) => a.model))];
     this.app.onLoadProgress?.(0.85, 'Characters and animations');
@@ -87,6 +88,7 @@ export class Game {
     } catch (e) { console.warn('audio unavailable', e); this.audio = null; }
 
     this.effects = new Effects(this);
+    this.birds = new Birds(this, birds);
     this.player = new Player(this, { ...player, mouseSensitivity: player.mouseSensitivity * this.settings.sensitivity, fov: this.settings.fov });
     this.input.invertY = !!this.settings.invertY;
     this.hud = new HUD(this);
@@ -217,6 +219,7 @@ export class Game {
       this.engine.camera.rotation.x += (Math.random() - 0.5) * s;
       this.engine.camera.rotation.y += (Math.random() - 0.5) * s;
     }
+    this.engine.perf.mark('birds', () => this.birds.update(dt)); // after the camera: spawns / startles around where it is now
     this.hud.update(dt);
     this.audio?.setMusicIntensity?.(this.musicOverride ?? this.ai.combatLevel);
     this.audio?.update?.(dt, this.engine.camera, this._ambientState());
@@ -633,6 +636,7 @@ export class Game {
     L.register('killAll', ({ group, radius = 100 }) => { let n = 0; for (const a of g.actors.list) if (a.alive && a.team === 'merc' && (group ? a.group === group : a.pos.distanceTo(g.player.pos) < radius)) { a.die({ attacker: 'player' }); n++; } return n; });
     L.register('start', () => { if (!g.started) g.newGame({ skipIntro: true }); else g.resume(); return true; });
     L.register('look', ({ yaw, pitch }) => { if (yaw !== undefined) g.player.yaw = yaw; if (pitch !== undefined) g.player.pitch = pitch; return true; });
+    L.register('birds', ({ on, startle } = {}) => { if (on !== undefined) g.birds.enabled = on; if (startle) for (const f of [...g.birds.flocks]) g.birds.startle(f, g.engine.camera.position); return g.birds.stats(); });
   }
 }
 
