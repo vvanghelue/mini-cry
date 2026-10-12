@@ -1,6 +1,6 @@
 # Mini Cry — Isla Sombra
 
-[![Puerto Viejo and the lagoon](docs/screenshot.jpg)](https://vvanghelue.github.io/mini-cry/)
+[![In game: shooting, jeep, jungle, bush plane, coast, village](docs/realistic/gameplay.jpg)](https://vvanghelue.github.io/mini-cry/)
 
 ![Stilt huts on the lagoon](docs/screenshot_beach.jpg)
 
