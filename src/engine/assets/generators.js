@@ -125,7 +125,7 @@ function leafFringe(c, squash, n, size, extra) {
     const tip = [P[0] + t[0] * len * 0.85 + d[0] * len * 0.3, P[1] + t[1] * len * 0.85 + d[1] * len * 0.3, P[2] + t[2] * len * 0.85 + d[2] * len * 0.3];
     pos.push(P[0] - sd[0] * w, P[1] - sd[1] * w, P[2] - sd[2] * w, P[0] + sd[0] * w, P[1] + sd[1] * w, P[2] + sd[2] * w, ...tip);
   }
-  return { shape: 'tris', positions: pos, color: mixHex([c.color, '#86b04a'], [3, 1]), wind: 0.35, jitter: 0.12, ...extra };
+  return { shape: 'tris', positions: pos, color: mixHex([c.color, '#a8c977'], [3, 1]), wind: 0.35, jitter: 0.12, ...extra };
 }
 
 /** Buttress root: a thin fin, high against the trunk and sweeping down to the ground (concave). */
@@ -146,8 +146,8 @@ const TREE_DEFAULTS = {
   crownBase: 0.35, crownRadius: 3.3, elevMin: -20, elevMax: 70, crownShell: 0.72,
   branches: 5, forks: 1, clumps: 10, clumpRadius: 1.5, clumpSquash: 0.75, clumpNoise: 0.22, clumpDetail: 0, leafFringe: 12, leafSize: 0.8, midClumps: 5, farClumps: 2, midBranches: 3, farBranches: 0,
   buttress: 0, lianas: 0, aerialRoots: 0, moss: 0,
-  barkColor: '#6b5640', barkColor2: '#5c4a37', mossColor: '#55702c', lianaColor: '#3e4a20',
-  leafColors: ['#3f6f22', '#4a7d28', '#36631d'], flowerColors: ['#d2401f', '#e2582a', '#c23417'], flowers: 0,
+  barkColor: '#6b5640', barkColor2: '#5c4a37', mossColor: '#6b8049', lianaColor: '#4a5433',
+  leafColors: ['#5d7f41', '#6b8e4b', '#527139'], flowerColors: ['#d2401f', '#e2582a', '#c23417'], flowers: 0,
   foliage: 0.75, ao: 0.55,
 };
 
@@ -372,7 +372,7 @@ export const GENERATORS = {
     label: 'Palm',
     defaults: {
       height: 9, lean: 12, curve: 0.3, trunkRadius: 0.2, flare: 1.7, segments: 9, fronds: 15, frondLength: 3.9, frondWidth: 0.8, droop: 1.7, leaflets: 11, fold: 0.5, leafletBase: 0.9,
-      coconuts: 4, dead: 2, crownshaft: '', trunkColor: '#8b7c66', ringColor: '#6f624f', frondColors: ['#4d7f24', '#5a8c2b', '#43741f'], youngColor: '#7ea83c', oldColor: '#9c8a3e', deadColor: '#8a6b3c',
+      coconuts: 4, dead: 2, crownshaft: '', trunkColor: '#8b7c66', ringColor: '#6f624f', frondColors: ['#6d9148', '#7ba052', '#618440'], youngColor: '#9fc069', oldColor: '#9c8a3e', deadColor: '#8a6b3c',
       foliage: 0.65, ao: 0.4,
     },
     build: buildPalm,
@@ -391,7 +391,7 @@ export const GENERATORS = {
     defaults: {
       ...TREE_DEFAULTS, height: 21, trunkRadius: 0.7, flare: 1.6, lean: 3, bend: 0.8, trunkTop: 0.68, crownBase: 0.6, crownRadius: 6.5, elevMin: -5, elevMax: 50, crownShell: 0.75,
       branches: 5, forks: 2, clumps: 14, clumpRadius: 2.2, clumpSquash: 0.6, midClumps: 9, farClumps: 4, midBranches: 5, farBranches: 3, buttress: 5, lianas: 5, moss: 1,
-      barkColor: '#5f4c38', barkColor2: '#544332', leafColors: ['#2c5e1a', '#36691f', '#264f16'],
+      barkColor: '#5f4c38', barkColor2: '#544332', leafColors: ['#496b35', '#55783d', '#3e5a2d'],
     },
     build: buildTree,
     collider: treeCollider,
@@ -408,7 +408,7 @@ export const GENERATORS = {
     label: 'Pandanus',
     defaults: {
       height: 5, trunkRadius: 0.14, roots: 6, rootHeight: 1.3, rootSpread: 1.0, forks: 2, leaves: 12, leafLength: 1.7, leafWidth: 0.12, fruits: 1,
-      barkColor: '#80705a', rootColor: '#8d7d64', leafColors: ['#5f8d3b', '#6c9a45', '#537f34'], fruitColor: '#d98a2b', foliage: 0.6, ao: 0.35,
+      barkColor: '#80705a', rootColor: '#8d7d64', leafColors: ['#80a15f', '#8eb06c', '#729155'], fruitColor: '#d98a2b', foliage: 0.6, ao: 0.35,
     },
     build: buildPandanus,
     collider: () => [{ type: 'cylinder', radius: 0.4, height: 3, pos: [0, 1.5, 0] }],
@@ -416,7 +416,7 @@ export const GENERATORS = {
 
   bush: {
     label: 'Bush',
-    defaults: { radius: 1.1, blobs: 3, leaves: 9, leafColors: ['#3f8a22', '#4d9a2a', '#357a1c'], colors: ['#2f6a1c', '#3a7a22', '#285c17'], berries: 0, berryColor: '#c8302a' },
+    defaults: { radius: 1.1, blobs: 3, leaves: 9, leafColors: ['#6a9d4a', '#7bb056', '#5c8b40'], colors: ['#51793b', '#608b45', '#466932'], berries: 0, berryColor: '#c8302a' },
     build(p, rng, q = 1) {
       // a leafy core (a few faceted blobs) wrapped in arching broad leaves
       const parts = [];
@@ -444,7 +444,7 @@ export const GENERATORS = {
 
   fern: {
     label: 'Fern',
-    defaults: { fronds: 8, length: 1.3, width: 0.2, droop: 0.65, colors: ['#3d8a24', '#2e7419'] },
+    defaults: { fronds: 8, length: 1.3, width: 0.2, droop: 0.65, colors: ['#699d4c', '#55843c'] },
     build(p, rng, q = 1) {
       const parts = [];
       const nf = q <= 0.5 ? Math.ceil(p.fronds * 0.6) : p.fronds;
@@ -457,7 +457,7 @@ export const GENERATORS = {
 
   banana: {
     label: 'Banana plant',
-    defaults: { height: 2.4, leaves: 6, leafLength: 2.3, leafWidth: 0.55, stemColor: '#6b8a3a', leafColors: ['#4d9a2a', '#5aa834', '#3f8722'] },
+    defaults: { height: 2.4, leaves: 6, leafLength: 2.3, leafWidth: 0.55, stemColor: '#859d5d', leafColors: ['#7bb056', '#8ac063', '#699a49'] },
     build(p, rng, q = 1) {
       const h = vary(rng, p.height, 0.2);
       if (q <= 0.5) p = { ...p, leaves: Math.ceil(p.leaves * 0.6) };
@@ -471,7 +471,7 @@ export const GENERATORS = {
 
   grass: {
     label: 'Grass tuft',
-    defaults: { blades: 5, height: 0.55, width: 0.08, spread: 0.18, colors: ['#5d9a2c', '#6aa834', '#4f8a24'] },
+    defaults: { blades: 5, height: 0.55, width: 0.08, spread: 0.18, colors: ['#84b058', '#93c063', '#739d4c'] },
     build(p, rng) {
       const pos = [];
       for (let i = 0; i < p.blades; i++) {
@@ -488,7 +488,7 @@ export const GENERATORS = {
 
   flowers: {
     label: 'Flowers',
-    defaults: { count: 5, height: 0.45, colors: ['#e8473c', '#f2c53d', '#e86fb3', '#ffffff'], stemColor: '#4f8a24' },
+    defaults: { count: 5, height: 0.45, colors: ['#e8473c', '#f2c53d', '#e86fb3', '#ffffff'], stemColor: '#739d4c' },
     build(p, rng) {
       const parts = [];
       for (let i = 0; i < p.count; i++) {
@@ -503,7 +503,7 @@ export const GENERATORS = {
 
   rock: {
     label: 'Rock',
-    defaults: { radius: 1.4, detail: 1, noise: 0.28, squash: [1.1, 0.65, 1], colors: ['#7a756c', '#6b665e', '#86807a'], moss: 0.0, mossColor: '#4d6b25' },
+    defaults: { radius: 1.4, detail: 1, noise: 0.28, squash: [1.1, 0.65, 1], colors: ['#7a756c', '#6b665e', '#86807a'], moss: 0.0, mossColor: '#637a42' },
     build(p, rng) {
       const parts = [{ shape: 'lump', radius: vary(rng, p.radius, 0.25), detail: p.detail, noise: p.noise, seed: Math.floor(rng() * 9999), scale: p.squash, pos: [0, p.radius * p.squash[1] * 0.45, 0], color: pick(rng, p.colors), jitter: 0.12 }];
       if (p.moss > 0) parts.push({ shape: 'lump', radius: p.radius * 0.75, detail: 1, noise: 0.2, seed: Math.floor(rng() * 999), scale: [p.squash[0] * 1.05, p.squash[1] * 0.4, p.squash[2] * 1.05], pos: [0, p.radius * p.squash[1] * 0.8, 0], color: p.mossColor, minQuality: 0.5 });
@@ -514,7 +514,7 @@ export const GENERATORS = {
 
   bamboo: {
     label: 'Bamboo',
-    defaults: { stalks: 7, height: 7, radius: 0.07, spread: 0.7, color: '#7d9a3a', nodeColor: '#5d7a2a', leafColor: '#4f9128' },
+    defaults: { stalks: 7, height: 7, radius: 0.07, spread: 0.7, color: '#97b063', nodeColor: '#748b4b', leafColor: '#77a552' },
     build(p, rng) {
       const parts = [];
       for (let i = 0; i < p.stalks; i++) {
