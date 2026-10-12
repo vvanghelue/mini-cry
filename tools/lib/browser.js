@@ -2,6 +2,7 @@
 // Used by tools/shot.mjs, tools/bench.mjs and `mc run`.
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { ROOT } from './data.js';
 
 export const PORT = Number(process.env.MC_PORT ?? 5190);
@@ -45,10 +46,15 @@ export async function ensureServer() {
 }
 
 export async function launch({ width = 1440, height = 900, dpr = 1, headless = true } = {}) {
+  // macOS: Chrome on the real GPU (ANGLE / Metal). Elsewhere (Linux CI / cloud containers without
+  // Chrome or a GPU): the bundled Chromium (MC_CHROMIUM overrides its path), WebGL through ANGLE
+  // (SwiftShader when there is no GPU) — slow but pixel-correct, fine for shots and tests.
+  const mac = process.platform === 'darwin';
+  const exe = process.env.MC_CHROMIUM ?? (!mac && fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : null);
   const browser = await chromium.launch({
-    channel: 'chrome',
+    ...(exe ? { executablePath: exe } : { channel: 'chrome' }),
     headless,
-    args: ['--enable-gpu', '--use-angle=metal', '--disable-gpu-vsync', '--disable-frame-rate-limit', '--enable-unsafe-webgpu', '--ignore-gpu-blocklist'],
+    args: ['--enable-gpu', mac ? '--use-angle=metal' : '--use-angle=default', '--enable-unsafe-swiftshader', '--disable-gpu-vsync', '--disable-frame-rate-limit', '--enable-unsafe-webgpu', '--ignore-gpu-blocklist'],
   });
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: dpr });
   const logs = [];

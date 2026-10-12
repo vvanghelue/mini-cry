@@ -13,6 +13,7 @@ import { LAYERS } from './layers.js';
 import { patchLodDepth } from './LodFade.js';
 import { LensFlare, FLARE_DEFAULTS } from './LensFlare.js';
 import { CLOUDS_GLSL } from './clouds.js';
+import { Surfaces } from './Surfaces.js';
 
 // ao: SSAO samples per pixel (0 = off)
 export const QUALITY = {
@@ -47,6 +48,9 @@ export const DEFAULT_ENV = {
   river: { shallow: '#6f9a6a', deep: '#21402c' },
   // light halos around lamps / fires (Glows.js): strength, distance (m) past which they fade out
   glows: { intensity: 1, distance: 600 },
+  // textured PBR materials: sky reflections (x the probe sky visibility), normal map strength,
+  // texture detail (0 = plain vertex colours)
+  surface: { skySpecular: 1, normalScale: 1, detail: 1 },
   ...structuredClone(GI_DEFAULTS),
   ...structuredClone(FLARE_DEFAULTS),
 };
@@ -76,7 +80,10 @@ export class Lighting {
       windSpeed: { value: 1.3 },
       camPosW: { value: new THREE.Vector3() }, // view camera, set by the distance-faded fields (InstancedField)
       foliageTransmission: { value: DEFAULT_ENV.foliageTransmission },
+      skySpec: { value: 1 }, // sky radiance scale for the reflections (hemisphere intensity / PI x env)
     };
+    // texture arrays (terrain, surfaces, foliage) and their shader code; loaded by AssetLibrary / World
+    this.surfaces = new Surfaces();
     this.sun = new SunShadows(renderer, scene, this.Q.cascades);
     this.sunDir = this.sun.dir;
     this.sunColor = new THREE.Color();
@@ -88,6 +95,9 @@ export class Lighting {
     // LOD'd instanced fields cast and occlude with one LOD per instance (render/LodFade.js)
     patchLodDepth(this.sun.depthMatDouble, this.uniforms);
     patchLodDepth(this.ao.depthMat, this.uniforms);
+    // alpha-cut leaves cast / occlude through their cut-out, not as cards
+    this.surfaces.patchDepth(this.sun.depthMatDouble);
+    this.surfaces.patchDepth(this.ao.depthMat);
 
     this.hemi = new THREE.HemisphereLight(0xbfdfff, 0x5b4a2e, 1);
     scene.add(this.hemi);
@@ -108,7 +118,7 @@ export class Lighting {
   }
 
   setEnvironment(env) {
-    this.env = { ...structuredClone(DEFAULT_ENV), ...env, sky: { ...DEFAULT_ENV.sky, ...env.sky }, ocean: { ...DEFAULT_ENV.ocean, ...env.ocean }, river: { ...DEFAULT_ENV.river, ...env.river }, wind: { ...DEFAULT_ENV.wind, ...env.wind }, clouds: { ...DEFAULT_ENV.clouds, ...env.clouds }, ao: { ...DEFAULT_ENV.ao, ...env.ao }, flare: { ...DEFAULT_ENV.flare, ...env.flare }, glows: { ...DEFAULT_ENV.glows, ...env.glows }, gi: { ...DEFAULT_ENV.gi, ...env.gi }, autoExposure: { ...DEFAULT_ENV.autoExposure, ...env.autoExposure } };
+    this.env = { ...structuredClone(DEFAULT_ENV), ...env, sky: { ...DEFAULT_ENV.sky, ...env.sky }, ocean: { ...DEFAULT_ENV.ocean, ...env.ocean }, river: { ...DEFAULT_ENV.river, ...env.river }, wind: { ...DEFAULT_ENV.wind, ...env.wind }, clouds: { ...DEFAULT_ENV.clouds, ...env.clouds }, ao: { ...DEFAULT_ENV.ao, ...env.ao }, surface: { ...DEFAULT_ENV.surface, ...env.surface }, flare: { ...DEFAULT_ENV.flare, ...env.flare }, glows: { ...DEFAULT_ENV.glows, ...env.glows }, gi: { ...DEFAULT_ENV.gi, ...env.gi }, autoExposure: { ...DEFAULT_ENV.autoExposure, ...env.autoExposure } };
     this.gi.setConfig(this.env);
     const w = this.env.wind;
     this.uniforms.windDir.value.set(w.dir[0], w.dir[1]).normalize();
@@ -118,6 +128,9 @@ export class Lighting {
     this.skyU.cloudCoverage.value = this.env.clouds.coverage;
     this.skyU.cloudSpeed.value = this.env.clouds.speed;
     this.ao.set(this.env.ao);
+    const su = this.surfaces.uniforms;
+    su.surfNormalScale.value = this.env.surface.normalScale;
+    su.surfDetail.value = this.env.surface.detail;
     this.setTimeOfDay(this.env.timeOfDay);
     this.onEnvironment?.(this.env);
   }
@@ -170,6 +183,7 @@ export class Lighting {
     this.hemi.color.copy(zenith).lerp(horizon, 0.5).multiplyScalar(1.0);
     this.hemi.groundColor.copy(col(sk.ground)).multiplyScalar(0.35 + 0.65 * day);
     this.hemi.intensity = env.ambient * (0.35 + 0.65 * day) + this.night * 0.6;
+    this.uniforms.skySpec.value = (this.hemi.intensity / Math.PI) * (env.surface?.skySpecular ?? 1);
     this.scene.fog.color.copy(horizon);
     this.scene.fog.density = env.fogDensity * (1 + this.night * 0.6);
     this.baseExposure = env.exposure * THREE.MathUtils.lerp(1, env.nightExposure, this.night);
@@ -253,25 +267,30 @@ export class Lighting {
   }
 
   /**
-   * Low-poly lit material (Lambert, vertex colours, faceted). Cached by options.
+   * Shared lit material, cached by options.
+   *  textured:  PBR (MeshStandardMaterial) sampling the texture arrays by the per-vertex `uv` +
+   *             `surface` attributes (render/Surfaces.js), normals from the geometry, sky reflections
+   *  cutout:    alpha-cut foliage layers (alpha to coverage on the MSAA buffer)
    *  wind:      sway vertices by the `wind` attribute (0 = rigid, 1 = leaf tip)
    *  flatColor: one colour per triangle (no colour interpolation)
    *  emissive:  per-vertex `emissive` attribute adds self-illumination (lamps, fire)
-   *  foliage:   assets with baked normals (assets/ModelBuilder.js: facets, crown normals of length 2
-   *             on leaves): smooth shading, per-instance leaf tint, light through the leaves
-   *  smooth:    smooth shading (characters) instead of faceted
+   *  foliage:   assets with baked normals (assets/ModelBuilder.js: crown normals of length 2 on
+   *             leaves): per-instance leaf tint, light through the leaves
+   *  smooth:    smooth shading (characters) instead of faceted (untextured Lambert path)
    */
   material(opts = {}) {
     const key = JSON.stringify(opts);
     let m = this.materials.get(key);
     if (m) return m;
-    m = new THREE.MeshLambertMaterial({
+    const common = {
       vertexColors: opts.vertexColors !== false,
-      flatShading: !opts.smooth && !opts.foliage,
       side: opts.doubleSided ? THREE.DoubleSide : THREE.FrontSide,
       transparent: !!opts.transparent,
       color: opts.color ?? 0xffffff,
-    });
+    };
+    m = opts.textured
+      ? new THREE.MeshStandardMaterial({ ...common, roughness: 1, metalness: 0, alphaToCoverage: !!opts.cutout })
+      : new THREE.MeshLambertMaterial({ ...common, flatShading: !opts.smooth && !opts.foliage });
     this.patch(m, opts);
     this.materials.set(key, m);
     return m;
@@ -279,7 +298,7 @@ export class Lighting {
 
   /** Inject sun + shadows + SSAO + probe GI (+ wind / flat colour / emissive) into a Lambert / Standard material. */
   patch(mat, opts = {}) {
-    const sun = this.sun, ao = this.ao, gi = this.gi, U = this.uniforms;
+    const sun = this.sun, ao = this.ao, gi = this.gi, U = this.uniforms, surf = this.surfaces, skyU = this.skyU;
     const prev = mat.onBeforeCompile;
     mat.onBeforeCompile = (sh, r) => {
       prev?.call(mat, sh, r);
@@ -287,6 +306,8 @@ export class Lighting {
       sun.inject(sh);
       ao.inject(sh);
       gi.inject(sh);
+      if (opts.textured) surf.inject(sh);
+      if (mat.isMeshStandardMaterial) skyReflections(sh, skyU);
       if (opts.wind) {
         sh.vertexShader = sh.vertexShader
           .replace('#include <common>', `#include <common>
@@ -352,7 +373,7 @@ export class Lighting {
       }
     };
     const prevKey = mat.customProgramCacheKey?.bind(mat);
-    mat.customProgramCacheKey = () => `${prevKey ? prevKey() : ''}|mc|${opts.wind ? 'w' : ''}${opts.flatColor ? 'f' : ''}${opts.emissive ? 'e' : ''}${opts.foliage ? 'l' : ''}`;
+    mat.customProgramCacheKey = () => `${prevKey ? prevKey() : ''}|mc|${opts.wind ? 'w' : ''}${opts.flatColor ? 'f' : ''}${opts.emissive ? 'e' : ''}${opts.foliage ? 'l' : ''}${opts.textured ? 't' : ''}${opts.cutout ? 'c' : ''}`;
     mat.needsUpdate = true;
     return mat;
   }
@@ -383,4 +404,23 @@ export class Lighting {
     this.sun.update(camera);
     this.ao.render(camera);
   }
+}
+
+/** Indirect specular from the sky (no environment map): the sky gradient around the reflected
+ *  direction (blurred toward its average with roughness), scaled by the probe sky visibility
+ *  (GI.js giOcc) so nothing glows under a roof or in the jungle. */
+export function skyReflections(sh, skyU) {
+  sh.uniforms.skyZen = skyU.zenith;
+  sh.uniforms.skyHor = skyU.horizon;
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nuniform vec3 skyZen, skyHor;\nuniform float skySpec;\nfloat surfSpecK = 1.0; // leaves: 0.15 (Surfaces.js)')
+    .replace('#include <lights_fragment_maps>', `#include <lights_fragment_maps>
+      #if defined( RE_IndirectSpecular )
+      {
+        vec3 rW = normalize((vec4(reflect(-geometryViewDir, geometryNormal), 0.0) * viewMatrix).xyz);
+        vec3 skyR = rW.y > 0.0 ? mix(skyHor, skyZen, sqrt(rW.y)) : skyHor * mix(0.45, 0.25, min(-rW.y * 4.0, 1.0));
+        vec3 skyAvg = mix(skyHor, skyZen, 0.55) * 0.8;
+        radiance += mix(skyR, skyAvg, material.roughness) * skySpec * giOcc * surfSpecK;
+      }
+      #endif`);
 }

@@ -12,6 +12,7 @@ import { soundCommands } from './sound-commands.js';
 import { worldCommands } from './world-commands.js';
 import { voiceCommands } from './voice-commands.js';
 import { giCommands } from './gi-commands.js';
+import { textureCommands } from './texture-commands.js';
 
 /** Areas kept free of vegetation: building sites, roads, and entity footprints. */
 export function vegetationExclusions() {
@@ -270,6 +271,7 @@ export const commands = {
   ...worldCommands,
   ...voiceCommands,
   ...giCommands,
+  ...textureCommands,
 };
 
 let _build = null;

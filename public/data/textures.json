@@ -1,0 +1,504 @@
+{
+  "credits": "Textures: Poly Haven (polyhaven.com, CC0) and ambientCG (ambientcg.com, CC0). Foliage atlases are composed by `mc textures build` from ambientCG leaf / grass scans.",
+  "terrain": {
+    "size": 1024,
+    "normalSize": 512,
+    "layers": [
+      {
+        "id": "sand",
+        "polyhaven": "sand_01",
+        "scale": 5,
+        "mean": [
+          0.3473,
+          0.2787,
+          0.1481
+        ],
+        "roughness": 0.988
+      },
+      {
+        "id": "wet_sand",
+        "polyhaven": "damp_beach_sand_02",
+        "scale": 5,
+        "mean": [
+          0.1047,
+          0.0887,
+          0.0583
+        ],
+        "roughness": 0.914
+      },
+      {
+        "id": "grass",
+        "polyhaven": "leafy_grass",
+        "scale": 3.5,
+        "mean": [
+          0.2643,
+          0.1954,
+          0.0884
+        ],
+        "roughness": 0.685
+      },
+      {
+        "id": "jungle",
+        "polyhaven": "forest_leaves_02",
+        "scale": 4,
+        "mean": [
+          0.2219,
+          0.1364,
+          0.0446
+        ],
+        "roughness": 0.933
+      },
+      {
+        "id": "dirt",
+        "polyhaven": "red_laterite_soil_stones",
+        "scale": 4,
+        "mean": [
+          0.1004,
+          0.0388,
+          0.0223
+        ],
+        "roughness": 0.737
+      },
+      {
+        "id": "rock",
+        "polyhaven": "rock_face",
+        "scale": 9,
+        "mean": [
+          0.1191,
+          0.0605,
+          0.0315
+        ],
+        "roughness": 0.835
+      },
+      {
+        "id": "dark_rock",
+        "polyhaven": "dark_rock",
+        "scale": 8,
+        "mean": [
+          0.0147,
+          0.0114,
+          0.0086
+        ],
+        "roughness": 0.797
+      },
+      {
+        "id": "mud",
+        "polyhaven": "mud_forest",
+        "scale": 4,
+        "mean": [
+          0.0388,
+          0.0203,
+          0.0075
+        ],
+        "roughness": 0.918
+      },
+      {
+        "id": "moss",
+        "polyhaven": "aerial_grass_rock",
+        "scale": 6,
+        "mean": [
+          0.1172,
+          0.0849,
+          0.0199
+        ],
+        "roughness": 0.809
+      },
+      {
+        "id": "ash",
+        "polyhaven": "burned_ground_01",
+        "scale": 5,
+        "mean": [
+          0.1165,
+          0.0872,
+          0.0629
+        ],
+        "roughness": 0.519
+      },
+      {
+        "id": "field",
+        "polyhaven": "grass_ground",
+        "scale": 4,
+        "mean": [
+          0.1379,
+          0.1039,
+          0.0434
+        ],
+        "roughness": 0.937
+      },
+      {
+        "id": "concrete",
+        "polyhaven": "concrete_floor_worn_001",
+        "scale": 4,
+        "mean": [
+          0.0907,
+          0.0917,
+          0.0866
+        ],
+        "roughness": 0.541
+      }
+    ],
+    "materials": {
+      "sand": "sand",
+      "wet_sand": "wet_sand",
+      "grass": "grass",
+      "jungle": "jungle",
+      "dirt": "dirt",
+      "rock": "rock",
+      "dark_rock": "dark_rock",
+      "mud": "mud",
+      "seabed": "sand",
+      "moss": "moss",
+      "ash": "ash",
+      "field": "field",
+      "concrete": "concrete"
+    },
+    "files": {
+      "albedo": "textures/terrain_albedo.webp",
+      "normal": "textures/terrain_normal.jpg"
+    }
+  },
+  "surfaces": {
+    "size": 512,
+    "layers": [
+      {
+        "id": "plain",
+        "generate": "plain",
+        "scale": 2,
+        "roughness": 0.6,
+        "mean": [
+          0.2071,
+          0.2071,
+          0.2071
+        ]
+      },
+      {
+        "id": "wood_planks",
+        "polyhaven": "wood_planks",
+        "scale": 2.4,
+        "mean": [
+          0.1894,
+          0.0984,
+          0.041
+        ],
+        "roughness": 0.862
+      },
+      {
+        "id": "wood",
+        "polyhaven": "wood_table_worn",
+        "scale": 1.6,
+        "mean": [
+          0.0854,
+          0.0284,
+          0.0077
+        ],
+        "roughness": 0.724
+      },
+      {
+        "id": "metal",
+        "polyhaven": "rusty_metal_02",
+        "scale": 2,
+        "metal": true,
+        "mean": [
+          0.3471,
+          0.242,
+          0.1143
+        ],
+        "roughness": 0.423
+      },
+      {
+        "id": "metal_smooth",
+        "polyhaven": "blue_metal_plate",
+        "scale": 1.5,
+        "metal": true,
+        "mean": [
+          0.0233,
+          0.0492,
+          0.0735
+        ],
+        "roughness": 0.285
+      },
+      {
+        "id": "corrugated",
+        "polyhaven": "rusty_corrugated_iron",
+        "scale": 2,
+        "metal": true,
+        "mean": [
+          0.0871,
+          0.0216,
+          0.0091
+        ],
+        "roughness": 0.936
+      },
+      {
+        "id": "concrete",
+        "polyhaven": "concrete_wall_003",
+        "scale": 3,
+        "mean": [
+          0.6159,
+          0.4849,
+          0.3482
+        ],
+        "roughness": 0.619
+      },
+      {
+        "id": "plaster",
+        "polyhaven": "worn_plaster_wall",
+        "scale": 3,
+        "mean": [
+          0.1796,
+          0.1528,
+          0.1099
+        ],
+        "roughness": 0.971
+      },
+      {
+        "id": "stone_block",
+        "polyhaven": "coral_fort_wall_01",
+        "scale": 3,
+        "mean": [
+          0.2967,
+          0.294,
+          0.2638
+        ],
+        "roughness": 0.664
+      },
+      {
+        "id": "stone_rubble",
+        "polyhaven": "stone_wall",
+        "scale": 3,
+        "mean": [
+          0.342,
+          0.2718,
+          0.1873
+        ],
+        "roughness": 0.826
+      },
+      {
+        "id": "thatch",
+        "polyhaven": "thatch_roof_angled",
+        "scale": 2,
+        "mean": [
+          0.0784,
+          0.0708,
+          0.0604
+        ],
+        "roughness": 0.894
+      },
+      {
+        "id": "fabric",
+        "polyhaven": "rough_linen",
+        "scale": 1.2,
+        "mean": [
+          0.2414,
+          0.3448,
+          0.5173
+        ],
+        "roughness": 0.659
+      },
+      {
+        "id": "burlap",
+        "polyhaven": "hessian_230",
+        "scale": 0.8,
+        "mean": [
+          0.2618,
+          0.1856,
+          0.0999
+        ],
+        "roughness": 0.584
+      },
+      {
+        "id": "bark",
+        "polyhaven": "bark_brown_02",
+        "scale": 2,
+        "mean": [
+          0.097,
+          0.0797,
+          0.0487
+        ],
+        "roughness": 0.902
+      },
+      {
+        "id": "palm_bark",
+        "polyhaven": "palm_bark",
+        "scale": 1.4,
+        "mean": [
+          0.0917,
+          0.0706,
+          0.0554
+        ],
+        "roughness": 0.93
+      },
+      {
+        "id": "rock",
+        "polyhaven": "rock_face",
+        "scale": 4,
+        "mean": [
+          0.119,
+          0.0604,
+          0.0314
+        ],
+        "roughness": 0.835
+      }
+    ],
+    "files": {
+      "albedo": "textures/surfaces_albedo.webp",
+      "normal": "textures/surfaces_normal.jpg"
+    }
+  },
+  "foliage": {
+    "size": 1024,
+    "layers": [
+      {
+        "id": "leaves_broad",
+        "compose": "cluster",
+        "from": "LeafSet022",
+        "leaves": 70,
+        "leafSize": [
+          0.17,
+          0.26
+        ],
+        "twig": "#5a4632",
+        "mean": [
+          0.1739,
+          0.3138,
+          0.0472
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "leaves_jungle",
+        "compose": "cluster",
+        "from": "LeafSet023",
+        "leaves": 46,
+        "leafSize": [
+          0.22,
+          0.32
+        ],
+        "twig": "#4d3d2b",
+        "mean": [
+          0.1971,
+          0.3641,
+          0.02
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "leaf_mass",
+        "compose": "mass",
+        "from": [
+          "LeafSet022",
+          "LeafSet024",
+          "LeafSet023"
+        ],
+        "leaves": 340,
+        "leafSize": [
+          0.07,
+          0.12
+        ],
+        "background": "#1d2e12",
+        "mean": [
+          0.1002,
+          0.1824,
+          0.0242
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "palm_frond",
+        "compose": "frond",
+        "from": "Foliage008",
+        "leaflets": 30,
+        "rachis": "#8b8a4a",
+        "mean": [
+          0.1064,
+          0.1536,
+          0.0318
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "fern",
+        "compose": "fern",
+        "from": "LeafSet013",
+        "pinnae": 18,
+        "rachis": "#4c6a2a",
+        "mean": [
+          0.1644,
+          0.2183,
+          0.0063
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "grass",
+        "compose": "grass",
+        "from": [
+          "Foliage001",
+          "Foliage006"
+        ],
+        "blades": 46,
+        "mean": [
+          0.0823,
+          0.1855,
+          0.017
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "banana",
+        "compose": "leaf",
+        "from": "LeafSet018",
+        "mean": [
+          0.4232,
+          0.6047,
+          0.1118
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "strap",
+        "compose": "leaf",
+        "from": "LeafSet013",
+        "pick": 2,
+        "mean": [
+          0.2742,
+          0.3626,
+          0.0163
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "flowers",
+        "compose": "flowers",
+        "count": 7,
+        "mean": [
+          0.9262,
+          0.8863,
+          0.848
+        ],
+        "roughness": 0.65
+      },
+      {
+        "id": "bush",
+        "compose": "cluster",
+        "from": "LeafSet024",
+        "leaves": 64,
+        "leafSize": [
+          0.16,
+          0.24
+        ],
+        "twig": "#4a3a28",
+        "mean": [
+          0.1436,
+          0.2606,
+          0.0452
+        ],
+        "roughness": 0.65
+      }
+    ],
+    "files": {
+      "albedo": "textures/foliage_albedo.webp"
+    }
+  },
+  "version": "5bd2f7aa36"
+}

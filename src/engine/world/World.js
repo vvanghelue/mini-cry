@@ -37,9 +37,10 @@ export class World {
     const colors = this.terrain.precomputeColors(); // in a worker, while the rest loads
     this.envData = env;
     this.lighting.setEnvironment(env);
-    onProgress(0.3, 'terrain mesh');
-    this.terrainRenderer = new TerrainRenderer(this.terrain, this.lighting);
-    this.scene.add(this.terrainRenderer.group);
+    // texture arrays (terrain splatting, asset surfaces, foliage) load meanwhile
+    const S = this.lighting.surfaces;
+    S._loading ??= S.load(this.engine.renderer);
+    onProgress(0.3, 'water');
     this.water = new Water(this.terrain, this.lighting, this.scene);
     this.lighting.onEnvironment = (e) => this.water?.setColors(e);
     onProgress(0.4, 'assets');
@@ -61,6 +62,10 @@ export class World {
     this.entities = new EntityManager(this, { mode: this.mode });
     this.entities.load(this.data.entities ?? []);
     await colors;
+    await S._loading;
+    // after the colour worker: the splatting texture reads every vertex's resolved material
+    this.terrainRenderer = new TerrainRenderer(this.terrain, this.lighting);
+    this.scene.add(this.terrainRenderer.group);
     await gi;
     this.applyQuality();
     this.engine.on('quality', () => this.applyQuality());
@@ -118,8 +123,11 @@ export class World {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1e-3, 0, 0, 0, 1e-3, 0], 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute([1, 1, 1, 1, 1, 1, 1, 1, 1], 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
+    geo.setAttribute('surface', new THREE.Float32BufferAttribute([0, 0, 0], 1));
     // every option combination AssetLibrary.material() can ask for, even if nothing used it yet
-    for (let k = 0; k < 16; k++) this.lighting.material({ wind: !!(k & 1), emissive: !!(k & 2), doubleSided: !!(k & 4), foliage: !!(k & 8) });
+    for (let k = 0; k < 32; k++) this.lighting.material({ textured: true, cutout: !!(k & 16), wind: !!(k & 1), emissive: !!(k & 2), doubleSided: !!(k & 4) || !!(k & 16), foliage: !!(k & 8) });
     const tmp = [];
     const add = (m, plain) => {
       const b = new THREE.InstancedMesh(geo, m, 1);

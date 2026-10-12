@@ -6,20 +6,23 @@
 import { clamp, fbm, hash2, smoothstep, lerp } from '../math/random.js';
 
 // Terrain materials (painted ids). 0 = automatic (chosen from height / slope / noise).
+// color: authored sRGB-ish (linear = colour²): the vertex colours (GI bake, map) and the tint of
+// the material's texture layer (textures.json terrain.materials, render/TerrainMaterial.js).
+// roughness / normal: scale of the layer's roughness / normal map.
 export const TERRAIN_MATERIALS = [
   { id: 0, name: 'auto', color: [0.5, 0.5, 0.5] },
-  { id: 1, name: 'sand', color: [0.93, 0.83, 0.6] },
-  { id: 2, name: 'wet_sand', color: [0.62, 0.53, 0.37] },
-  { id: 3, name: 'grass', color: [0.3, 0.52, 0.12] },
-  { id: 4, name: 'jungle', color: [0.16, 0.33, 0.07] },
-  { id: 5, name: 'dirt', color: [0.47, 0.33, 0.18] },
-  { id: 6, name: 'rock', color: [0.45, 0.42, 0.38] },
-  { id: 7, name: 'dark_rock', color: [0.24, 0.22, 0.21] },
-  { id: 8, name: 'mud', color: [0.3, 0.24, 0.15] },
-  { id: 9, name: 'seabed', color: [0.78, 0.72, 0.52] },
-  { id: 10, name: 'moss', color: [0.2, 0.36, 0.1] },
-  { id: 11, name: 'ash', color: [0.2, 0.18, 0.17] },
-  { id: 12, name: 'field', color: [0.55, 0.55, 0.2] },
+  { id: 1, name: 'sand', color: [0.84, 0.76, 0.6] },
+  { id: 2, name: 'wet_sand', color: [0.56, 0.49, 0.38], roughness: 0.55 },
+  { id: 3, name: 'grass', color: [0.4, 0.48, 0.22] },
+  { id: 4, name: 'jungle', color: [0.33, 0.35, 0.19] },
+  { id: 5, name: 'dirt', color: [0.5, 0.37, 0.27] },
+  { id: 6, name: 'rock', color: [0.46, 0.43, 0.39], normal: 1.3 },
+  { id: 7, name: 'dark_rock', color: [0.25, 0.23, 0.22], normal: 1.3 },
+  { id: 8, name: 'mud', color: [0.3, 0.25, 0.17], roughness: 0.6 },
+  { id: 9, name: 'seabed', color: [0.76, 0.7, 0.52] },
+  { id: 10, name: 'moss', color: [0.3, 0.37, 0.15] },
+  { id: 11, name: 'ash', color: [0.27, 0.25, 0.24] },
+  { id: 12, name: 'field', color: [0.5, 0.49, 0.27] },
   { id: 13, name: 'concrete', color: [0.55, 0.54, 0.5] },
 ];
 export const MATERIAL_ID = Object.fromEntries(TERRAIN_MATERIALS.map((m) => [m.name, m.id]));
@@ -159,6 +162,22 @@ export class TerrainData {
     return m || this.autoMaterial(i, j);
   }
 
+  /** materialAt, cached per vertex (the terrain material id texture); filled by the colour worker. */
+  resolvedMaterial(i, j) {
+    const n = this.res * this.res;
+    if (!this._mc || this._mc.length !== n) this._mc = new Uint8Array(n);
+    const k = j * this.res + i;
+    return this._mc[k] || (this._mc[k] = this.materialAt(i, j));
+  }
+
+  /** Vertex tint (linear RGB): the vertex colour without the material colour = the per-vertex
+   *  variation and underwater darkening the textured terrain multiplies its layers by. */
+  vertexTint(i, j, out, o) {
+    this.vertexColor(i, j, out, o);
+    const c = TERRAIN_MATERIALS[this.resolvedMaterial(i, j)].color;
+    for (let k = 0; k < 3; k++) out[o + k] = Math.min(2, out[o + k] / Math.max(1e-3, c[k] * c[k]));
+  }
+
   materialAtWorld(x, z) {
     const i = clamp(Math.round(this.gx(x)), 0, this.res - 1), j = clamp(Math.round(this.gz(z)), 0, this.res - 1);
     return this.materialAt(i, j);
@@ -189,7 +208,7 @@ export class TerrainData {
       const w = new Worker(new URL('./TerrainColorWorker.js', import.meta.url), { type: 'module' });
       const version = this.version;
       w.onmessage = (ev) => {
-        if (this.version === version) this._cc = ev.data.cache;
+        if (this.version === version) { this._cc = ev.data.cache; this._mc = ev.data.materials; }
         w.terminate();
         resolve();
       };
@@ -203,6 +222,7 @@ export class TerrainData {
     const i0 = Math.max(0, (rect?.i0 ?? 0) - 2), i1 = Math.min(this.res - 1, (rect?.i1 ?? this.res - 1) + 2);
     const j0 = Math.max(0, (rect?.j0 ?? 0) - 2), j1 = Math.min(this.res - 1, (rect?.j1 ?? this.res - 1) + 2);
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) this._cc[(j * this.res + i) * 4 + 3] = 0;
+    if (this._mc) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) this._mc[j * this.res + i] = 0;
   }
 
   _vertexColor(i, j, out, o) {

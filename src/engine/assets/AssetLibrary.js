@@ -13,6 +13,9 @@ export class AssetLibrary {
   }
 
   async load() {
+    // texture layers first: the builds need their ids and uv scales (assets/surfaces.js)
+    const S = this.lighting.surfaces;
+    await (S._loading ??= S.load(this.lighting.renderer));
     let names;
     try { names = (await Data.json('assets/index.json', { fresh: true })).assets; }
     catch { names = []; }
@@ -53,6 +56,6 @@ export class AssetLibrary {
 
   /** Shared lit material for an asset's build. */
   material(b, extra = {}) {
-    return this.lighting.material({ wind: b.hasWind, emissive: b.hasEmissive, doubleSided: b.doubleSided, foliage: !!b.hasFoliage, ...extra });
+    return this.lighting.material({ textured: true, cutout: !!b.hasCutout, wind: b.hasWind, emissive: b.hasEmissive, doubleSided: b.doubleSided, foliage: !!b.hasFoliage, ...extra });
   }
 }
