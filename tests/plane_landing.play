@@ -1,0 +1,14 @@
+# Land the airfield plane: put it on a 300 m final from the west (115 km/h, 45 m above the
+# threshold), aim at the runway at idle, flare low, brake (Space) to a stop, then exit (E).
+eval (()=>{ game.player.godMode = true; game.player.godInvisible = true; const v = game.world.entities.get('plane_airfield'); game.player.teleport([v.pos[0] - 2, v.pos[1] + 0.5, v.pos[2] - 2.5]); return 1 })()
+wait 0.5
+press KeyE
+wait 0.3
+eval (async ()=>{ const T3 = app.THREE, vs = game.vehicles, v = game.player.inVehicle, T = game.world.terrain; const h = -1.5012, dir = new T3.Vector3(-Math.sin(h), 0, -Math.cos(h)); const p = new T3.Vector3(150, 0, 228).addScaledVector(dir, -300); p.y = T.heightAt(150, 228) + 45; v.pos.copy(p); v.vel.copy(dir).multiplyScalar(32); v.object.quaternion.setFromEuler(new T3.Euler(0, h, 0, 'YXZ')); v.onGround = false; v.heading = h; v.power = 0.4; vs.aimYaw = h; vs.aimPitch = 0; vs._camOffset = null; const tgt = new T3.Vector3(150, 0, 228).addScaledVector(dir, 25); tgt.y = T.heightAt(tgt.x, tgt.z) + 1; const t0 = performance.now(); let mode = 'cruise', touch = null; while (v.alive && performance.now() - t0 < 40000) { await new Promise((r) => requestAnimationFrame(r)); const agl = v.pos.y - T.heightAt(v.pos.x, v.pos.z), dist = Math.hypot(tgt.x - v.pos.x, tgt.z - v.pos.z); if (mode === 'cruise' && Math.atan2(v.pos.y - tgt.y, dist) > 0.16) mode = 'final'; if (mode === 'final') { v.power = 0; vs.aimPitch = Math.atan2(tgt.y - v.pos.y, dist); if (agl < 5) mode = 'flare'; } if (mode === 'flare') { v.power = 0; vs.aimPitch = 0.03; } if (v.onGround) { touch ??= { kmh: Math.round(v.speed * 3.6), x: Math.round(v.pos.x) }; game.input.keys.add('Space'); if (v.vel.length() < 0.2) break; } } game.input.keys.delete('Space'); window.__landed = { alive: v.alive, cause: v.crashCause ?? null, onGround: v.onGround, speed: +v.vel.length().toFixed(2), touch, stop: v.pos.toArray().map(Math.round) }; return window.__landed })()
+expect window.__landed.alive && window.__landed.onGround && window.__landed.speed < 0.5 && window.__landed.stop[0] < 480
+shot plane_landed
+eval [game.vehicles.canExit(), document.querySelector('.hud-prompt').innerText]
+expect game.vehicles.canExit()
+press KeyE
+wait 0.5
+expect !game.player.inVehicle

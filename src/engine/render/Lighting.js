@@ -273,6 +273,7 @@ export class Lighting {
       color: opts.color ?? 0xffffff,
     });
     this.patch(m, opts);
+    m.userData.opts = opts; // variants (e.g. a burnt vehicle: same opts + color) share the compiled program
     this.materials.set(key, m);
     return m;
   }

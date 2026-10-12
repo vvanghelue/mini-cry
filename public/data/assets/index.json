@@ -72,6 +72,8 @@
     "pickup_armor",
     "pickup_medkit",
     "pistol",
+    "plane",
+    "plane_propeller",
     "plane_wreck",
     "radio_table",
     "radio_tower",

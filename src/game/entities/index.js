@@ -327,32 +327,45 @@ registerEntityType('sound', {
 });
 
 // drivable kinds (driving specs in game/vehicles/Vehicles.js); the editor's vehicles tab lists them
-export const VEHICLE_KINDS = { jeep: { label: 'Jeep', asset: 'jeep_body' }, boat: { label: 'Boat', asset: 'boat_patrol' } };
+export const VEHICLE_KINDS = {
+  jeep: { label: 'Jeep', asset: 'jeep_body', wheels: 'jeep_wheel' },
+  boat: { label: 'Boat', asset: 'boat_patrol' },
+  plane: { label: 'Plane', asset: 'plane', propeller: 'plane_propeller', cullDistance: 900 },
+};
 
 registerEntityType('vehicle', {
   label: 'Vehicle', color: '#ff9020', category: 'Gameplay', cullDistance: 400,
   schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, vehicle: { type: 'enum', label: 'Type', options: Object.keys(VEHICLE_KINDS) } },
   defaults: { vehicle: 'jeep' },
   create(ctx, e) {
-    const body = assetMesh(ctx, (VEHICLE_KINDS[e.vehicle] ?? VEHICLE_KINDS.jeep).asset, 2);
+    const kind = VEHICLE_KINDS[e.vehicle] ?? VEHICLE_KINDS.jeep;
+    const body = assetMesh(ctx, kind.asset, 2);
     const g = new THREE.Group();
     g.add(body);
-    if (e.vehicle !== 'boat' && ctx.assets.has('jeep_wheel')) {
-      const wp = ctx.assets.get('jeep_body')?.wheels;
+    if (kind.wheels && ctx.assets.has(kind.wheels)) {
+      const wp = ctx.assets.get(kind.asset)?.wheels;
       const list = Array.isArray(wp) && wp.length >= 4 ? wp.map((p) => (Array.isArray(p) ? p : [p.x, p.y, p.z])) : [[-0.72, 0.38, -1.1], [0.72, 0.38, -1.1], [-0.72, 0.38, 1.1], [0.72, 0.38, 1.1]];
       // front wheels (-Z) first: they steer
       list.sort((a, b) => a[2] - b[2]);
       for (const [x, y, z] of list) {
-        const w = assetMesh(ctx, 'jeep_wheel');
+        const w = assetMesh(ctx, kind.wheels);
         w.position.set(x, y ?? 0.38, z);
         w.name = 'wheel';
         g.add(w);
       }
     }
+    if (kind.propeller && ctx.assets.has(kind.propeller)) {
+      const pr = assetMesh(ctx, kind.propeller);
+      pr.position.fromArray(ctx.assets.get(kind.asset)?.propeller ?? [0, 1.3, -3.4]);
+      pr.name = 'propeller';
+      g.add(pr);
+    }
     place(g, e);
     g.traverse((o) => o.layers.set(LAYERS.DYNAMIC));
     if (ctx.mode === 'editor') return { object: g };
     const game = ctx.world.game;
-    return game.createVehicle ? game.createVehicle(e, g) : { object: g };
+    const h = game.createVehicle ? game.createVehicle(e, g) : { object: g };
+    if (kind.cullDistance) h.cullDistance = kind.cullDistance;
+    return h;
   },
 });

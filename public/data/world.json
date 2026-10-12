@@ -6964,6 +6964,21 @@
         0
       ],
       "id": "vehicle_2"
+    },
+    {
+      "vehicle": "plane",
+      "type": "vehicle",
+      "id": "plane_airfield",
+      "pos": [
+        280,
+        21.37,
+        222
+      ],
+      "rot": [
+        0,
+        -86,
+        0
+      ]
     }
   ]
 }

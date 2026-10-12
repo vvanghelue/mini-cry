@@ -81,7 +81,9 @@ canvas { display: block; outline: none; }
 .hud-alert.show { opacity: 1; }
 .hud-grenade { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); font-size: 30px; color: #ff4030; opacity: 0; } .hud-grenade.show { opacity: 1; animation: blink .4s infinite; }
 @keyframes blink { 50% { opacity: .3; } }
-.hud-vehicle { position: absolute; right: 26px; bottom: 110px; font-size: 22px; opacity: 0; }
+.hud-vehicle { position: absolute; right: 26px; bottom: 110px; font-size: 22px; opacity: 0; white-space: pre; }
+.hud-nose { position: absolute; left: 0; top: 0; opacity: 0; }
+.hud-nose::before { content: ''; position: absolute; left: -11px; top: -11px; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.85); border-radius: 50%; box-shadow: 0 0 2px #000; }
 
 /* ------------------------------------------------------------------ menus */
 .menus { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, rgba(0,20,30,.35), rgba(0,0,0,.75)); }

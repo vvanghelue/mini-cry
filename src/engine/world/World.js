@@ -118,6 +118,12 @@ export class World {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1e-3, 0, 0, 0, 1e-3, 0], 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute([1, 1, 1, 1, 1, 1, 1, 1, 1], 3));
+    // foliage assets carry baked normals (another program variant). The depth passes (sun cascades,
+    // SSAO pre-pass) draw everything with one shared override material, and three.js only rebuilds
+    // its program when instancing (not the normals) changes from one object to the next: draw
+    // plain / instanced / with / without normals alternately, last, so every variant compiles here
+    const geoN = geo.clone();
+    geoN.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
     // every option combination AssetLibrary.material() can ask for, even if nothing used it yet
     for (let k = 0; k < 16; k++) this.lighting.material({ wind: !!(k & 1), emissive: !!(k & 2), doubleSided: !!(k & 4), foliage: !!(k & 8) });
     const tmp = [];
@@ -134,6 +140,14 @@ export class World {
     for (const m of this.lighting.materials.values()) add(m, true);
     for (const m of fadeMaterial.cache?.values() ?? []) add(m, false); // instanced only (reads instanceMatrix)
     for (const m of lodMaterial.cache?.values() ?? []) add(m, false);
+    const fol = this.lighting.material({ wind: false, emissive: false, doubleSided: true, foliage: true });
+    [[geo, false], [geoN, true], [geoN, false], [geo, true]].forEach(([g, inst], i) => {
+      const b = inst ? new THREE.InstancedMesh(g, fol, 1) : new THREE.Mesh(g, fol);
+      b.layers.set(LAYERS.STATIC);
+      b.renderOrder = 1e6 + i;
+      stand.add(b);
+      if (inst) tmp.push(b);
+    });
     for (const x of extras) stand.add(x);
     camera.getWorldDirection(stand.position).multiplyScalar(3).add(camera.position);
     scene.add(stand);
@@ -155,6 +169,7 @@ export class World {
     for (const x of extras) x.removeFromParent();
     for (const b of tmp) b.dispose();
     geo.dispose();
+    geoN.dispose();
     for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
     this.warmUpStats = { programs: r.info.programs.length - p0, total: r.info.programs.length, ms: Math.round(performance.now() - t0) };
   }

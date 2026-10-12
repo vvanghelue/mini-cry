@@ -521,6 +521,17 @@
         { "type": "noise", "gain": 0.12, "filter": { "type": "highpass", "freq": 3500 }, "tremolo": { "rate": 2, "depth": 0.6, "shape": "noise" } }
       ]
     },
+    "plane_engine": {
+      "bus": "sfx", "refDistance": 10, "maxDistance": 500, "priority": 5, "maxInstances": 3, "loop": true,
+      "duration": 2, "loopFade": 0.25, "gain": 0.6, "distortion": 0.25,
+      "layers": [
+        { "type": "saw", "gain": 0.7, "freq": 82, "unison": { "voices": 2, "detune": 6 }, "filter": { "type": "lowpass", "freq": 700, "q": 1.5 } },
+        { "type": "click", "gain": 1, "rate": 82, "jitter": 0.02, "filter": [{ "type": "lowpass", "freq": 900, "q": 2 }, { "type": "highpass", "freq": 70 }] },
+        { "type": "square", "gain": 0.35, "freq": 41, "filter": { "type": "lowpass", "freq": 220 } },
+        { "type": "noise", "noiseColor": "pink", "gain": 0.45, "filter": { "type": "bandpass", "freq": 600, "q": 0.7 }, "tremolo": { "rate": 82, "depth": 0.35 } },
+        { "type": "noise", "gain": 0.1, "filter": { "type": "highpass", "freq": 3000 }, "tremolo": { "rate": 4, "depth": 0.4, "shape": "noise" } }
+      ]
+    },
     "door_open": {
       "bus": "sfx", "refDistance": 3, "maxDistance": 50, "priority": 2, "gain": 0.55, "reverb": 0.15,
       "reverbSize": 0.3,
