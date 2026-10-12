@@ -54,8 +54,8 @@ export class Game {
     this.inventory = new Set();
     this.reinforcements = new Map(); // group -> pending count
     this.zonesInside = new Set();
-    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, fpsLimit: 0, ...loadJSON(SETTINGS_KEY) };
-    // frame rate cap (debug panel, 0 = auto: one frame per display refresh); ?fps=N overrides it
+    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, fpsLimit: app.debugMode ? 60 : 0, ...(app.debugMode ? {} : loadJSON(SETTINGS_KEY)) };
+    // frame rate cap (debug panel, 0 = auto: one frame per display refresh; 60 in debug mode); ?fps=N overrides it
     const fps = params.get('fps');
     this.engine.maxFps = fps !== null ? Number(fps) || 0 : this.settings.fpsLimit;
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
@@ -604,7 +604,8 @@ export class Game {
 
   saveSettings(s) {
     Object.assign(this.settings, s);
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* */ }
+    // debug mode: every reload starts from the defaults
+    if (!this.app.debugMode) try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* */ }
     this.difficulty = DIFFICULTY[this.settings.difficulty] ?? DIFFICULTY.normal;
     this.player.cfg.mouseSensitivity = this.data.player.mouseSensitivity * this.settings.sensitivity;
     this.player.cfg.fov = this.settings.fov;

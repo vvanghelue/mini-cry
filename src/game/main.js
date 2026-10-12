@@ -12,7 +12,11 @@ const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'play';
 const engine = new Engine({ container: document.getElementById('app'), quality: params.get('quality') ?? 'medium' });
 const input = new Input(engine.canvas);
-const app = { engine, input, THREE, mode, params, ready: false };
+// debug mode (debug panel shown, settings not persisted): on by default, ?debug=0 turns it off,
+// automated runs (?bot / ?bench / ?nohud) start without it
+const debugFlag = params.get('debug');
+const debugMode = debugFlag !== null ? debugFlag !== '0' : !(params.has('bot') || params.has('bench') || params.has('nohud'));
+const app = { engine, input, THREE, mode, params, debugMode, ready: false };
 // loading screen
 const loading = document.createElement('div');
 loading.id = 'loading';

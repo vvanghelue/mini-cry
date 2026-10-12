@@ -1,8 +1,9 @@
 // Debug panel (lil-gui, F2 toggles): live stats, cheats and game actions, missions, time and
 // weather, graphics / world toggles. Shown by default (?debug=0 hides it; automated runs with
-// ?bot / ?bench / ?nohud start without it), built on first open. Opening it mid-game (F2) frees
-// the mouse without pausing so values can be tweaked live (click the game to capture the mouse
-// again); Esc still pauses, and the panel stays usable above the pause menu.
+// ?bot / ?bench / ?nohud start without it = app.debugMode), built on first open. In debug mode
+// nothing is persisted: a reload starts from the default settings (no localStorage). Opening it
+// mid-game (F2) frees the mouse without pausing so values can be tweaked live (click the game to
+// capture the mouse again); Esc still pauses, and the panel stays usable above the pause menu.
 import { LAYERS } from '../../engine/render/layers.js';
 import { GIProbeView } from '../../engine/render/GIProbeView.js';
 
@@ -14,8 +15,7 @@ export class DebugPanel {
     this.open = false;
     this.info = {};
     addEventListener('keydown', (e) => { if (e.code === 'F2') { e.preventDefault(); this.setOpen(!this.open); } });
-    const p = app.params, flag = p.get('debug');
-    if (flag !== null ? flag !== '0' : !(p.has('bot') || p.has('bench') || p.has('nohud'))) this.setOpen(true);
+    if (app.debugMode) this.setOpen(true);
     setInterval(() => this._refresh(), 250);
   }
 
