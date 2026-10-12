@@ -198,7 +198,8 @@ export class Water {
       for (let k = 0; k < pts.length - 1; k++) {
         for (let s = 0; s < 4; s++) {
           const a = k * 5 + s, b = a + 1, c = a + 5, d = c + 1;
-          idx.push(a, c, b, b, c, d);
+          // counter-clockwise seen from above (b - a is across, c - a downstream): faces up
+          idx.push(a, b, c, b, d, c);
         }
       }
       const g = new THREE.BufferGeometry();
