@@ -5,9 +5,9 @@
   "material": "wood",
   "tags": ["village","camp","furniture"],
   "parts": [
-    {"shape":"box","size":[1.6,0.045,0.12],"pos":[0,0.45,-0.14],"color":"#9a7648"},
+    {"shape":"box","size":[1.6,0.045,0.12],"pos":[0,0.45,-0.14],"color":"#9a7648", "surface": "thatch" },
     {"shape":"box","size":[1.6,0.045,0.12],"pos":[0,0.452,-0.005],"color":"#8a683f"},
-    {"shape":"box","size":[1.58,0.045,0.12],"pos":[0,0.45,0.13],"color":"#a07c4c"},
+    {"shape":"box","size":[1.58,0.045,0.12],"pos":[0,0.45,0.13],"color":"#a07c4c", "surface": "thatch" },
     {"shape":"box","size":[0.07,0.43,0.07],"pos":[-0.66,0.215,-0.15],"color":"#6c5133","repeat":{"count":2,"offset":[1.32,0,0]}},
     {"shape":"box","size":[0.07,0.43,0.07],"pos":[-0.66,0.215,0.15],"color":"#6c5133","repeat":{"count":2,"offset":[1.32,0,0]}},
     {"shape":"box","size":[0.06,0.06,0.38],"pos":[-0.66,0.15,0],"color":"#5f472d","repeat":{"count":2,"offset":[1.32,0,0]}},
@@ -15,7 +15,7 @@
     {"shape":"box","size":[1.2,0.05,0.05],"pos":[0,0.15,0],"color":"#5f472d"},
     {"shape":"box","size":[0.06,0.5,0.05],"pos":[-0.66,0.7,0.2],"rot":[-12,0,0],"color":"#6c5133","repeat":{"count":2,"offset":[1.32,0,0]}},
     {"shape":"box","size":[1.6,0.11,0.035],"pos":[0,0.66,0.23],"rot":[-12,0,0],"color":"#94714a"},
-    {"shape":"box","size":[1.6,0.11,0.035],"pos":[0,0.83,0.265],"rot":[-12,0,0],"color":"#a17d4e"}
+    {"shape":"box","size":[1.6,0.11,0.035],"pos":[0,0.83,0.265],"rot":[-12,0,0],"color":"#a17d4e", "surface": "thatch" }
   ],
   "collider": "auto"
 }

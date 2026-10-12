@@ -6,14 +6,14 @@
     "layers": [
       {
         "id": "sand",
-        "polyhaven": "sand_01",
+        "polyhaven": "coast_sand_01",
         "scale": 5,
         "mean": [
-          0.3473,
-          0.2787,
-          0.1481
+          0.219,
+          0.1677,
+          0.106
         ],
-        "roughness": 0.988
+        "roughness": 0.963
       },
       {
         "id": "wet_sand",
@@ -169,7 +169,10 @@
           0.2071,
           0.2071,
           0.2071
-        ]
+        ],
+        "chroma": 1,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "wood_planks",
@@ -180,7 +183,10 @@
           0.0984,
           0.041
         ],
-        "roughness": 0.862
+        "roughness": 0.862,
+        "chroma": 0.7,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "wood",
@@ -191,7 +197,10 @@
           0.0284,
           0.0077
         ],
-        "roughness": 0.724
+        "roughness": 0.724,
+        "chroma": 0.75,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "metal",
@@ -203,7 +212,10 @@
           0.242,
           0.1143
         ],
-        "roughness": 0.423
+        "roughness": 0.423,
+        "chroma": 0.35,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "metal_smooth",
@@ -215,7 +227,10 @@
           0.0492,
           0.0735
         ],
-        "roughness": 0.285
+        "roughness": 0.285,
+        "chroma": 0.35,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "corrugated",
@@ -227,7 +242,10 @@
           0.0216,
           0.0091
         ],
-        "roughness": 0.936
+        "roughness": 0.936,
+        "chroma": 0.35,
+        "amount": 0.9,
+        "roughnessScale": 1
       },
       {
         "id": "concrete",
@@ -238,7 +256,10 @@
           0.4849,
           0.3482
         ],
-        "roughness": 0.619
+        "roughness": 0.619,
+        "chroma": 0.35,
+        "amount": 0.5,
+        "roughnessScale": 1.35
       },
       {
         "id": "plaster",
@@ -249,7 +270,10 @@
           0.1528,
           0.1099
         ],
-        "roughness": 0.971
+        "roughness": 0.971,
+        "chroma": 0.35,
+        "amount": 0.7,
+        "roughnessScale": 1
       },
       {
         "id": "stone_block",
@@ -260,7 +284,10 @@
           0.294,
           0.2638
         ],
-        "roughness": 0.664
+        "roughness": 0.664,
+        "chroma": 0.4,
+        "amount": 0.85,
+        "roughnessScale": 1.35
       },
       {
         "id": "stone_rubble",
@@ -271,7 +298,10 @@
           0.2718,
           0.1873
         ],
-        "roughness": 0.826
+        "roughness": 0.826,
+        "chroma": 0.5,
+        "amount": 1,
+        "roughnessScale": 1.1
       },
       {
         "id": "thatch",
@@ -282,7 +312,10 @@
           0.0708,
           0.0604
         ],
-        "roughness": 0.894
+        "roughness": 0.894,
+        "chroma": 0.7,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "fabric",
@@ -293,7 +326,10 @@
           0.3448,
           0.5173
         ],
-        "roughness": 0.659
+        "roughness": 0.659,
+        "chroma": 0.3,
+        "amount": 1,
+        "roughnessScale": 1.3
       },
       {
         "id": "burlap",
@@ -304,7 +340,10 @@
           0.1856,
           0.0999
         ],
-        "roughness": 0.584
+        "roughness": 0.584,
+        "chroma": 0.6,
+        "amount": 1,
+        "roughnessScale": 1.4
       },
       {
         "id": "bark",
@@ -315,7 +354,10 @@
           0.0797,
           0.0487
         ],
-        "roughness": 0.902
+        "roughness": 0.902,
+        "chroma": 0.7,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "palm_bark",
@@ -326,7 +368,10 @@
           0.0706,
           0.0554
         ],
-        "roughness": 0.93
+        "roughness": 0.93,
+        "chroma": 0.7,
+        "amount": 1,
+        "roughnessScale": 1
       },
       {
         "id": "rock",
@@ -337,7 +382,10 @@
           0.0604,
           0.0314
         ],
-        "roughness": 0.835
+        "roughness": 0.835,
+        "chroma": 0.5,
+        "amount": 1,
+        "roughnessScale": 1
       }
     ],
     "files": {
@@ -500,5 +548,5 @@
       "albedo": "textures/foliage_albedo.webp"
     }
   },
-  "version": "5bd2f7aa36"
+  "version": "1dc7cf746d"
 }

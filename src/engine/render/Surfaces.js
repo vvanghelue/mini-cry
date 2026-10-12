@@ -45,6 +45,18 @@ async function loadStrip(url, size, { srgb }) {
 }
 
 const inv = (m) => (m ?? [0.2, 0.2, 0.2]).map((c) => 1 / Math.max(0.004, c));
+export const luma = (m) => Math.max(0.004, 0.2126 * (m?.[0] ?? 0.2) + 0.7152 * (m?.[1] ?? 0.2) + 0.0722 * (m?.[2] ?? 0.2));
+
+/** GLSL: texel relative to its layer's mean colour, as luminance ratio x (chroma share of) the
+ *  hue ratio — stable for dark layers with tiny channels, amount 0 = flat. */
+export const SURF_DETAIL_GLSL = /* glsl */ `
+vec3 surfRel(vec3 t, vec4 info, float chroma, float amount) {
+  float lt = dot(t, vec3(0.2126, 0.7152, 0.0722));
+  float dl = lt / info.w;
+  vec3 dc = clamp((t / max(lt, 1e-4)) * info.w * info.xyz, 0.0, 3.0);
+  return mix(vec3(1.0), dl * mix(vec3(1.0), dc, chroma), amount);
+}
+`;
 
 export class Surfaces {
   constructor() {
@@ -55,8 +67,10 @@ export class Surfaces {
       surfAlbedo: { value: placeholder(true) },
       surfNormal: { value: placeholder(false) },
       folAlbedo: { value: placeholder(true) },
-      surfInfo: { value: v4(MAX_SURF) }, // xyz: 1 / mean albedo, w: metalness
-      folInfo: { value: v4(MAX_FOL) }, // xyz: 1 / mean albedo, w: roughness
+      surfInfo: { value: v4(MAX_SURF) }, // xyz: 1 / mean albedo, w: mean luminance
+      surfParams: { value: v4(MAX_SURF) }, // x: metalness, y: chroma (share of the texture's own hue variation), z: detail amount, w: roughness scale
+      folInfo: { value: v4(MAX_FOL) }, // xyz: 1 / mean albedo, w: mean luminance
+      folParams: { value: v4(MAX_FOL) }, // x: roughness, y: chroma, z: detail amount
       folCut: { value: 0.5 },
       surfNormalScale: { value: 1 },
       surfDetail: { value: 1 }, // 0 = flat vertex colours (A/B), 1 = textured
@@ -72,8 +86,16 @@ export class Surfaces {
     this.manifest = m;
     setSurfaceManifest(m);
     const U = this.uniforms;
-    (m.surfaces?.layers ?? []).forEach((l, i) => { if (i < MAX_SURF) U.surfInfo.value[i].set(...inv(l.mean), l.metal ? 0.65 : 0); });
-    (m.foliage?.layers ?? []).forEach((l, i) => { if (i < MAX_FOL) U.folInfo.value[i].set(...inv(l.mean), l.roughness ?? 0.65); });
+    (m.surfaces?.layers ?? []).forEach((l, i) => {
+      if (i >= MAX_SURF) return;
+      U.surfInfo.value[i].set(...inv(l.mean), luma(l.mean));
+      U.surfParams.value[i].set(l.metal ? 0.65 : 0, l.chroma ?? 0.5, l.amount ?? 1, l.roughnessScale ?? 1);
+    });
+    (m.foliage?.layers ?? []).forEach((l, i) => {
+      if (i >= MAX_FOL) return;
+      U.folInfo.value[i].set(...inv(l.mean), luma(l.mean));
+      U.folParams.value[i].set(Math.max(0.85, l.roughness ?? 0.85), l.chroma ?? 0.7, l.amount ?? 1, 0);
+    });
     const url = (f) => `${Data.base}../${f}?v=${m.version ?? 0}`;
     const jobs = [];
     const strip = (group, map, uniform, srgb, size) => {
@@ -146,7 +168,10 @@ uniform highp sampler2DArray surfAlbedo;
 uniform highp sampler2DArray surfNormal;
 uniform highp sampler2DArray folAlbedo;
 uniform vec4 surfInfo[${MAX_SURF}];
+uniform vec4 surfParams[${MAX_SURF}];
 uniform vec4 folInfo[${MAX_FOL}];
+uniform vec4 folParams[${MAX_FOL}];
+${SURF_DETAIL_GLSL}
 uniform float folCut, surfNormalScale, surfDetail;
 varying vec2 vSurfUv;
 flat varying int vSurf;
@@ -179,17 +204,18 @@ if (sLeaf) {
     if (a <= 0.0) discard;
     diffuseColor.a = clamp(a, 0.0, 1.0);
   #endif
-  vec4 fi = folInfo[li];
-  diffuseColor.rgb *= mix(vec3(1.0), t.rgb * fi.xyz, surfDetail);
-  sRough = max(fi.w, 0.85);
+  vec4 fp = folParams[li];
+  diffuseColor.rgb *= mix(vec3(1.0), surfRel(t.rgb, folInfo[li], fp.y, fp.z), surfDetail);
+  sRough = fp.x;
   surfSpecK = 0.15;
 } else {
   vec4 t = texture(surfAlbedo, vec3(vSurfUv, float(vSurf)));
-  vec4 si = surfInfo[vSurf];
-  diffuseColor.rgb *= mix(vec3(1.0), t.rgb * si.xyz, surfDetail);
+  vec4 sp = surfParams[vSurf];
+  // detail relative to the layer's mean: the part colour keeps its hue (rust, stains: chroma)
+  diffuseColor.rgb *= mix(vec3(1.0), surfRel(t.rgb, surfInfo[vSurf], sp.y, sp.z), surfDetail);
   sNrm = texture(surfNormal, vec3(vSurfUv, float(vSurf)));
-  sRough = mix(0.75, sNrm.b, surfDetail);
-  sMetal = si.w * surfDetail;
+  sRough = mix(0.75, clamp(sNrm.b * sp.w, 0.05, 1.0), surfDetail);
+  sMetal = sp.x * surfDetail;
 }
 `;
 

@@ -5,12 +5,14 @@
 // blends their layers bilinearly, sharpened by the layers' height maps (sand fills the gaps
 // between stones, grass grows through the dirt...), so painted borders follow the texture
 // instead of the 2 m grid. Every material maps to a layer + a tint (its palette colour / the
-// layer's mean colour: TERRAIN_MATERIALS still sets the colours, GI and the map agree). Flat
+// layer's mean colour, Surfaces.js surfRel: TERRAIN_MATERIALS still sets the colours, GI and the
+// map agree). Flat
 // ground samples a top projection, slopes switch to triplanar (no stretched cliffs); a second,
 // much larger scale of the same layer breaks the tiling with distance. Vertex colours carry the
 // per-vertex variation and the underwater darkening.
 import * as THREE from 'three';
 import { TERRAIN_MATERIALS } from '../world/TerrainData.js';
+import { SURF_DETAIL_GLSL, luma } from './Surfaces.js';
 
 const N = 16; // material slots (TERRAIN_MATERIALS ids)
 
@@ -18,16 +20,19 @@ export function terrainMaterial(lighting, terrain) {
   const S = lighting.surfaces;
   const m = S.manifest?.terrain;
   const info = Array.from({ length: N }, () => new THREE.Vector4(1, 1, 1, 0));
-  const info2 = Array.from({ length: N }, () => new THREE.Vector4(0.25, 0.6, 1, 0));
+  const info2 = Array.from({ length: N }, () => new THREE.Vector4(0.25, 0.6, 1, 0.6));
+  const means = Array.from({ length: N }, (_, i) => {
+    const mean = m?.layers?.[i]?.mean ?? [0.2, 0.2, 0.2];
+    return new THREE.Vector4(1 / Math.max(mean[0], 0.004), 1 / Math.max(mean[1], 0.004), 1 / Math.max(mean[2], 0.004), luma(mean));
+  });
   for (const tm of TERRAIN_MATERIALS) {
     if (!tm.id) continue;
     const layerId = m?.materials?.[tm.name] ?? tm.name;
     const li = S.terrainLayer(layerId);
     const L = m?.layers?.[li];
-    const mean = L?.mean ?? [0.2, 0.2, 0.2];
     const lin = tm.color.map((c) => c * c); // TerrainData authoring: linear = colour²
-    info[tm.id].set(lin[0] / Math.max(mean[0], 0.004), lin[1] / Math.max(mean[1], 0.004), lin[2] / Math.max(mean[2], 0.004), li);
-    info2[tm.id].set(1 / (L?.scale ?? 4), tm.roughness ?? 1, tm.normal ?? 1, 0);
+    info[tm.id].set(lin[0], lin[1], lin[2], li);
+    info2[tm.id].set(1 / (L?.scale ?? 4), tm.roughness ?? 1, tm.normal ?? 1, tm.chroma ?? 0.6);
   }
   const ids = new THREE.DataTexture(new Uint8Array(terrain.res * terrain.res), terrain.res, terrain.res, THREE.RedFormat, THREE.UnsignedByteType);
   ids.minFilter = ids.magFilter = THREE.NearestFilter;
@@ -37,6 +42,7 @@ export function terrainMaterial(lighting, terrain) {
     terIds: { value: ids },
     terMat: { value: info },
     terMat2: { value: info2 },
+    terMean: { value: means },
     terGrid: { value: new THREE.Vector4(-terrain.half, -terrain.half, 1 / terrain.cell, terrain.res) },
   };
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
@@ -65,8 +71,10 @@ const PARS = /* glsl */ `
 uniform highp sampler2DArray terAlbedo;
 uniform highp sampler2DArray terNormal;
 uniform sampler2D terIds;
-uniform vec4 terMat[${N}];  // rgb: tint (palette / layer mean), a: layer
-uniform vec4 terMat2[${N}]; // x: uv per m, y: roughness scale, z: normal strength
+uniform vec4 terMat[${N}];  // rgb: palette colour (linear), a: layer
+uniform vec4 terMat2[${N}]; // x: uv per m, y: roughness scale, z: normal strength, w: chroma
+uniform vec4 terMean[${N}]; // per layer: 1 / mean albedo, mean luminance
+${SURF_DETAIL_GLSL}
 uniform vec4 terGrid;       // world -> grid: x0, z0, 1 / cell, res
 uniform float surfDetail, surfNormalScale;
 varying vec3 vTerrW;
@@ -97,7 +105,7 @@ void terLayer(int id, vec3 P, vec3 Nw, vec3 bw, bool tri, float far, out vec4 al
     vec2 tx = (nx.xy * 2.0 - 1.0) * m2.z, ty = (ny.xy * 2.0 - 1.0) * m2.z, tz = (nz.xy * 2.0 - 1.0) * m2.z;
     nW = vec3(0.0, tx.y, tx.x * sign(Nw.x)) * bw.x + vec3(ty.x, 0.0, ty.y) * bw.y + vec3(tz.x * sign(Nw.z), tz.y, 0.0) * bw.z;
   }
-  alb.rgb *= mi.rgb;
+  alb.rgb = mi.rgb * surfRel(alb.rgb, terMean[int(L)], m2.w, 1.0);
   rough = clamp(nt.b * m2.y, 0.04, 1.0);
 }
 `;

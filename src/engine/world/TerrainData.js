@@ -11,7 +11,7 @@ import { clamp, fbm, hash2, smoothstep, lerp } from '../math/random.js';
 // roughness / normal: scale of the layer's roughness / normal map.
 export const TERRAIN_MATERIALS = [
   { id: 0, name: 'auto', color: [0.5, 0.5, 0.5] },
-  { id: 1, name: 'sand', color: [0.84, 0.76, 0.6] },
+  { id: 1, name: 'sand', color: [0.8, 0.72, 0.56], normal: 0.7 },
   { id: 2, name: 'wet_sand', color: [0.56, 0.49, 0.38], roughness: 0.55 },
   { id: 3, name: 'grass', color: [0.4, 0.48, 0.22] },
   { id: 4, name: 'jungle', color: [0.33, 0.35, 0.19] },
