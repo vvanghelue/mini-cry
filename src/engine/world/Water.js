@@ -2,26 +2,48 @@
 // once as a float texture, so the shader knows how deep the water is under every pixel (shore
 // foam, turquoise shallows -> deep blue, see-through lagoon) at the cost of one texture fetch.
 //
-// Ocean: a polar grid that follows the camera (dense near, sparse to the horizon), faceted
-// low-poly waves in the vertex shader. Rivers: ribbon meshes along the river polylines.
+// Ocean: a polar grid that follows the camera (dense near, sparse to the horizon), a smooth swell
+// of directional waves (height + analytic normal) in the vertex shader, small ripples from two
+// scrolling samples of a normal map (Surfaces.waterNormal) in the fragment shader. Shading:
+// Fresnel between the body colour (absorbed with depth, lit by the sun / sky) and the reflected
+// sky (gradient + the cloud layer), a sharp sun glint, light scattered through the wave crests.
+// Rivers: ribbon meshes along the river polylines, ripples scrolling with the flow.
 import * as THREE from 'three';
 import { LAYERS } from '../render/layers.js';
+import { CLOUDS_GLSL } from '../render/clouds.js';
 
 const WATER_VERT = /* glsl */ `
   uniform float uTime, waveAmp, flowSpeed;
   uniform vec3 camPos;
   attribute vec2 flow;
   varying vec3 vWorld;
+  varying vec3 vWaveN;
   varying vec2 vFlow;
   varying float vFogDepth;
+  varying float vCrest;
   #include <logdepthbuf_pars_vertex>
-  float wave(vec2 p, float t) {
-    return sin(p.x * 0.11 + t * 1.1) * 0.5 + sin(p.y * 0.13 + t * 0.9) * 0.4 + sin((p.x + p.y) * 0.23 + t * 1.7) * 0.25;
+  // directional swell: x height, yz gradient (d/dx, d/dz)
+  vec3 wave(vec2 p, float t) {
+    vec3 r = vec3(0.0);
+    vec4 W[4];
+    W[0] = vec4(0.80, 0.60, 0.11, 0.50); // dir xy, spatial frequency, amplitude
+    W[1] = vec4(-0.35, 0.94, 0.13, 0.38);
+    W[2] = vec4(0.97, -0.24, 0.23, 0.22);
+    W[3] = vec4(0.42, 0.91, 0.37, 0.12);
+    for (int i = 0; i < 4; i++) {
+      float k = W[i].z, a = W[i].w, ph = dot(W[i].xy, p) * k + t * sqrt(9.8 * k) * 0.55;
+      r.x += sin(ph) * a;
+      r.yz += W[i].xy * (cos(ph) * a * k);
+    }
+    return r;
   }
   void main() {
     vec4 w = modelMatrix * vec4(position, 1.0);
     float fade = 1.0 - smoothstep(120.0, 400.0, distance(w.xz, camPos.xz));
-    w.y += wave(w.xz, uTime) * waveAmp * fade;
+    vec3 h = wave(w.xz, uTime) * waveAmp * fade;
+    w.y += h.x;
+    vWaveN = normalize(vec3(-h.y, 1.0, -h.z));
+    vCrest = h.x / max(waveAmp, 1e-3);
     vWorld = w.xyz;
     vFlow = flow;
     vec4 mv = viewMatrix * w;
@@ -31,20 +53,31 @@ const WATER_VERT = /* glsl */ `
   }`;
 
 const WATER_FRAG = /* glsl */ `
-  uniform float uTime, opacity, isRiver, flowSpeed, night;
+  uniform float opacity, isRiver, flowSpeed, night, rippleScale;
   uniform vec3 shallow, deep, foam, sunDirW, sunColor, skyCol, horizonCol, fogColor;
   uniform float fogDensity;
-  uniform sampler2D heightTex;
+  uniform sampler2D heightTex, waterNormal;
   uniform vec4 terrainRect; // x0, z0, size, unused
   varying vec3 vWorld;
+  varying vec3 vWaveN;
   varying vec2 vFlow;
   varying float vFogDepth;
+  varying float vCrest;
   #include <logdepthbuf_pars_fragment>
+  ${CLOUDS_GLSL}
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+  }
+  vec3 ripple(vec2 uv) { vec3 t = texture2D(waterNormal, uv).xyz * 2.0 - 1.0; return vec3(t.x, 0.0, t.y); }
+  vec3 skyAt(vec3 d) {
+    d.y = abs(d.y);
+    vec3 c = mix(horizonCol, skyCol, pow(d.y, 0.5));
+    vec2 cl = skyClouds(d);
+    vec3 cloudLit = mix(horizonCol * 1.1, vec3(1.0), 0.6 * (1.0 - night)) + sunColor * 0.05;
+    return mix(c, cloudLit * (0.2 + 0.8 * (1.0 - night)), cl.x * 0.85);
   }
   void main() {
     #include <logdepthbuf_fragment>
@@ -52,30 +85,42 @@ const WATER_FRAG = /* glsl */ `
     float ground = texture2D(heightTex, uv).r;
     float depth = vWorld.y - ground;
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) depth = 60.0;
-    // faceted normal from derivatives (low-poly waves)
-    vec3 n = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
-    if (n.y < 0.0) n = -n;
     vec3 V = normalize(cameraPosition - vWorld);
+    float dist = vFogDepth;
+    // ripples: two scrolling scales of the normal map (along the flow on rivers), fading with distance
+    float t = uTime;
+    vec2 drift = isRiver > 0.5 ? vFlow * t * flowSpeed * 0.35 : vec2(t * 0.011, t * 0.007);
+    vec3 rp = ripple(vWorld.xz * 0.055 * rippleScale + drift) + ripple(vWorld.xz * 0.13 * rippleScale - drift.yx * 1.3 + vec2(0.37, 0.71));
+    float rk = (isRiver > 0.5 ? 0.22 : 0.3) * (1.0 - smoothstep(40.0, 600.0, dist) * 0.8);
+    vec3 n = normalize(vWaveN + rp * rk);
+    float NdV = max(dot(n, V), 0.0);
+    float F = 0.02 + 0.98 * pow(1.0 - NdV, 5.0);
+    // body: absorbed toward the deep colour with depth, lit by the sun and the sky
     float dk = 1.0 - exp(-max(depth, 0.0) * (isRiver > 0.5 ? 0.45 : 0.16));
-    vec3 col = mix(shallow, deep, dk) * mix(1.0, 0.28, night);
-    // diffuse-ish lighting so the water darkens at night
-    float light = 0.35 + 0.65 * max(dot(n, sunDirW), 0.0);
-    col *= mix(vec3(0.25), vec3(1.0), clamp(length(sunColor) * 0.35, 0.0, 1.0)) * light + skyCol * 0.08;
-    // fresnel toward the sky colour
-    float fr = pow(1.0 - max(dot(n, V), 0.0), 4.0);
-    col = mix(col, skyCol, fr * 0.55);
-    // sun glint
+    vec3 body = mix(shallow, deep, dk);
+    float sunUp = clamp(sunDirW.y * 2.0, 0.0, 1.0);
+    vec3 lightC = sunColor * (0.12 + 0.16 * sunUp) + skyCol * 0.35 + horizonCol * 0.15;
+    body *= lightC * mix(1.0, 0.25, night);
+    // light through the wave crests (turquoise glow facing the sun)
+    float sss = pow(max(dot(V, -sunDirW), 0.0), 3.0) * clamp(vCrest * 0.5 + 0.5, 0.0, 1.0);
+    body += shallow * sunColor * sss * 0.25 * (1.0 - dk * 0.5);
+    // reflection: sky + clouds, the sun's glint
+    vec3 R = reflect(-V, n);
+    vec3 refl = skyAt(R);
+    vec3 col = mix(body, refl, F);
     vec3 H = normalize(sunDirW + V);
-    col += sunColor * pow(max(dot(n, H), 0.0), 180.0) * 0.6;
-    // shore foam: animated bands where it gets shallow
+    float NdH = max(dot(n, H), 0.0);
+    col += sunColor * (pow(NdH, 900.0) * 6.0 + pow(NdH, 120.0) * 0.25) * step(0.0, sunDirW.y);
+    // shore foam: animated bands where it gets shallow, broken by noise
     vec2 fuv = vWorld.xz * 0.35 + vFlow * uTime * flowSpeed;
-    float fn = noise(fuv) * 0.6 + noise(fuv * 2.3) * 0.4;
+    float fn = noise(fuv) * 0.6 + noise(fuv * 2.3) * 0.3 + noise(fuv * 5.1) * 0.1;
     float band = smoothstep(0.85, 0.0, depth) + (isRiver > 0.5 ? 0.0 : smoothstep(1.6, 0.4, depth) * (0.5 + 0.5 * sin(depth * 6.0 - uTime * 1.6)) * 0.6);
-    float f = smoothstep(0.45, 0.75, fn * band + band * 0.25);
-    if (isRiver > 0.5) f = max(f, smoothstep(0.72, 0.9, noise(fuv * 1.7)) * 0.35);
-    col = mix(col, foam * (0.5 + 0.5 * light), f * 0.85);
-    float alpha = mix(0.55, opacity, smoothstep(0.0, 3.0, depth));
-    alpha = max(alpha, f * 0.9);
+    float f = smoothstep(0.5, 0.8, fn * band + band * 0.2);
+    if (isRiver > 0.5) f = max(f, smoothstep(0.74, 0.92, noise(fuv * 1.7)) * 0.3);
+    col = mix(col, foam * lightC * 0.75, f * 0.8);
+    // see-through in the shallows, opaque at grazing angles (Fresnel) and in the deep
+    float alpha = mix(0.45, opacity, smoothstep(0.0, 3.0, depth));
+    alpha = max(max(alpha, f * 0.9), F);
     alpha *= smoothstep(-0.05, 0.12, depth);
     // fog (exp2, same as three)
     float fogF = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
@@ -112,7 +157,7 @@ export class Water {
     const t = this.terrain;
     return {
       uTime: L.uniforms.uTime,
-      waveAmp: { value: river ? 0.05 : 0.35 },
+      waveAmp: { value: river ? 0.04 : 0.45 },
       flowSpeed: { value: river ? 1.4 : 0.15 },
       isRiver: { value: river ? 1 : 0 },
       opacity: { value: river ? 0.92 : 0.9 },
@@ -129,6 +174,10 @@ export class Water {
       camPos: { value: new THREE.Vector3() },
       heightTex: { value: this.heightTex },
       terrainRect: { value: new THREE.Vector4(-t.half, -t.half, t.size, 0) },
+      waterNormal: L.surfaces.uniforms.waterNormal,
+      rippleScale: { value: river ? 1.6 : 1 },
+      cloudCoverage: L.skyU.cloudCoverage,
+      cloudSpeed: L.skyU.cloudSpeed,
     };
   }
 

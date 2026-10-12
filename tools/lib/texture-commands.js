@@ -71,6 +71,8 @@ export const textureCommands = {
       let n = 0;
       for (const id of src.polyhaven) { log(`polyhaven ${id}`); n += await fetchPolyHaven(id, log); }
       for (const id of src.ambientcg) { log(`ambientcg ${id}`); n += await fetchAmbientCG(id, log); }
+      const wn = readJSON('textures.json').water?.normal;
+      if (wn?.url && (await download(wn.url, path.join(CACHE, 'water', 'normal.jpg')))) n++;
       void opts;
       return { ok: true, downloaded: n, polyhaven: src.polyhaven.length, ambientcg: src.ambientcg.length, cache: path.relative(ROOT, CACHE) };
     },

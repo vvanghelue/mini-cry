@@ -44,6 +44,27 @@ async function loadStrip(url, size, { srgb }) {
   return tex;
 }
 
+function flatNormal() {
+  const t = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1);
+  t.needsUpdate = true;
+  return t;
+}
+
+/** A plain tiling 2D texture (linear data: normal maps). */
+async function loadImage(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+  const bmp = await createImageBitmap(await r.blob(), { premultiplyAlpha: 'none', colorSpaceConversion: 'none', imageOrientation: 'flipY' });
+  const t = new THREE.Texture(bmp);
+  t.flipY = false;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.anisotropy = 4;
+  t.colorSpace = THREE.NoColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+
 const inv = (m) => (m ?? [0.2, 0.2, 0.2]).map((c) => 1 / Math.max(0.004, c));
 export const luma = (m) => Math.max(0.004, 0.2126 * (m?.[0] ?? 0.2) + 0.7152 * (m?.[1] ?? 0.2) + 0.0722 * (m?.[2] ?? 0.2));
 
@@ -76,6 +97,7 @@ export class Surfaces {
       surfDetail: { value: 1 }, // 0 = flat vertex colours (A/B), 1 = textured
       terAlbedo: { value: placeholder(true) },
       terNormal: { value: placeholder(false) },
+      waterNormal: { value: flatNormal() },
     };
   }
 
@@ -108,9 +130,10 @@ export class Surfaces {
     strip('foliage', 'albedo', 'folAlbedo', true, m.foliage?.size);
     strip('terrain', 'albedo', 'terAlbedo', true, m.terrain?.size);
     strip('terrain', 'normal', 'terNormal', false, m.terrain?.normalSize ?? m.terrain?.size);
+    if (m.water?.files?.normal) jobs.push(loadImage(url(m.water.files.normal)).then((t) => { U.waterNormal.value = t; }).catch((err) => console.warn('textures:', err.message)));
     await Promise.all(jobs);
     // upload now (during loading) rather than on the first frame that uses them
-    for (const k of ['surfAlbedo', 'surfNormal', 'folAlbedo', 'terAlbedo', 'terNormal']) renderer?.initTexture?.(U[k].value);
+    for (const k of ['surfAlbedo', 'surfNormal', 'folAlbedo', 'terAlbedo', 'terNormal', 'waterNormal']) renderer?.initTexture?.(U[k].value);
     this.ready = true;
     return this;
   }

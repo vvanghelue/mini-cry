@@ -6,6 +6,7 @@ const { browser, page, logs } = await launch({ width: W, height: H });
 const t0 = Date.now();
 await openApp(page, `/?mode=view&nohud=1&${process.argv[2]}`, { timeout: 300000 });
 console.log('ready', Date.now() - t0);
+if (process.env.EVAL) await page.evaluate(process.env.EVAL);
 await frames(page, Number(process.env.FRAMES ?? 3));
 console.log(JSON.stringify(await page.evaluate(() => window.__mc.engine.perf.snapshot())));
 await page.screenshot({ path: process.argv[3] ?? 'shots/dbg.png', timeout: 300000 });

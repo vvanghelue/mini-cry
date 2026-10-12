@@ -1,5 +1,5 @@
 {
-  "credits": "Textures: Poly Haven (polyhaven.com, CC0) and ambientCG (ambientcg.com, CC0). Foliage atlases are composed by `mc textures build` from ambientCG leaf / grass scans.",
+  "credits": "Textures: Poly Haven (polyhaven.com, CC0) and ambientCG (ambientcg.com, CC0); water normals from the three.js examples (MIT). Foliage atlases are composed by `mc textures build` from ambientCG leaf / grass scans.",
   "terrain": {
     "size": 1024,
     "normalSize": 512,
@@ -548,5 +548,15 @@
       "albedo": "textures/foliage_albedo.webp"
     }
   },
-  "version": "1dc7cf746d"
+  "version": "1fd577b17e",
+  "water": {
+    "normal": {
+      "url": "https://raw.githubusercontent.com/mrdoob/three.js/r170/examples/textures/waternormals.jpg",
+      "license": "MIT (three.js examples)",
+      "size": 512
+    },
+    "files": {
+      "normal": "textures/water_normal.jpg"
+    }
+  }
 }

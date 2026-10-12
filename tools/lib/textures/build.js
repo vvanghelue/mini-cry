@@ -396,6 +396,7 @@ export async function buildTextures(manifest, { only, quality = 82, log = () => 
   const sizes = {};
   for (const group of ['terrain', 'surfaces', 'foliage']) {
     if (only && only !== group) continue;
+    if (!manifest[group]) continue;
     const G = manifest[group];
     const S = G.size, NS = G.normalSize ?? S;
     const albedo = [], normal = [];
@@ -415,9 +416,18 @@ export async function buildTextures(manifest, { only, quality = 82, log = () => 
       sizes[G.files.normal] = await writeStrip(`${group}_normal.jpg`, normal, NS, 3, { quality });
     }
   }
+  // water ripples: one tiling normal map
+  const wn = manifest.water?.normal;
+  if (wn && (!only || only === 'water')) {
+    const src = path.join(CACHE, 'water', 'normal.jpg');
+    if (!fs.existsSync(src)) throw new Error('missing water normal map: run `npm run mc -- textures fetch`');
+    await sharp(src).resize(wn.size ?? 512, wn.size ?? 512).jpeg({ quality: 90, chromaSubsampling: '4:4:4' }).toFile(path.join(OUT, 'water_normal.jpg'));
+    manifest.water.files = { normal: 'textures/water_normal.jpg' };
+    sizes['textures/water_normal.jpg'] = fs.statSync(path.join(OUT, 'water_normal.jpg')).size;
+  }
   // cache-busting version from the packed files
   const h = crypto.createHash('sha1');
-  for (const g of ['terrain', 'surfaces', 'foliage']) for (const f of Object.values(manifest[g].files ?? {})) if (fs.existsSync(path.join(ROOT, 'public', f))) h.update(fs.readFileSync(path.join(ROOT, 'public', f)));
+  for (const g of ['terrain', 'surfaces', 'foliage', 'water']) for (const f of Object.values(manifest[g]?.files ?? {})) if (fs.existsSync(path.join(ROOT, 'public', f))) h.update(fs.readFileSync(path.join(ROOT, 'public', f)));
   manifest.version = h.digest('hex').slice(0, 10);
   return { ok: true, version: manifest.version, bytes: sizes };
 }

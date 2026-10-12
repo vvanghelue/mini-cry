@@ -12,7 +12,7 @@
 //   { shape: 'cylinder', radiusTop, radiusBottom, height, segments, open }
 //   { shape: 'cone', radius, height, segments }
 //   { shape: 'sphere', radius, detail, squash: [sx, sy, sz] }     (icosphere)
-//   { shape: 'lump', radius, detail, noise, seed, squash }        (noisy icosphere: rocks, canopies)
+//   { shape: 'lump', radius, detail, noise, seed, squash, octaves } (noisy icosphere: rocks, canopies)
 //   { shape: 'limb', from: [x,y,z], to: [x,y,z], r0, r1, segments } (tapered tube between 2 points)
 //   { shape: 'frond', base, yaw, pitch, length, width, droop, segs, fold }  (deg angles)
 //   { shape: 'wedge', size: [w, h, d] }                           (triangular prism: roofs)
@@ -87,7 +87,9 @@ function primitive(p, q, assets, depth) {
       // displacement keyed on position so shared corners stay welded
       for (let i = 0; i < a.count; i++) {
         const x = a.getX(i), y = a.getY(i), z = a.getZ(i);
-        const n = 1 + fbm(x / r * 1.3 + seed * 1.7, z / r * 1.3 + y / r * 0.9, 2, seed) * k * 2;
+        let n = 1 + fbm(x / r * 1.3 + seed * 1.7, z / r * 1.3 + y / r * 0.9, 2, seed) * k * 2;
+        // rocks: finer octaves (ledges, chips) on the round lump
+        if (p.octaves > 2) n += fbm(x / r * 4.1 + seed * 0.7, z / r * 4.1 - y / r * 3.3, p.octaves - 2, seed + 3) * k * 0.7;
         a.setXYZ(i, x * n, y * n, z * n);
       }
       break;
