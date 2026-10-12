@@ -1,0 +1,13 @@
+# Birds (fx/Birds.js): flocks spawn around the player (gulls over the coast / on the beach, macaws
+# in the trees, frigatebirds up high) and are drawn; a player bullet kills a bird (it falls), a
+# gunshot startles the flocks in range.
+# spawn: -505,2,525,0.6
+wait 3
+eval JSON.stringify(game.birds.stats().birds)
+expect game.birds.species.every(s => s.birds.length > 0 && s.mesh.count === s.birds.length)
+eval (()=>{ const g = game, o = g.engine.camera.position.clone(), w = g.weapons.defs.sniper; const list = g.birds.species.flatMap(s => s.birds).filter(b => b.state !== 'fall' && b.state !== 'dead' && b.pos.distanceTo(o) < (w.range ?? 200) && g.world.physics.visible(o, b.pos)).sort((a, b) => a.pos.distanceTo(o) - b.pos.distanceTo(o)); const b = window.__shot = list[0]; if (!b) return 'no bird in sight'; g.weapons.hitscan(o, b.pos.clone().sub(o).normalize(), w, { attacker: 'player' }); return { species: b.sp.id, dist: +b.pos.distanceTo(o).toFixed(1), state: b.state }; })()
+expect window.__shot && window.__shot.state === 'fall' && !window.__shot.flock
+eval (game.ai.noise(game.player.pos.clone(), 150, 'gunshot'), JSON.stringify(game.birds.stats().flocks.map(f => `${f.species}:${f.mode}:${f.dist}`)))
+expect game.birds.flocks.some(f => f.mode === 'fly')
+wait 8
+expect window.__shot.removed || window.__shot.state === 'dead'

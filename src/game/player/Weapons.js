@@ -276,6 +276,7 @@ export class Weapons {
       const pd = g.player.alive ? rayPlayer(_ray, g.player, best) : -1;
       if (pd >= 0) { best = pd; hitPlayer = true; hitActor = null; }
     }
+    if (attacker === 'player') g.birds?.shoot(_ray, best); // a bird in the way dies, the bullet goes on
     const point = origin.clone().addScaledVector(dir, best);
     // damage falloff
     const fo = w.falloff;

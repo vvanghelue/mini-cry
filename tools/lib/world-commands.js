@@ -160,6 +160,14 @@ export const worldCommands = {
       for (const [id, w] of Object.entries(weapons.weapons)) { if (!assets[w.asset]) warnings.push(`weapon ${id}: asset ${w.asset} missing`); if (w.ammo && !weapons.ammoTypes[w.ammo]) errors.push(`weapon ${id}: unknown ammo ${w.ammo}`); }
       for (const [id, a] of Object.entries(arch.archetypes)) { if (a.weapon && !weapons.weapons[a.weapon]) errors.push(`archetype ${id}: unknown weapon ${a.weapon}`); for (const l of a.loot ?? []) if (!items.items[l.item]) errors.push(`archetype ${id}: unknown loot item ${l.item}`); if (a.palette && !arch.palettes?.[a.palette]) warnings.push(`archetype ${id}: palette ${a.palette} missing`); if (!fs.existsSync(path.join(ROOT, 'public', 'models', `${a.model}.glb`))) warnings.push(`archetype ${id}: model ${a.model}.glb not found`); }
       for (const [id, it] of Object.entries(items.items)) { if (it.asset && !assets[it.asset]) warnings.push(`item ${id}: asset ${it.asset} missing`); if (it.weapon && !weapons.weapons[it.weapon]) errors.push(`item ${id}: unknown weapon ${it.weapon}`); }
+      const birds = readJSON('game/birds.json', { species: {} }), sounds = readJSON('sounds.json', { sounds: {} }).sounds ?? {};
+      const vegIds = new Set((readJSON('vegetation.json', { species: [] }).species ?? []).map((s) => s.id));
+      for (const [id, b] of Object.entries(birds.species ?? {})) {
+        if (!assets[b.asset]) errors.push(`bird ${id}: unknown asset ${b.asset}`);
+        if (b.call && !sounds[b.call]) errors.push(`bird ${id}: unknown sound ${b.call}`);
+        for (const t of b.perch?.trees ?? []) if (!vegIds.has(t)) warnings.push(`bird ${id}: perch tree ${t} is not a vegetation species`);
+        if (!b.orbit && !b.perch && !b.ground) warnings.push(`bird ${id}: no orbit / perch / ground: never spawns`);
+      }
       // entities
       const w = loadWorld();
       const ids = new Set();

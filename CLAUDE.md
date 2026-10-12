@@ -16,8 +16,8 @@ character names stay French.
 - **Validate.** `npm run mc -- validate` must report `ok: true` (it checks assets, entity schemas,
   every mission / dialogue / entity reference).
 - **Regression tests.** `npm test` runs every `tests/*.play` scenario headless on the production
-  build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, flying the plane (take-off, turn, crash) and landing it, AI fight, enemy lethality on normal, frame
-  pacing while driving / flying fast). Add a scenario with `expect <js>` assertions when you add
+  build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, flying the plane (take-off, turn, crash) and landing it, AI fight, enemy lethality on normal, birds,
+  frame pacing while driving / flying fast). Add a scenario with `expect <js>` assertions when you add
   gameplay. Each report has `lateShaders` (programs compiled after the loading warm-up = hitches):
   keep it at 0 — if a new material / object type shows up late, make `World.warmUp` cover it.
 - **Performance budget**: 120 fps on a MacBook Air M1 ≈ 8.3 ms per frame. Check with
@@ -42,7 +42,7 @@ character names stay French.
 - `src/engine/physics/Physics.js` shapes + grid; `collideCylinder`, `groundAt`, `raycast`, `visible`.
 - `src/engine/assets/ModelBuilder.js` (asset JSON → geometry; format in docs/ASSETS.md), `generators.js`.
 - `src/engine/anim/Characters.js` Quaternius characters (merged mesh, UAL retargeting, hitboxes, palettes).
-- `src/game/Game.js` game rules + live commands; `player/` (Player, Weapons), `actors/` (Actors, AI, Nav), `missions/` (Missions runtime, Dialogue), `entities/index.js` (game entity types & schemas), `vehicles/`, `fx/Effects.js`, `ui/` (HUD, Menus, PerfOverlay = stats graphs bottom right, F3; DebugPanel = lil-gui cheats / toggles, F2; both on by default, `?stats=0` / `?debug=0` hide them, off with `?bot` / `?bench` / `?nohud`).
+- `src/game/Game.js` game rules + live commands; `player/` (Player, Weapons), `actors/` (Actors, AI, Nav), `missions/` (Missions runtime, Dialogue), `entities/index.js` (game entity types & schemas), `vehicles/`, `fx/Effects.js`, `fx/Birds.js` (flocks around the camera: perched on tree crowns / beaches, soaring, Bezier flights between the two; startled by gunshots and the player, can be shot; wings flapped in the vertex shader; `?birds=0` off), `ui/` (HUD, Menus, PerfOverlay = stats graphs bottom right, F3; DebugPanel = lil-gui cheats / toggles, F2; both on by default, `?stats=0` / `?debug=0` hide them, off with `?bot` / `?bench` / `?nohud`).
 - `src/editor/core.js` editor logic (signals `S`, selection, gizmo, brushes, undo, save, live commands), `ui/`, `panels/`.
 
 ## Data files
@@ -54,7 +54,7 @@ character names stay French.
 | `assets/*.json` (+ `index.json`) | low-poly models (docs/ASSETS.md) | write JSON, `mc asset validate|shot|reindex|bake` |
 | `world.json` | player start + entities (props, enemies, npcs, pickups, outposts, alarms, zones, markers, paths, vehicles…) | `mc entity list|add|set|move|remove|types` |
 | `game/missions.json`, `game/dialogue.json` | story (docs/MISSIONS.md) | `mc mission list|show`, `mc data set`, editor 🎯 / 💬 |
-| `game/weapons.json`, `archetypes.json`, `items.json`, `player.json` | gameplay tuning | `mc data get|set`, editor 📊 |
+| `game/weapons.json`, `archetypes.json`, `items.json`, `player.json`, `birds.json` | gameplay tuning (birds: species → asset, flight, habitat, flocks, calls) | `mc data get|set`, editor 📊 |
 | `environment.json` | time of day, light, SSAO (`ao`), GI / auto exposure (`gi`, `autoExposure`), lens flare (`flare`), light halos (`glows`), fog, sky / ocean colours | `mc data set`, editor ☀ |
 | `gi/probes.json` + `gi/probes.bin` | baked GI probes (derived: re-bake after terrain / vegetation / prop / asset / sunTilt edits; `mc validate` warns when stale) | `mc gi bake|info` (docs/GI.md) |
 | `sounds.json` | procedural sound recipes (docs/AUDIO.md) | `mc sound list|render|check`, editor 🔊 |
@@ -84,5 +84,5 @@ npm run mc -- live focus '{"id":"outpost_river"}' --target editor
 npm run mc -- live screenshot --target editor --out shots/editor.png
 ```
 Live game commands: state, teleport, give, god, noclip, setTime, startMission, completeObjective,
-spawn, killAll, start, look. Live editor commands: state, select, get, add, set, patch, remove,
+spawn, killAll, start, look, birds. Live editor commands: state, select, get, add, set, patch, remove,
 camera, focus, setEnv, sculpt, save, undo, panel, materials (+ eval, screenshot, commands everywhere).

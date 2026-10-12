@@ -10,6 +10,7 @@ export const CATEGORIES = [
   { value: 'weapon', label: 'Weapon' },
   { value: 'pickup', label: 'Pickup' },
   { value: 'fx', label: 'Effect' },
+  { value: 'animal', label: 'Animal' },
 ];
 export const CATEGORY_LABEL = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]));
 
