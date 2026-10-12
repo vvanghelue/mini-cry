@@ -73,7 +73,7 @@ export const luma = (m) => Math.max(0.004, 0.2126 * (m?.[0] ?? 0.2) + 0.7152 * (
 export const SURF_DETAIL_GLSL = /* glsl */ `
 vec3 surfRel(vec3 t, vec4 info, float chroma, float amount) {
   float lt = dot(t, vec3(0.2126, 0.7152, 0.0722));
-  float dl = lt / info.w;
+  float dl = min(lt / info.w, 2.6); // very dark layers: bright specks / cracks must not blow up
   vec3 dc = clamp((t / max(lt, 1e-4)) * info.w * info.xyz, 0.0, 3.0);
   return mix(vec3(1.0), dl * mix(vec3(1.0), dc, chroma), amount);
 }

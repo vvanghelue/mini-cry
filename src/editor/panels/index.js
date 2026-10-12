@@ -15,7 +15,7 @@ export const PANELS = [
   { id: 'missions', icon: '🎯', label: 'Missions', help: 'Missions, objectives, triggers, actions', component: MissionsPanel },
   { id: 'dialogue', icon: '💬', label: 'Dialogue', help: 'Radio characters and lines', component: DialoguePanel },
   { id: 'data', icon: '📊', label: 'Gameplay', help: 'Weapons, enemies, player, items, vegetation', component: DataPanel },
-  { id: 'assets', icon: '🧱', label: 'Assets', help: 'Low-poly model editor', component: AssetPanel },
+  { id: 'assets', icon: '🧱', label: 'Assets', help: 'Model editor (parts, texture surfaces, generators)', component: AssetPanel },
   { id: 'characters', icon: '🧍', label: 'Characters', help: 'Archetypes, palettes, animations', component: CharactersPanel },
   { id: 'audio', icon: '🔊', label: 'Audio', help: 'Procedural sounds', component: AudioPanel },
 ];

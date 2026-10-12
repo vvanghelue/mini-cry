@@ -90,7 +90,7 @@ function primitive(p, q, assets, depth) {
         const x = a.getX(i), y = a.getY(i), z = a.getZ(i);
         let n = 1 + fbm(x / r * 1.3 + seed * 1.7, z / r * 1.3 + y / r * 0.9, 2, seed) * k * 2;
         // rocks: finer octaves (ledges, chips) on the round lump
-        if (p.octaves > 2) n += fbm(x / r * 4.1 + seed * 0.7, z / r * 4.1 - y / r * 3.3, p.octaves - 2, seed + 3) * k * 0.7;
+        if (p.octaves > 2) n += fbm(x / r * 3.1 + seed * 0.7, z / r * 3.1 - y / r * 2.6, p.octaves - 2, seed + 3) * k * 0.3;
         a.setXYZ(i, x * n, y * n, z * n);
       }
       break;

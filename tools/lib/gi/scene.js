@@ -23,11 +23,18 @@ export function terrainField(t) {
 
 function assetMesh(build) {
   const g = build.geometry;
-  const p = g.attributes.position.array, cl = g.attributes.color.array;
+  const p = g.attributes.position.array, cl = g.attributes.color.array, sf = g.attributes.surface?.array;
   const n = p.length / 9;
-  const col = new Float32Array(n * 3);
-  for (let t = 0; t < n; t++) { col[t * 3] = cl[t * 9]; col[t * 3 + 1] = cl[t * 9 + 1]; col[t * 3 + 2] = cl[t * 9 + 2]; }
-  return { pos: p instanceof Float32Array ? p : new Float32Array(p), col };
+  // alpha-cut leaf cards / fronds (surface >= 64) are quads drawn as two triangles: keep one of the
+  // two, about the share of the card the leaves really cover
+  const keep = [];
+  for (let t = 0; t < n; t++) if (!(sf && sf[t * 3] >= 64 && t % 2)) keep.push(t);
+  const pos = new Float32Array(keep.length * 9), col = new Float32Array(keep.length * 3);
+  keep.forEach((t, k) => {
+    pos.set(p.subarray(t * 9, t * 9 + 9), k * 9);
+    col[k * 3] = cl[t * 9]; col[k * 3 + 1] = cl[t * 9 + 1]; col[k * 3 + 2] = cl[t * 9 + 2];
+  });
+  return { pos, col };
 }
 
 const boundsOf = (pos) => {

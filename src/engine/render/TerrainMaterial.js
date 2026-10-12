@@ -113,6 +113,7 @@ void terLayer(int id, vec3 P, vec3 Nw, vec3 bw, bool tri, float far, out vec4 al
 const SPLAT = /* glsl */ `
 vec3 tN = normalize(vTerrN);
 float tRough = 1.0;
+surfSpecK = 0.35; // rough ground: little sky reflection, even at grazing angles
 {
   vec3 Nw = tN;
   // 4 grid vertices around the pixel, their materials and bilinear weights

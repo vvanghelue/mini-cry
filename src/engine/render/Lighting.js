@@ -1,7 +1,7 @@
 // Lighting & atmosphere: time of day (sun / moon arc), sky dome with clouds, hemisphere ambient
 // (replaced by baked probe GI where gi/probes.* exists, see GI.js), auto exposure, cascaded sun
-// shadows, half-res SSAO, sun lens flare (LensFlare.js), fog, wind, and the shared low-poly
-// material factory.
+// shadows, half-res SSAO, sun lens flare (LensFlare.js), fog, wind, and the shared material
+// factory (textured PBR sampling the texture arrays of Surfaces.js, or plain Lambert).
 //
 // Everything is driven by an "environment" object (public/data/environment.json, editable in the
 // editor's Environment panel): call setEnvironment(env) and update(dt) every frame.

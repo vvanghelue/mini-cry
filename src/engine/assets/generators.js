@@ -534,8 +534,9 @@ export const GENERATORS = {
   rock: {
     label: 'Rock',
     defaults: { radius: 1.4, detail: 2, noise: 0.28, squash: [1.1, 0.65, 1], colors: ['#7a756c', '#6b665e', '#86807a'], moss: 0.0, mossColor: '#4d6b25' },
-    build(p, rng) {
-      const parts = [{ shape: 'lump', radius: vary(rng, p.radius, 0.25), detail: p.detail, noise: p.noise, octaves: 4, seed: Math.floor(rng() * 9999), scale: p.squash, pos: [0, p.radius * p.squash[1] * 0.45, 0], color: pick(rng, p.colors), jitter: 0.12, surface: 'rock', uvScale: Math.min(3, p.radius * 1.2) }];
+    build(p, rng, q = 1) {
+      // one more subdivision than other lumps at the mid / far LODs (rocks are big and close to the ground)
+      const parts = [{ shape: 'lump', radius: vary(rng, p.radius, 0.25), detail: p.detail + (q <= 0.6 ? 1 : 0), noise: p.noise, octaves: 4, seed: Math.floor(rng() * 9999), scale: p.squash, pos: [0, p.radius * p.squash[1] * 0.45, 0], color: pick(rng, p.colors), jitter: 0.12, surface: 'rock', uvScale: Math.min(3, p.radius * 1.2) }];
       if (p.moss > 0) parts.push({ shape: 'lump', radius: p.radius * 0.75, detail: 1, noise: 0.2, seed: Math.floor(rng() * 999), scale: [p.squash[0] * 1.05, p.squash[1] * 0.4, p.squash[2] * 1.05], pos: [0, p.radius * p.squash[1] * 0.8, 0], color: p.mossColor, minQuality: 0.5, surface: 'leaf_mass', uvScale: 0.6 });
       return parts;
     },

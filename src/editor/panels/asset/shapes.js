@@ -24,12 +24,12 @@ export const MATERIALS = [
   { value: 'water', label: 'Water' },
 ];
 
-export const SHAPES = ['box', 'cylinder', 'cone', 'sphere', 'lump', 'limb', 'wedge', 'plane', 'frond', 'tris', 'ref'];
+export const SHAPES = ['box', 'cylinder', 'cone', 'sphere', 'lump', 'limb', 'wedge', 'plane', 'frond', 'card', 'cards', 'tris', 'ref'];
 export const SHAPE_LABEL = {
   box: 'Box', cylinder: 'Cylinder', cone: 'Cone', sphere: 'Sphere', lump: 'Noisy lump', limb: 'Tube',
-  wedge: 'Prism', plane: 'Plane', frond: 'Frond', tris: 'Triangles', ref: 'Reference',
+  wedge: 'Prism', plane: 'Plane', frond: 'Frond', card: 'Card', cards: 'Cards', tris: 'Triangles', ref: 'Reference',
 };
-export const SHAPE_ICON = { box: '▣', cylinder: '⌭', cone: '▲', sphere: '●', lump: '☁', limb: '⟋', wedge: '⌂', plane: '▭', frond: '❧', tris: '◺', ref: '⎘' };
+export const SHAPE_ICON = { box: '▣', cylinder: '⌭', cone: '▲', sphere: '●', lump: '☁', limb: '⟋', wedge: '⌂', plane: '▭', frond: '❧', card: '▯', cards: '❖', tris: '◺', ref: '⎘' };
 export const SHAPE_HELP = {
   box: 'Box centered on pos (walls, planks, crates)',
   cylinder: 'Y-axis cylinder centered on pos (posts, barrels)',
@@ -39,7 +39,9 @@ export const SHAPE_HELP = {
   limb: 'Tapered tube between two points (branches, ropes, pipes)',
   wedge: 'Triangular prism, ridge on top along Z: roofs',
   plane: 'Horizontal quad (rotate it)',
-  frond: 'Drooping leaf strip (palm fronds, ferns)',
+  frond: 'Drooping leaf strip (palm fronds, ferns); with a foliage surface: a textured strip',
+  card: 'Upright textured quad, base at pos (leaf / grass cards: give it a foliage surface)',
+  cards: 'Many textured quads [base xyz, tip dir xyz, width axis xyz, w, h] (leaf clusters)',
   tris: 'Raw triangles (positions x,y,z…)',
   ref: 'Inserts another asset',
 };
@@ -56,13 +58,15 @@ export const SHAPE_DEFAULTS = {
   plane: { size: [1, 1] },
   frond: { base: [0, 0, 0], yaw: 0, pitch: 20, length: 2, width: 0.4, droop: 0.8, segs: 6, fold: 0.3 },
   tris: { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] },
+  card: { size: [1, 1], surface: 'grass' },
+  cards: { cards: [[0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1]], surface: 'leaves_broad' },
   ref: { asset: '' },
 };
 /** Position given to a freshly added part so it sits on the ground. */
 export const SHAPE_NEW_POS = { box: [0, 0.5, 0], cylinder: [0, 0.5, 0], cone: [0, 0.5, 0], sphere: [0, 0.5, 0], lump: [0, 0.5, 0], plane: [0, 0.01, 0] };
 
 /** Keys common to every shape (kept when the shape changes). */
-export const COMMON_KEYS = ['pos', 'rot', 'scale', 'color', 'jitter', 'wind', 'emissive', 'foliage', 'crown', 'clumpNormal', 'ao', 'minQuality', 'repeat', 'radial', 'doubleSided'];
+export const COMMON_KEYS = ['pos', 'rot', 'scale', 'color', 'surface', 'uvScale', 'smooth', 'jitter', 'wind', 'emissive', 'foliage', 'crown', 'clumpNormal', 'ao', 'minQuality', 'repeat', 'radial', 'doubleSided'];
 
 const radTop = (p) => p.radiusTop ?? p.radius ?? 0.5;
 const radBot = (p) => p.radiusBottom ?? p.radius ?? 0.5;
@@ -119,12 +123,15 @@ export const SHAPE_FIELDS = {
     { k: 'taper', type: 'num', label: 'Taper', def: 0.9, step: 0.01 },
     { k: 'pinnate', type: 'bool', label: 'Pinnate', title: 'One triangular leaflet per segment and per side (coconut palm fronds)' },
     { k: 'leafletBase', type: 'num', label: 'Leaflet base', def: 0.6, step: 0.01, min: 0.05, max: 1, optional: true, title: 'Share of the segment covered by the base of each leaflet (pinnate)' },
+    { k: 'twist', type: 'num', label: 'Twist (°)', def: 0, step: 1, optional: true, title: 'Roll of a textured frond along its length' },
     { k: 'doubleSided', type: 'bool', label: 'Double-sided' },
   ],
   tris: [
     { k: 'positions', type: 'json', label: 'Positions', def: [] },
     { k: 'doubleSided', type: 'bool', label: 'Double-sided' },
   ],
+  card: [{ k: 'size', type: 'vec2', label: 'Size (w, h)', def: [1, 1], step: 0.02 }],
+  cards: [{ k: 'cards', type: 'json', label: 'Cards', def: [] }],
   ref: [{ k: 'asset', type: 'asset', label: 'Asset' }],
 };
 
