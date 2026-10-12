@@ -39,7 +39,7 @@ export class Menus {
     if (g.params.has('continue')) { setTimeout(() => g.newGame({ fromCheckpoint: true }), 0); return; }
     this._show(`
       <div class="logo">MINI <span>CRY</span></div>
-      <div class="tag">Isla Sombra — a low-poly open-world FPS</div>
+      <div class="tag">Isla Sombra — an open-world FPS</div>
       <button class="b-new">New game</button>
       ${cont ? '<button class="b-cont">Continue</button>' : ''}
       <button class="b-opt">Options</button>

@@ -1,4 +1,4 @@
-// Asset editor: visual editor for the low-poly JSON models (public/data/assets/*.json).
+// Asset editor: visual editor for the JSON models (public/data/assets/*.json).
 //   left   : asset browser (search, category, thumbnails, tris) + New / Duplicate / Delete
 //   centre : live 3D preview (orbit, gizmo, colliders, markers, LOD, variant, stats)
 //   right  : tabs Asset (properties, LOD, weapon points, generator), Parts (list + inspector),

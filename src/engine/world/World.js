@@ -37,9 +37,10 @@ export class World {
     const colors = this.terrain.precomputeColors(); // in a worker, while the rest loads
     this.envData = env;
     this.lighting.setEnvironment(env);
-    onProgress(0.3, 'terrain mesh');
-    this.terrainRenderer = new TerrainRenderer(this.terrain, this.lighting);
-    this.scene.add(this.terrainRenderer.group);
+    // texture arrays (terrain splatting, asset surfaces, foliage) load meanwhile
+    const S = this.lighting.surfaces;
+    S._loading ??= S.load(this.engine.renderer);
+    onProgress(0.3, 'water');
     this.water = new Water(this.terrain, this.lighting, this.scene);
     this.lighting.onEnvironment = (e) => this.water?.setColors(e);
     onProgress(0.4, 'assets');
@@ -61,6 +62,10 @@ export class World {
     this.entities = new EntityManager(this, { mode: this.mode });
     this.entities.load(this.data.entities ?? []);
     await colors;
+    await S._loading;
+    // after the colour worker: the splatting texture reads every vertex's resolved material
+    this.terrainRenderer = new TerrainRenderer(this.terrain, this.lighting);
+    this.scene.add(this.terrainRenderer.group);
     await gi;
     this.applyQuality();
     this.engine.on('quality', () => this.applyQuality());
@@ -122,10 +127,13 @@ export class World {
     // SSAO pre-pass) draw everything with one shared override material, and three.js only rebuilds
     // its program when instancing (not the normals) changes from one object to the next: draw
     // plain / instanced / with / without normals alternately, last, so every variant compiles here
-    const geoN = geo.clone();
-    geoN.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+    const geo0 = geo.clone(); // without normals
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
+    geo.setAttribute('surface', new THREE.Float32BufferAttribute([0, 0, 0], 1));
+    const geoN = geo; // textured assets: normals + uv + surface
     // every option combination AssetLibrary.material() can ask for, even if nothing used it yet
-    for (let k = 0; k < 16; k++) this.lighting.material({ wind: !!(k & 1), emissive: !!(k & 2), doubleSided: !!(k & 4), foliage: !!(k & 8) });
+    for (let k = 0; k < 32; k++) this.lighting.material({ textured: true, cutout: !!(k & 16), wind: !!(k & 1), emissive: !!(k & 2), doubleSided: !!(k & 4) || !!(k & 16), foliage: !!(k & 8) });
     const tmp = [];
     const add = (m, plain) => {
       const b = new THREE.InstancedMesh(geo, m, 1);
@@ -140,8 +148,8 @@ export class World {
     for (const m of this.lighting.materials.values()) add(m, true);
     for (const m of fadeMaterial.cache?.values() ?? []) add(m, false); // instanced only (reads instanceMatrix)
     for (const m of lodMaterial.cache?.values() ?? []) add(m, false);
-    const fol = this.lighting.material({ wind: false, emissive: false, doubleSided: true, foliage: true });
-    [[geo, false], [geoN, true], [geoN, false], [geo, true]].forEach(([g, inst], i) => {
+    const fol = this.lighting.material({ textured: true, cutout: false, wind: false, emissive: false, doubleSided: true, foliage: true });
+    [[geo0, false], [geoN, true], [geoN, false], [geo0, true]].forEach(([g, inst], i) => {
       const b = inst ? new THREE.InstancedMesh(g, fol, 1) : new THREE.Mesh(g, fol);
       b.layers.set(LAYERS.STATIC);
       b.renderOrder = 1e6 + i;
@@ -169,7 +177,7 @@ export class World {
     for (const x of extras) x.removeFromParent();
     for (const b of tmp) b.dispose();
     geo.dispose();
-    geoN.dispose();
+    geo0.dispose();
     for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
     this.warmUpStats = { programs: r.info.programs.length - p0, total: r.info.programs.length, ms: Math.round(performance.now() - t0) };
   }

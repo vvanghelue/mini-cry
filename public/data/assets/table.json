@@ -5,9 +5,9 @@
   "material": "wood",
   "tags": ["village","camp","furniture","interior"],
   "parts": [
-    {"shape":"box","size":[1.6,0.045,0.22],"pos":[0,0.757,-0.335],"color":"#9a7648"},
+    {"shape":"box","size":[1.6,0.045,0.22],"pos":[0,0.757,-0.335],"color":"#9a7648", "surface": "thatch" },
     {"shape":"box","size":[1.6,0.045,0.22],"pos":[0,0.76,-0.11],"color":"#8b6940"},
-    {"shape":"box","size":[1.6,0.045,0.22],"pos":[0,0.757,0.115],"color":"#a27d4c"},
+    {"shape":"box","size":[1.6,0.045,0.22],"pos":[0,0.757,0.115],"color":"#a27d4c", "surface": "thatch" },
     {"shape":"box","size":[1.6,0.045,0.22],"pos":[0,0.759,0.34],"color":"#916e44"},
     {"shape":"box","size":[0.07,0.735,0.07],"pos":[-0.7,0.367,-0.36],"color":"#6c5133","repeat":{"count":2,"offset":[1.4,0,0]}},
     {"shape":"box","size":[0.07,0.735,0.07],"pos":[-0.7,0.367,0.36],"color":"#6f5335","repeat":{"count":2,"offset":[1.4,0,0]}},

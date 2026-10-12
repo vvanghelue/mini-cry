@@ -96,7 +96,7 @@ try {
         break;
       }
       case 'eval': entry.result = await page.evaluate(async (code) => { const app = window.__mc; const r = await (new Function('app', 'game', `return (async () => (${code}))()`))(app, app.game); return JSON.parse(JSON.stringify(r ?? null)); }, arg); break;
-      case 'shot': { const file = path.resolve(ROOT, `shots/play_${rest[0] ?? report.steps.length}.png`); fs.mkdirSync(path.dirname(file), { recursive: true }); await page.screenshot({ path: file }); entry.file = file; break; }
+      case 'shot': { const file = path.resolve(ROOT, `shots/play_${rest[0] ?? report.steps.length}.png`); fs.mkdirSync(path.dirname(file), { recursive: true }); await page.screenshot({ path: file, timeout: 300000 }); entry.file = file; break; }
       case 'state': entry.result = await page.evaluate(() => window.__mc.live.commands.state()); break;
       default: entry.error = 'unknown step';
     }

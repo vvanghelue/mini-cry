@@ -15,9 +15,9 @@
     {"shape":"cylinder","radius":0.284,"height":0.11,"pos":[0,0.74,0],"color":"#e2b53a","segments":10,"open":true,"rot":[0,18,0]},
     {"shape":"cylinder","radius":0.284,"height":0.05,"pos":[0,0.16,0],"color":"#e2b53a","segments":10,"open":true,"rot":[0,18,0]},
     {"shape":"box","size":[0.12,0.12,0.012],"pos":[0,0.45,-0.271],"rot":[0,0,45],"color":"#e8bb34"},
-    {"shape":"box","size":[0.06,0.06,0.012],"pos":[0,0.45,-0.276],"rot":[0,0,45],"color":"#2c2622"},
+    {"shape":"box","size":[0.06,0.06,0.012],"pos":[0,0.45,-0.276],"rot":[0,0,45],"color":"#2c2622", "surface": "metal_smooth" },
     {"shape":"box","size":[0.12,0.12,0.012],"pos":[0,0.45,0.271],"rot":[0,0,45],"color":"#e8bb34"},
-    {"shape":"box","size":[0.06,0.06,0.012],"pos":[0,0.45,0.276],"rot":[0,0,45],"color":"#2c2622"}
+    {"shape":"box","size":[0.06,0.06,0.012],"pos":[0,0.45,0.276],"rot":[0,0,45],"color":"#2c2622", "surface": "metal_smooth" }
   ],
   "collider": [
     {"type":"cylinder","radius":0.29,"height":0.89,"pos":[0,0.445,0]}

@@ -2,12 +2,15 @@
 
 [![Puerto Viejo and the lagoon](docs/screenshot.jpg)](https://vvanghelue.github.io/mini-cry/)
 
-A **low-poly** open-world FPS in the spirit of *Far Cry 1*: a 2 × 2 km tropical island (jungle,
-lagoon, volcano, river, islets), mercenary outposts to liberate, a scripted story of 7 missions +
-side missions — with its own **engine**, **editor** and **tools for AI agents**. Three.js + Vite,
-with no binary art files apart from the rigged Quaternius characters: everything else (models,
-sounds, terrain) is described in JSON and generated. The UI is in English; the story content
-(missions, dialogue, voices) is in French.
+![Stilt huts on the lagoon](docs/screenshot_beach.jpg)
+
+An open-world FPS in the spirit of *Far Cry 1*, with a **realistic, photo-textured look**: a
+2 × 2 km tropical island (jungle, lagoon, volcano, river, islets), mercenary outposts to liberate,
+a scripted story of 7 missions + side missions — with its own **engine**, **editor** and **tools
+for AI agents**. Three.js + Vite. Models, sounds and terrain are described in JSON and generated;
+their surfaces use CC0 photo textures (Poly Haven, ambientCG) that `mc textures` downloads and
+packs into texture arrays. The UI is in English; the story content (missions, dialogue, voices)
+is in French.
 
 **Demo**: https://vvanghelue.github.io/mini-cry/ (game) · https://vvanghelue.github.io/mini-cry/editor.html
 (editor, read-only: saving needs the dev server).
@@ -19,10 +22,14 @@ npm run dev          # http://localhost:5190  (game)   ·   /editor.html  (edito
 
 ## The game
 
-- **Island**: procedural terrain (1025² heightmap, chunked LOD), ocean and rivers in shaders,
-  ~145,000 instanced plants (palms, jungle giants, bamboo, ferns…), grass around the player,
-  day/night cycle with cascaded shadows, baked probe GI with auto exposure, ambient occlusion
-  (SSAO), cloudy sky, fog, lens flare, light halos.
+- **Island**: procedural terrain (1025² heightmap, chunked LOD) with PBR texture splatting (12
+  photo-scanned layers, height-blended borders, triplanar cliffs, anti-tiling), ocean and rivers
+  with a swell, ripples, Fresnel sky / cloud reflections and sun glints, ~145,000 instanced plants
+  (palms with textured fronds, jungle giants and broadleaf trees with leaf-cluster crowns, bamboo,
+  ferns, banana trees…) in alpha-cut foliage, grass cards around the player, textured buildings and
+  props (planks, thatch, corrugated iron, concrete, fort stone, rusty metal…), day/night cycle with
+  cascaded shadows, baked probe GI with auto exposure, ambient occlusion (SSAO), cloudy sky, fog,
+  lens flare, light halos, AgX tone mapping.
 - **FPS combat**: machete (stealth takedowns), pistol, SMG, AK, M4, shotgun, scoped sniper rifle,
   rocket launcher, grenades. Spread, recoil, aiming, reloading, location-based damage
   (head / body / limbs).
@@ -57,7 +64,7 @@ to take off · E to get out once stopped on the ground.
 | 🎯 Missions | Missions, objectives, triggers, conditions, actions, reference validation, direct testing |
 | 💬 Dialogue | Radio characters, lines, voice generation and playback |
 | 📊 Gameplay | Weapons, ammo, enemies (archetypes & palettes), player, items, plant species |
-| 🧱 Assets | Low-poly model editor (parts, generators, colliders, LOD) with 3D preview |
+| 🧱 Assets | Model editor (parts, texture surfaces, generators, colliders, LOD) with 3D preview |
 | 🧍 Characters | Archetypes, colour palettes, animations |
 | 🔊 Audio | Procedural sound designer (layers, envelopes, filters) with waveform and playback |
 
@@ -71,6 +78,7 @@ All content is readable JSON that can be edited without a browser, and an agent 
 ```bash
 npm run mc -- help                       # the CLI (terrain, vegetation, assets, entities, missions, sounds, GI, voices, validation, live)
 npm run mc -- validate                   # checks assets, schemas, mission references…
+npm run mc -- textures fetch && npm run mc -- textures build   # (re)build the texture arrays from the CC0 sources
 npm test                                 # headless regression scenarios (tests/*.play)
 npm run mc -- terrain preview            # top-down map -> shots/map.png
 npm run mc -- asset shot hut_stilt --colliders   # render an asset -> PNG
@@ -82,29 +90,31 @@ node tools/trace-flight.mjs --prod       # Chrome trace of a fast flyover: long 
 npm run mc -- live state                 # drive a game / editor open in a browser
 ```
 
-See `CLAUDE.md` (agent guide), `docs/ASSETS.md`, `docs/MISSIONS.md`, `docs/AUDIO.md`, `docs/GI.md`.
+See `CLAUDE.md` (agent guide), `docs/ASSETS.md`, `docs/TEXTURES.md`, `docs/MISSIONS.md`, `docs/AUDIO.md`, `docs/GI.md`.
 
 ## Architecture
 
 ```
 src/engine/   generic engine
   core/       Engine (loop, systems, frame rate cap, CPU/GPU perf), Input, Data, Live, FlyCamera
-  render/     Lighting (day/night, sky, low-poly materials, wind), SunShadows (cascades), SSAO, GI, LensFlare, Glows, InstancedField, StaticBatch
+  render/     Lighting (day/night, sky, PBR materials, wind), Surfaces (texture arrays), TerrainMaterial (splatting), Grade (tone mapping), SunShadows (cascades), SSAO, GI, LensFlare, Glows, InstancedField, StaticBatch
   world/      TerrainData / TerrainGen / TerrainRenderer, Water, Vegetation (+ scatter), Grass, Entities, World
   physics/    Physics (spatial grid, boxes/cylinders/spheres, character, raycasts)
-  assets/     ModelBuilder (JSON -> geometry), generators (palm, tree…), AssetLibrary
+  assets/     ModelBuilder (JSON -> geometry, normals, uvs, surfaces), generators (palm, tree…), surfaces, AssetLibrary
   anim/       Characters (merged Quaternius characters, UAL animation retargeting, hitboxes)
   audio/      synth (recipe rendering, worker) + AudioSystem (3D, ambiences, music)
 src/game/     the game: Game, player/ (controller, weapons), actors/ (actors, AI, navigation), missions/,
               entities/ (game entity types), vehicles/, fx/, ui/ (HUD, menus, map)
 src/editor/   the editor (Preact): core.js + ui/ + panels/
-public/data/  all the data: terrain/, assets/, world.json, vegetation.*, environment.json, gi/,
+public/data/  all the data: terrain/, assets/, textures.json, world.json, vegetation.*, environment.json, gi/,
               sounds.json, voice/, game/ (player, weapons, archetypes, items, missions, dialogue)
+public/textures/  packed texture arrays (built by `mc textures build`)
 tools/        mc CLI + headless tools (shot, play, bench, profile) + content/seed-world.mjs
 ```
 
-**Performance** (target: 120 fps+ on a MacBook Air M1): flat-shaded Lambert materials without
-textures, chunked LOD terrain, vegetation instanced per sector with LOD (far LODs of small plants
+**Performance** (target: 120 fps+ on a MacBook Air M1): textures live in a few 2D texture arrays
+indexed per vertex, so a whole prop sector or every instance of a plant still draws with one
+material in one call (no per-texture batch splits); chunked LOD terrain, vegetation instanced per sector with LOD (far LODs of small plants
 share a geometry), props merged per sector (static batching), shadows in 2–3 cascades with
 decreasing refresh rate, half-resolution SSAO (depth pre-pass limited to the 80 m where it is
 visible, 4x4 blur, applied to the ambient light in the materials), characters merged into a
@@ -117,6 +127,11 @@ few KB per frame instead of ~76 MB/s in a fast flyover), and a sector is only re
 crosses a LOD distance. Every shader (main pass + shadow pass, characters, first-person weapons,
 material variants not used yet) is compiled during the loading screen (`World.warmUp`,
 ~0.1–0.2 s): no compilation during gameplay (`npm test` reports late compilations, if any).
+
+The figures below were measured on the previous, flat-shaded low-poly version; the textured version
+(PBR, splatting, alpha-cut foliage, more triangles up close) costs more GPU time and has not been
+re-benchmarked on an M1 yet (there is no dynamic resolution any more: lower the quality preset if
+it misses the budget).
 
 Measurement (`npm run bench -- --mode play --prod --m1 --repeat 3 --fresh`): 9 viewpoints in the
 real game (enemies, AI, HUD), 1440×900, a fresh page per measurement. The `--m1` mode is a
@@ -139,3 +154,6 @@ same probes at the camera. See `docs/GI.md`.
 Credits: characters and animations — Quaternius (CC0, *Universal Animation Library*); firearms —
 Quaternius gun models (CC0, via poly.pizza; converted to asset JSON by `mc asset import`, each
 asset's `source` names its model); first-person arms — the Quaternius character arms, posed by IK.
+Textures — [Poly Haven](https://polyhaven.com) (CC0) and [ambientCG](https://ambientcg.com) (CC0; the foliage
+atlases are composed from its leaf and grass scans); water ripple normals from the three.js
+examples (MIT).

@@ -12,6 +12,8 @@ import { soundCommands } from './sound-commands.js';
 import { worldCommands } from './world-commands.js';
 import { voiceCommands } from './voice-commands.js';
 import { giCommands } from './gi-commands.js';
+import { textureCommands } from './texture-commands.js';
+import { setSurfaceManifest } from '../../src/engine/assets/surfaces.js';
 
 /** Areas kept free of vegetation: building sites, roads, and entity footprints. */
 export function vegetationExclusions() {
@@ -299,6 +301,7 @@ export const commands = {
   ...worldCommands,
   ...voiceCommands,
   ...giCommands,
+  ...textureCommands,
 };
 
 let _build = null;
@@ -312,6 +315,8 @@ function buildAssetSync(def, defs) {
 _build = (await import('../../src/engine/assets/ModelBuilder.js')).buildAsset;
 
 export function loadAssetDefs() {
+  // texture layer ids / uv scales for the builds (the runtime registers them from the same file)
+  setSurfaceManifest(readJSON('textures.json', null));
   const all = {};
   for (const f of listData('assets')) {
     if (!f.endsWith('.json') || f.endsWith('index.json')) continue;

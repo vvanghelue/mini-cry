@@ -1,6 +1,7 @@
 # Working on Mini Cry (guide for AI agents)
 
-Low-poly open-world FPS (Far Cry 1 style) + engine + editor, Three.js r186 + Vite, plain JS ES
+Open-world FPS (Far Cry 1 style) with a realistic, textured look (CC0 photo textures, PBR, alpha-cut
+foliage) + engine + editor, Three.js r186 + Vite, plain JS ES
 modules (editor UI: Preact + @preact/signals, `.jsx`). Everything is in English (code, comments, game
 and editor UI, docs) except the story content in `public/data/`: missions, dialogue, voices, place and
 character names stay French.
@@ -37,10 +38,10 @@ character names stay French.
 
 ## Map of the code
 - `src/engine/core/Engine.js` frame loop (systems in order; `maxFps` cap: auto = uncapped by default, 60 in debug mode, F2 → Graphics → FPS limit, `?fps=N` overrides), `Perf.js`, `Input.js` (`?bot` forces pointer lock for tests), `Live.js` (commands from `mc live`).
-- `src/engine/render/Lighting.js` time of day, sky, fog, wind, `material(opts)` = shared patched Lambert; `SunShadows.js` cascades; `SSAO.js` half-res SSAO (depth pre-pass of STATIC + DYNAMIC within 80 m → AO → 4x4 blur, applied to the ambient light in the patched materials; toggle in the options menu, F2, quality presets); `GI.js` + `GIField.js` baked probe GI (replaces the hemisphere ambient, relit for the time of day) + auto exposure, docs/GI.md; `LensFlare.js` sun lens flare (16 occlusion queries on the sun disc right after the main pass, clouds included, read back 2-3 frames later without stalling; one additive draw, skipped when the sun is hidden; options menu, F2, `?flare=0`); `Glows.js` light halos of asset parts with `glow` (lamps, fires, beacons: one draw, faded in at dusk, occluded through the SSAO depth); `layers.js` (STATIC/DYNAMIC cast shadows, DETAIL/FX don't, EDITOR only in the editor).
+- `src/engine/render/Lighting.js` time of day, sky, fog, wind, `material(opts)` = shared patched material (`textured`: PBR MeshStandard sampling the texture arrays, sky reflections; else Lambert); `Surfaces.js` texture arrays (terrain / surfaces / foliage, one strip image each) + the surface shader code + alpha-cut depth passes, docs/TEXTURES.md; `TerrainMaterial.js` terrain splatting (material-id texture, height blend, triplanar slopes); `Grade.js` AgX tone mapping + grade; `SunShadows.js` cascades; `SSAO.js` half-res SSAO (depth pre-pass of STATIC + DYNAMIC within 80 m → AO → 4x4 blur, applied to the ambient light in the patched materials; toggle in the options menu, F2, quality presets); `GI.js` + `GIField.js` baked probe GI (replaces the hemisphere ambient, relit for the time of day) + auto exposure, docs/GI.md; `LensFlare.js` sun lens flare (16 occlusion queries on the sun disc right after the main pass, clouds included, read back 2-3 frames later without stalling; one additive draw, skipped when the sun is hidden; options menu, F2, `?flare=0`); `Glows.js` light halos of asset parts with `glow` (lamps, fires, beacons: one draw, faded in at dusk, occluded through the SSAO depth); `layers.js` (STATIC/DYNAMIC cast shadows, DETAIL/FX don't, EDITOR only in the editor).
 - `src/engine/world/` terrain (data, generator, chunk renderer), `Water.js`, `Vegetation.js` + `VegetationScatter.js`, `Grass.js`, `Entities.js` (entity registry + manager; props → `render/StaticBatch.js`), `World.js` (loads everything).
 - `src/engine/physics/Physics.js` shapes + grid; `collideCylinder`, `groundAt`, `raycast`, `visible`.
-- `src/engine/assets/ModelBuilder.js` (asset JSON → geometry; format in docs/ASSETS.md), `generators.js`.
+- `src/engine/assets/ModelBuilder.js` (asset JSON → geometry with normals, metric uvs, per-vertex `surface`; format in docs/ASSETS.md), `generators.js` (textured trees / palms / plants: leaf cards, frond strips), `surfaces.js` (surface name → layer id, shared with the Node tools).
 - `src/engine/anim/Characters.js` Quaternius characters (merged mesh, UAL retargeting, hitboxes, palettes).
 - `src/game/Game.js` game rules + live commands; `player/` (Player, Weapons, ViewArms = first-person arms: a Quaternius character's arms on the weapon grips by two-bone IK, grips = weapon asset `hands`, config `player.json` `arms`), `actors/` (Actors, AI, Nav), `missions/` (Missions runtime, Dialogue), `entities/index.js` (game entity types & schemas), `vehicles/`, `fx/Effects.js`, `fx/Birds.js` (flocks around the camera: perched on tree crowns / beaches, soaring, Bezier flights between the two; startled by gunshots and the player, can be shot; wings flapped in the vertex shader; `?birds=0` off), `ui/` (HUD, Menus, PerfOverlay = stats graphs bottom right, F3; DebugPanel = lil-gui cheats / toggles, F2; both on by default, `?stats=0` / `?debug=0` hide them, off with `?bot` / `?bench` / `?nohud`; in debug mode settings are never read from / written to localStorage, so a reload restores the defaults).
 - `src/editor/core.js` editor logic (signals `S`, selection, gizmo, brushes, undo, save, live commands), `ui/`, `panels/`.
@@ -51,7 +52,8 @@ character names stay French.
 | `terrain/layout.json` | islands, mountains, plateaus, lagoons, rivers, roads, flat sites | `mc data set`, editor ⛰ Island, then `mc terrain generate` |
 | `terrain/height.bin, material.bin, terrain.json` | heightfield (u16) + painted materials | `mc terrain sculpt`, editor brushes |
 | `vegetation.json` / `vegetation.bin` | species rules / placed instances (the .bin has hand edits: add a species with `mc vegetation generate --species <id>`, which keeps every other instance) | `mc vegetation generate|clear`, editor 🌴 brush |
-| `assets/*.json` (+ `index.json`) | low-poly models (docs/ASSETS.md; the guns are CC0 Quaternius GLBs converted by `mc asset import`) | write JSON, `mc asset validate|shot|reindex|bake|import` |
+| `assets/*.json` (+ `index.json`) | models: parts with colours + texture `surface`s (docs/ASSETS.md; the guns are CC0 Quaternius GLBs converted by `mc asset import`) | write JSON, `mc asset validate|shot|reindex|bake|import` |
+| `textures.json` + `public/textures/*` | texture layers (Poly Haven / ambientCG CC0 sources, scales, means) and the packed arrays (docs/TEXTURES.md) | edit JSON, `mc textures fetch|build|info` |
 | `world.json` | player start + entities (props, enemies, npcs, pickups, outposts, alarms, zones, markers, paths, vehicles…) | `mc entity list|add|set|move|remove|types` |
 | `game/missions.json`, `game/dialogue.json` | story (docs/MISSIONS.md) | `mc mission list|show`, `mc data set`, editor 🎯 / 💬 |
 | `game/weapons.json`, `archetypes.json`, `items.json`, `player.json`, `birds.json` | gameplay tuning (birds: species → asset, flight, habitat, flocks, calls) | `mc data get|set`, editor 📊 |
@@ -84,6 +86,10 @@ npm run mc -- live state --target editor
 npm run mc -- live focus '{"id":"outpost_river"}' --target editor
 npm run mc -- live screenshot --target editor --out shots/editor.png
 ```
+Headless shots run on the real GPU on macOS; on Linux without Chrome / a GPU the tools use the bundled
+Chromium with SwiftShader (correct pixels, a few seconds per frame: keep shots small, `--frames` low;
+the real-time gameplay tests and the benches are not meaningful there).
+
 Live game commands: state, teleport, give, god, noclip, setTime, startMission, completeObjective,
 spawn, killAll, start, look, birds. Live editor commands: state, select, get, add, set, patch, remove,
 camera, focus, setEnv, sculpt, save, undo, panel, materials (+ eval, screenshot, commands everywhere).

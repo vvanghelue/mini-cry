@@ -4,3 +4,4 @@ dist
 .mc-backup
 shots
 .env
+.tex-cache

@@ -614,7 +614,7 @@
     "asset": "grass_tuft",
     "variants": 4,
     "radius": 45,
-    "density": 2.2,
+    "density": 1.7,
     "materials": [
       "grass",
       "jungle",

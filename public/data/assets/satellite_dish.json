@@ -20,7 +20,7 @@
     {"shape":"limb","from":[0.7621,1.374,-0.5567],"to":[0,1.9485,-0.6458],"r0":0.012,"r1":0.012,"color":"#8d8f8a","segments":4},
     {"shape":"limb","from":[-0.7621,1.374,-0.5567],"to":[0,1.9485,-0.6458],"r0":0.012,"r1":0.012,"color":"#8d8f8a","segments":4},
     {"shape":"box","size":[0.1,0.1,0.16],"pos":[0,1.9697,-0.6797],"rot":[-32,180,0],"color":"#5d6266"},
-    {"shape":"limb","from":[0.05,0.3,0.06],"to":[0.05,1.45,0.06],"r0":0.012,"r1":0.012,"color":"#2b2b2a","segments":3,"minQuality":0.75},
+    {"shape":"limb","from":[0.05,0.3,0.06],"to":[0.05,1.45,0.06],"r0":0.012,"r1":0.012,"color":"#2b2b2a","segments":3,"minQuality":0.75, "surface": "metal_smooth" },
     {"shape":"box","size":[0.3,0.4,0.16],"pos":[0.3,0.45,0.25],"color":"#7c8279","minQuality":0.75}
   ],
   "collider": [

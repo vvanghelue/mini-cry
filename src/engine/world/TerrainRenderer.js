@@ -4,9 +4,12 @@
 // grid cells) from its distance to the camera; cracks between different LODs are hidden by
 // skirts (a strip hanging down along each tile edge). Geometries are built on demand and cached
 // per (tile, lod); an edit in the editor invalidates only the touched tiles.
-// No normal attribute: the material is flat shaded (normals from screen-space derivatives).
+// Smooth normals from the full-resolution heightfield (coarse LODs keep the fine shading), vertex
+// colours = per-vertex tint; the textured splatting reads the material ids from a texture
+// (render/TerrainMaterial.js).
 import * as THREE from 'three';
 import { LAYERS } from '../render/layers.js';
+import { terrainMaterial } from '../render/TerrainMaterial.js';
 
 const CHUNK = 256;
 const LOD_STEPS = [1, 2, 4, 8, 16];
@@ -18,7 +21,9 @@ export class TerrainRenderer {
     this.lodDistances = lodDistances;
     this.group = new THREE.Group();
     this.group.name = 'Terrain';
-    this.material = lighting.material({ flatColor: true });
+    this.material = terrainMaterial(lighting, terrain);
+    this.idTex = this.material.userData.terrainIds;
+    this.fillIds();
     const n = Math.round(terrain.size / CHUNK);
     this.n = n;
     this.cellsPerChunk = (terrain.res - 1) / n;
@@ -87,6 +92,8 @@ export class TerrainRenderer {
     const count = v * v + 4 * v;
     const pos = new Float32Array(count * 3);
     const color = new Float32Array(count * 3);
+    const nrm = new Float32Array(count * 3);
+    const c2 = 2 * t.cell;
     let minY = Infinity, maxY = -Infinity;
     for (let j = 0; j < v; j++) {
       for (let i = 0; i < v; i++) {
@@ -94,7 +101,10 @@ export class TerrainRenderer {
         const o = (j * v + i) * 3;
         const h = t.heights[gj * t.res + gi];
         pos[o] = t.wx(gi); pos[o + 1] = h; pos[o + 2] = t.wz(gj);
-        t.vertexColor(gi, gj, color, o);
+        t.vertexTint(gi, gj, color, o);
+        const nx = (t.h(gi - 1, gj) - t.h(gi + 1, gj)) / c2, nz = (t.h(gi, gj - 1) - t.h(gi, gj + 1)) / c2;
+        const l = Math.hypot(nx, 1, nz);
+        nrm[o] = nx / l; nrm[o + 1] = 1 / l; nrm[o + 2] = nz / l;
         if (h < minY) minY = h;
         if (h > maxY) maxY = h;
       }
@@ -105,11 +115,13 @@ export class TerrainRenderer {
         const src = edge[k] * 3, dst = (v * v + e * v + k) * 3;
         pos[dst] = pos[src]; pos[dst + 1] = pos[src + 1] - drop; pos[dst + 2] = pos[src + 2];
         color[dst] = color[src] * 0.7; color[dst + 1] = color[src + 1] * 0.7; color[dst + 2] = color[src + 2] * 0.7;
+        nrm[dst] = nrm[src]; nrm[dst + 1] = nrm[src + 1]; nrm[dst + 2] = nrm[src + 2];
       }
     });
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     g.setIndex(this._indices(lod));
     g.boundingBox = new THREE.Box3(new THREE.Vector3(pos[0], minY - drop, pos[2]), new THREE.Vector3(pos[0] + CHUNK, maxY, pos[2] + CHUNK));
     g.boundingSphere = g.boundingBox.getBoundingSphere(new THREE.Sphere());
@@ -140,8 +152,18 @@ export class TerrainRenderer {
     this.stats.triangles = tris;
   }
 
+  /** Material id per vertex -> the splatting texture (all of it, or a grid rect after an edit). */
+  fillIds(rect) {
+    const t = this.terrain, res = t.res, d = this.idTex.image.data;
+    const i0 = Math.max(0, rect?.i0 ?? 0), i1 = Math.min(res - 1, rect?.i1 ?? res - 1);
+    const j0 = Math.max(0, rect?.j0 ?? 0), j1 = Math.min(res - 1, rect?.j1 ?? res - 1);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) d[j * res + i] = t.resolvedMaterial(i, j);
+    this.idTex.needsUpdate = true;
+  }
+
   /** Rebuild tiles overlapping a grid rect {i0, i1, j0, j1} (after sculpting / painting). */
   invalidate(rect) {
+    this.fillIds(rect && { i0: rect.i0 - 3, i1: rect.i1 + 3, j0: rect.j0 - 3, j1: rect.j1 + 3 });
     const cpc = this.cellsPerChunk;
     const cx0 = Math.max(0, Math.floor((rect.i0 - 2) / cpc)), cx1 = Math.min(this.n - 1, Math.floor((rect.i1 + 2) / cpc));
     const cz0 = Math.max(0, Math.floor((rect.j0 - 2) / cpc)), cz1 = Math.min(this.n - 1, Math.floor((rect.j1 + 2) / cpc));

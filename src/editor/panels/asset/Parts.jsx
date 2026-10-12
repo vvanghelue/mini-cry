@@ -1,10 +1,12 @@
 // "Parts" tab: the part list (select, add with a shape picker, duplicate, delete, reorder, toggle
-// minQuality) and the selected part's inspector (shape fields, transform, colour, jitter, wind,
-// emissive, LOD, repeat / radial modifiers, raw JSON).
+// minQuality) and the selected part's inspector (shape fields, transform, colour, texture surface,
+// jitter, wind, emissive, LOD, repeat / radial modifiers, raw JSON).
 import * as THREE from 'three';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Row, NumberField, Vec3Field, ColorField, EnumField, BoolField, JsonField } from '../../ui/Fields.jsx';
 import { A } from './session.js';
+import { surfaceNames } from '../../../engine/assets/surfaces.js';
+import { defaultSurface } from '../../../engine/assets/ModelBuilder.js';
 import { SHAPES, SHAPE_LABEL, SHAPE_ICON, SHAPE_HELP, SHAPE_FIELDS, changeShape, partSummary, patchObj, rnd } from './shapes.js';
 
 const D2R = Math.PI / 180;
@@ -152,7 +154,12 @@ export function PartInspector({ ses, i, p, self }) {
 
       <h4>Appearance</h4>
       <Row label="Color"><ColorField value={p.color ?? '#888888'} onChange={(v) => set({ color: v })} /></Row>
-      <Row label="Variation" title="jitter: ± brightness variation per face (default 0.06)"><NumberField value={p.jitter ?? 0.06} step={0.002} min={0} max={0.5} onChange={(v) => set({ jitter: v === 0.06 ? undefined : v })} /></Row>
+      <Row label="Surface" title="Texture layer (textures.json). Empty: the asset's default surface (from its material)">
+        <EnumField value={p.surface} options={surfaceNames().map((n) => ({ value: n, label: n }))} allowEmpty placeholder={defaultSurface(A.def.value)} onChange={(v) => set({ surface: v || undefined })} />
+      </Row>
+      <Row label="Texture scale" title="uvScale: metres per texture repeat (default: the layer's)"><NumberField value={p.uvScale ?? 0} step={0.05} min={0} onChange={(v) => set({ uvScale: v || undefined })} /></Row>
+      <Row label="Smooth" title="Smooth shading (default for round shapes) or facets"><BoolField value={p.smooth ?? ['cylinder', 'cone', 'sphere', 'lump', 'limb', 'frond'].includes(p.shape)} onChange={(v) => set({ smooth: v })} /></Row>
+      <Row label="Variation" title="jitter: ± brightness variation of the part (default 0.06)"><NumberField value={p.jitter ?? 0.06} step={0.002} min={0} max={0.5} onChange={(v) => set({ jitter: v === 0.06 ? undefined : v })} /></Row>
       <Row label="Wind" title="0 rigid … 1 leaf tip; [bottom, top] gradient along the local height">
         {Array.isArray(p.wind) ? (
           <>
