@@ -2,6 +2,8 @@
 
 [![Puerto Viejo and the lagoon](docs/screenshot.jpg)](https://vvanghelue.github.io/mini-cry/)
 
+![Stilt huts on the lagoon](docs/screenshot_beach.jpg)
+
 An open-world FPS in the spirit of *Far Cry 1*, with a **realistic, photo-textured look**: a
 2 × 2 km tropical island (jungle, lagoon, volcano, river, islets), mercenary outposts to liberate,
 a scripted story of 7 missions + side missions — with its own **engine**, **editor** and **tools
