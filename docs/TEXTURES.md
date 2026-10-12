@@ -26,6 +26,15 @@ npm run mc -- textures info      # layers, sizes, file sizes
 machine run it with `NODE_USE_ENV_PROXY=1`. The packed files in `public/textures/` are committed,
 so the game itself never downloads anything.
 
+## Before / after
+
+The same views with the former flat-shaded low-poly look and with the textured renderer
+(`docs/realistic/`):
+
+![Start beach, before / after](realistic/wreck_start.jpg)
+
+![In game](realistic/gameplay.jpg)
+
 ## Packing
 
 Each group is **one tall strip image** (layers stacked vertically) uploaded straight into a WebGL2
