@@ -96,7 +96,7 @@ See `CLAUDE.md` (agent guide), `docs/ASSETS.md`, `docs/TEXTURES.md`, `docs/MISSI
 
 ```
 src/engine/   generic engine
-  core/       Engine (loop, systems, dynamic resolution, CPU/GPU perf), Input, Data, Live, FlyCamera
+  core/       Engine (loop, systems, frame rate cap, CPU/GPU perf), Input, Data, Live, FlyCamera
   render/     Lighting (day/night, sky, PBR materials, wind), Surfaces (texture arrays), TerrainMaterial (splatting), Grade (tone mapping), SunShadows (cascades), SSAO, GI, LensFlare, Glows, InstancedField, StaticBatch
   world/      TerrainData / TerrainGen / TerrainRenderer, Water, Vegetation (+ scatter), Grass, Entities, World
   physics/    Physics (spatial grid, boxes/cylinders/spheres, character, raycasts)
@@ -119,7 +119,7 @@ share a geometry), props merged per sector (static batching), shadows in 2–3 c
 decreasing refresh rate, half-resolution SSAO (depth pre-pass limited to the 80 m where it is
 visible, 4x4 blur, applied to the ambient light in the materials), characters merged into a
 single skinned mesh and removed from the scene graph when far away, animation rate reduced with
-distance, pooled instanced effects, dynamic resolution.
+distance, pooled instanced effects.
 
 Hitch-free streaming: instances (vegetation, grass) are uploaded to the GPU **in sector / tile
 blocks** (`render/InstanceBlocks.js`): only the blocks that come in or go out are transferred (a
@@ -130,7 +130,8 @@ material variants not used yet) is compiled during the loading screen (`World.wa
 
 The figures below were measured on the previous, flat-shaded low-poly version; the textured version
 (PBR, splatting, alpha-cut foliage, more triangles up close) costs more GPU time and has not been
-re-benchmarked on an M1 yet — dynamic resolution and the quality presets absorb the difference.
+re-benchmarked on an M1 yet (there is no dynamic resolution any more: lower the quality preset if
+it misses the budget).
 
 Measurement (`npm run bench -- --mode play --prod --m1 --repeat 3 --fresh`): 9 viewpoints in the
 real game (enemies, AI, HUD), 1440×900, a fresh page per measurement. The `--m1` mode is a
@@ -143,8 +144,8 @@ CPU throttled ×2 the game runs at 233–318 fps, 163–240 draw calls per frame
 Smoothness (no throttling): straight flyover at 108 km/h for 8 s (`tests/stream_smooth.play`):
 p50 3.7 ms, p99 6–6.6 ms, worst frame 7.9–9.4 ms, 0 to 2 frames > 8.3 ms out of ~2,100; in the jeep
 (`tests/drive_smooth.play`): p99 5.6 ms, worst 7.3 ms. GPU measurements vary when other
-applications use the GPU: always use `--repeat`. The "low" preset and dynamic resolution keep
-headroom on weaker machines.
+applications use the GPU: always use `--repeat`. The "low" preset keeps headroom on weaker
+machines.
 
 **Global illumination**: irradiance probes baked offline (`npm run mc -- gi bake`) and relit at
 runtime for the time of day; they replace the hemisphere ambient, and auto exposure meters the

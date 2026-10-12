@@ -190,20 +190,18 @@ export class DebugPanel {
     const gfx = {
       get quality() { return engine.quality; },
       set quality(v) { if (game) game.saveSettings({ quality: v }); else engine.setQuality(v); },
-      get dynRes() { return engine.dynamicResolution.enabled; },
-      set dynRes(v) { engine.dynamicResolution.enabled = v; if (!v) gfx.resScale = 1; },
       get resScale() { return engine.resScale; },
       set resScale(v) { engine.resScale = v; engine.renderer.setPixelRatio(engine.maxDpr * v); },
       get shadows() { return L.sun.enabled; }, set shadows(v) { L.sun.setEnabled(v); },
       get ao() { return L.ao.enabled; }, set ao(v) { L.ao.setEnabled(v); },
       get flare() { return L.flare.enabled; }, set flare(v) { if (game) game.saveSettings({ flare: v }); else L.flare.setEnabled(v); },
       get stats() { return overlay?.visible ?? false; }, set stats(v) { overlay?.setVisible(v); },
+      get maxFps() { return engine.maxFps; }, set maxFps(v) { if (game) game.saveSettings({ fpsLimit: v }); else engine.maxFps = v; },
       wireframe: false,
     };
     f.add(gfx, 'stats').name('stats (F3)');
+    f.add(gfx, 'maxFps', { auto: 0, '30 fps': 30, '60 fps': 60, '90 fps': 90, '120 fps': 120, '144 fps': 144 }).name('FPS limit');
     f.add(gfx, 'quality', ['low', 'medium', 'high', 'ultra']).name('quality');
-    f.add(gfx, 'dynRes').name('dynamic resolution');
-    f.add(engine.dynamicResolution, 'targetMs', 3, 16, 0.1).name('GPU target (ms)');
     f.add(gfx, 'resScale', 0.3, 1, 0.01).name('resolution scale');
     f.add(gfx, 'shadows').name('sun shadows');
     const ao = L.ao, aoU = ao.aoMat.uniforms;
