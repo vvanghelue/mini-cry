@@ -25,33 +25,33 @@
   "rays": 128,
   "bounces": 2,
   "transmission": 0.8,
-  "inputs": "4988d7b50ca988b9",
-  "bakedAt": "2026-10-12T08:16:02.295Z",
-  "ms": 199107,
+  "inputs": "db86801620efd2c3",
+  "bakedAt": "2026-10-12T08:32:54.132Z",
+  "ms": 136463,
   "probes": 131976,
   "invalid": 12,
   "scene": {
     "meshes": 98,
     "props": 260,
-    "plants": 21711,
+    "plants": 21603,
     "triangles": 50575
   },
   "passes": [
     {
-      "ms": 125762,
+      "ms": 83763,
       "rays": 16892928,
-      "shadow": 69517002
+      "shadow": 69440971
     },
     {
-      "ms": 38539,
+      "ms": 25244,
       "rays": 16892928,
       "shadow": 0
     },
     {
-      "ms": 30919,
+      "ms": 24045,
       "rays": 16892928,
       "shadow": 0
     }
   ],
-  "bytes": 5635307
+  "bytes": 5631421
 }
