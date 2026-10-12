@@ -17,7 +17,7 @@ character names stay French.
 - **Validate.** `npm run mc -- validate` must report `ok: true` (it checks assets, entity schemas,
   every mission / dialogue / entity reference).
 - **Regression tests.** `npm test` runs every `tests/*.play` scenario headless on the production
-  build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, AI fight, enemy lethality on normal, frame
+  build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, flying the plane (take-off, turn, crash) and landing it, AI fight, enemy lethality on normal, frame
   pacing while driving / flying fast). Add a scenario with `expect <js>` assertions when you add
   gameplay. Each report has `lateShaders` (programs compiled after the loading warm-up = hitches):
   keep it at 0 — if a new material / object type shows up late, make `World.warmUp` cover it.

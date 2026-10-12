@@ -1,0 +1,30 @@
+# Fly the airfield plane: enter (E), full power (W), aim up to take off (mouse aim), climb, turn
+# south over the jungle at speed (frame pacing: terrain / vegetation streaming from the air), then
+# dive into the ground: the plane is destroyed and the pilot thrown out.
+eval (()=>{ game.player.godMode = true; game.player.godInvisible = true; const v = game.world.entities.get('plane_airfield'); game.player.teleport([v.pos[0] - 2, v.pos[1] + 0.5, v.pos[2] - 2.5]); return v.pos })()
+wait 0.5
+eval document.querySelector('.hud-prompt').innerText
+expect document.querySelector('.hud-prompt').innerText.includes('Fly (Plane)')
+press KeyE
+wait 0.3
+expect game.player.inVehicle?.kind === 'plane' && game.player.inVehicle.onGround && game.vehicles.canExit()
+key KeyW 2
+eval (()=>{ const v = game.player.inVehicle; return [Math.round(v.speed * 3.6) + ' km/h', v.power, v.onGround] })()
+expect (()=>{ const v = game.player.inVehicle; return v.power === 1 && v.onGround && v.speed > 4 && !game.vehicles.canExit() })()
+eval (game.vehicles.aimPitch = 0.3, 1)
+wait 10
+eval (()=>{ const v = game.player.inVehicle; return [Math.round(v.speed * 3.6) + ' km/h', Math.round(v.pos.y - game.world.terrain.heightAt(v.pos.x, v.pos.z)) + ' m AGL', v.pos.toArray().map(Math.round)] })()
+expect (()=>{ const v = game.player.inVehicle; return v?.alive && !v.onGround && v.pos.y - game.world.terrain.heightAt(v.pos.x, v.pos.z) > 20 })()
+shot plane_climb
+# turn right toward the south coast, recording every frame time
+eval (()=>{ game.vehicles.aimYaw -= 1.5; game.vehicles.aimPitch = 0.1; window.__ft = []; let last = performance.now(); const f = (t) => { window.__ft.push(t - last); last = t; if (window.__ft.length < 5000) requestAnimationFrame(f); }; requestAnimationFrame(f); return 1 })()
+wait 8
+eval (()=>{ const v = game.player.inVehicle, a = window.__ft.slice(20).sort((x, y) => x - y); const q = (p) => +a[Math.floor(a.length * p)].toFixed(2); return { kmh: Math.round(v.speed * 3.6), heading: +v.heading.toFixed(2), aim: +game.vehicles.aimYaw.toFixed(2), pos: v.pos.toArray().map(Math.round), frames: a.length, p50: q(0.5), p99: q(0.99), max: +a[a.length - 1].toFixed(1) } })()
+expect (()=>{ const v = game.player.inVehicle, d = v.heading - game.vehicles.aimYaw; return v?.alive && Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) < 0.25 })()
+expect (()=>{ const a = window.__ft.slice(20).sort((x, y) => x - y); return a[Math.floor(a.length * 0.99)] < 16 })()
+shot plane_turn
+# nose down into the ground
+eval (game.vehicles.aimPitch = -1.2, 1)
+wait 6
+eval (()=>{ const v = game.vehicles.list.find((o) => o.id === 'plane_airfield'); return [v.alive, v.crashCause, !!game.player.inVehicle, v.pos.toArray().map(Math.round)] })()
+expect (()=>{ const v = game.vehicles.list.find((o) => o.id === 'plane_airfield'); return !v.alive && !!v.crashCause && !game.player.inVehicle })()

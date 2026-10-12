@@ -249,7 +249,7 @@ export class Game {
     let best = null, bd = Infinity;
     const fwd = p.forward();
     const eye = p.eye;
-    for (const h of this.world.entities.handles.values()) {
+    for (const h of p.inVehicle ? [] : this.world.entities.handles.values()) {
       if (!h.interact || h.active === false || !h.object?.visible) continue;
       const o = h.object.position;
       const dx = o.x - eye.x, dz = o.z - eye.z, dy = o.y + 0.5 - eye.y;
@@ -261,10 +261,11 @@ export class Game {
       if (score < bd) { bd = score; best = h; }
     }
     const vehicle = !best && !p.inVehicle ? this.vehicles.nearby(p) : null;
-    const text = best ? best.interact.prompt?.() : vehicle ? `Drive (${vehicle.label})` : p.inVehicle ? 'Exit vehicle' : null;
+    const canExit = p.inVehicle && this.vehicles.canExit();
+    const text = best ? best.interact.prompt?.() : vehicle ? `${vehicle.spec.verb ?? 'Drive'} (${vehicle.label})` : canExit ? 'Exit vehicle' : null;
     this.hud.setPrompt(text ? `<kbd>E</kbd>${text}` : null);
     if (inp.hit('use')) {
-      if (p.inVehicle) this.vehicles.exit();
+      if (p.inVehicle) { if (canExit) this.vehicles.exit(); }
       else if (best && text) best.use?.();
       else if (vehicle) this.vehicles.enter(vehicle);
     }

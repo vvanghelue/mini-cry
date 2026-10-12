@@ -148,19 +148,20 @@ export const commands = {
     },
   },
   'vegetation clear': {
-    usage: '<x> <z> <radius> [--species id]',
-    help: 'Remove vegetation instances in a circle (optionally one species only).',
+    usage: '<x> <z> <radius> [--species id,id]',
+    help: 'Remove vegetation instances in a circle (optionally only some species).',
     run([x, z, r], opts) {
       x = num(x, 'x'); z = num(z, 'z'); r = num(r, 'radius');
       const veg = readJSON('vegetation.json');
       const bytes = readBin('vegetation.bin');
+      const only = opts.species ? new Set(String(opts.species).split(',')) : null;
       const keep = [];
       let removed = 0;
       for (let o = 0; o < bytes.length; o += 12) {
         const dv = new DataView(bytes.buffer, bytes.byteOffset + o, 12);
         const px = dv.getFloat32(4, true), pz = dv.getFloat32(8, true);
         const sp = veg.species[bytes[o]]?.id;
-        if ((px - x) ** 2 + (pz - z) ** 2 < r * r && (!opts.species || opts.species === sp)) { removed++; continue; }
+        if ((px - x) ** 2 + (pz - z) ** 2 < r * r && (!only || only.has(sp))) { removed++; continue; }
         keep.push(bytes.subarray(o, o + 12));
       }
       const out = new Uint8Array(keep.length * 12);

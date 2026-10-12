@@ -38,7 +38,8 @@ npm run dev          # http://localhost:5190  (game)   ·   /editor.html  (edito
   running), patrols, investigation, cover combat, bursts, grenades, squad alerts (a lookout shot
   before they can shout warns no one), runner to the alarm → reinforcements. Fleeing civilians.
 - **Open world**: 10 outposts to liberate (fast travel), binoculars to tag enemies, drivable jeep
-  and boat, explosive barrels, pickups, 8 relics and 6 intel files.
+  and boat, a bush plane to fly from the airfield (mouse-aim flight, take-off, landing, crashes),
+  explosive barrels, pickups, 8 relics and 6 intel files.
 - **Story**: *Échoué → Puerto Viejo → Ondes courtes → Le fleuve → Le laboratoire → Ailes coupées →
   La Fortaleza*, + 3 side missions. Subtitled radio dialogue (recorded French voices, optional),
   cutscenes, checkpoints.
@@ -49,7 +50,9 @@ npm run dev          # http://localhost:5190  (game)   ·   /editor.html  (edito
 G grenade · V machete · Shift sprint · Ctrl crouch · Space jump / swim · B binoculars · M map ·
 1–5 / Q (A on AZERTY) / wheel weapons · Esc pause · F3 stats (FPS / CPU / GPU / draw calls / memory) · F2 debug panel
 (cheats, missions, time of day, graphics). Both are shown by default (`?stats=0` / `?debug=0`
-hide them).
+hide them). **Plane**: W / S power · mouse aim (the plane flies toward the crosshair; the circle
+is where the nose points) · A / D roll (steer on the ground) · Space brakes · look up past 80 km/h
+to take off · E to get out once stopped on the ground.
 
 ## The editor (`/editor.html`)
 

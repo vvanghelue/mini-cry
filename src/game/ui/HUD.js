@@ -53,6 +53,7 @@ export class HUD {
     this.alertEl = el('div', 'hud-alert', root);
     this.grenadeEl = el('div', 'hud-grenade', root, '⚠');
     this.vehicleEl = el('div', 'hud-vehicle', root);
+    this.noseEl = el('div', 'hud-nose', root); // plane: where the nose points (the crosshair = where to go)
     this.worldMarks = el('div', 'hud-wmarks', root);
     this.wmItems = new Map();
     this.hurts = [];
@@ -273,7 +274,18 @@ export class HUD {
     // vehicle
     const veh = p.inVehicle;
     this._style(this.vehicleEl, 'opacity', veh ? '1' : '0');
-    if (veh) { const t = `${Math.round(Math.abs(veh.speed ?? 0) * 3.6)} km/h`; if (this._last.veh !== t) { this.vehicleEl.textContent = t; this._last.veh = t; } }
+    const plane = veh?.kind === 'plane';
+    if (veh) {
+      const kmh = `${Math.round(Math.abs(veh.speed ?? 0) * 3.6)} km/h`;
+      const t = plane ? `${kmh}   ALT ${Math.round(veh.pos.y)} m   PWR ${Math.round(veh.power * 100)}%` : kmh;
+      if (this._last.veh !== t) { this.vehicleEl.textContent = t; this._last.veh = t; }
+    }
+    this._style(this.noseEl, 'opacity', plane ? '1' : '0');
+    if (plane) {
+      _v.set(0, 0, -300).applyQuaternion(veh.object.quaternion).add(veh.pos).project(cam);
+      const x = (_v.x * 0.5 + 0.5) * innerWidth, y = (-_v.y * 0.5 + 0.5) * innerHeight;
+      this._style(this.noseEl, 'transform', _v.z < 1 ? `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)` : 'translate(-99px, -99px)');
+    }
     void cam;
   }
 

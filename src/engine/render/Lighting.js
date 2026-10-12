@@ -292,6 +292,7 @@ export class Lighting {
       ? new THREE.MeshStandardMaterial({ ...common, roughness: 1, metalness: 0, alphaToCoverage: !!opts.cutout })
       : new THREE.MeshLambertMaterial({ ...common, flatShading: !opts.smooth && !opts.foliage });
     this.patch(m, opts);
+    m.userData.opts = opts; // variants (e.g. a burnt vehicle: same opts + color) share the compiled program
     this.materials.set(key, m);
     return m;
   }

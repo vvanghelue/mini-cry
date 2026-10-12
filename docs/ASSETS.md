@@ -106,6 +106,15 @@ clumps into a few ellipsoids covering the same crown (fewer, bigger leaf cards).
 writing a generator: never branch on quality before all random numbers are drawn. Check with
 `mc asset shot <name> --lineup` (every variant at qualities 1 / 0.5 / 0.25 side by side).
 
+## Vehicles
+
+Vehicle bodies (category `vehicle`, listed in `VEHICLE_KINDS` of `src/game/entities/index.js`;
+driving / flight specs in `src/game/vehicles/Vehicles.js`): origin at ground level under the
+wheels, front toward -Z, `"collider": "none"` (the game adds a box). Moving parts are separate
+assets placed by the entity: `wheels: [[x, y, z], ...]` (wheel centres, front first: they steer;
+the jeep) and `propeller: [x, y, z]` (hub of the `plane_propeller` asset, spun about Z; the plane).
+`seats: [[x, y, z], ...]` are the occupants' hips.
+
 ## Colliders
 
 Collision shapes in asset space (same transform conventions):
