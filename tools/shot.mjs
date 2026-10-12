@@ -38,7 +38,7 @@ try {
   if (opt.eval) await page.evaluate(opt.eval);
   await frames(page, Number(opt.frames ?? 90));
   const perf = await page.evaluate(() => window.__mc.engine.perf.snapshot());
-  await page.screenshot({ path: out });
+  await page.screenshot({ path: out, timeout: 300000 });
   const errors = logs.filter((l) => /error/i.test(l));
   console.log(JSON.stringify({ file: out, perf, errors: errors.slice(0, 10) }, null, 2));
 } finally {

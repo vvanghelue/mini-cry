@@ -57,7 +57,8 @@ function partMatrix(p, out = new THREE.Matrix4()) {
 
 /** Primitive -> non-indexed geometry in part-local space (y up). q: quality 0..1 (LOD). */
 function primitive(p, q, assets, depth) {
-  const seg = (n, min = 3) => Math.max(min, Math.round((n ?? 6) * q * TESS));
+  // extra segments up close only: the mid / far LODs keep the original counts (triangle budget)
+  const seg = (n, min = 3) => Math.max(min, Math.round((n ?? 6) * q * (q > 0.6 ? TESS : 1)));
   // round solids get one more subdivision up close (leaf clumps keep theirs: their normals are baked)
   const det = (d) => Math.min(4, Math.max(0, (d ?? 1) - (q <= 0.5 ? 1 : 0) - (q <= 0.25 ? 1 : 0) + (q > 0.6 && !p.foliage ? 1 : 0)));
   let g;
