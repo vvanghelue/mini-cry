@@ -33,6 +33,14 @@ The same views with the former flat-shaded low-poly look and with the textured r
 
 ![Start beach, before / after](realistic/wreck_start.jpg)
 
+![Village path, before / after](realistic/village.jpg)
+
+![Dense jungle, before / after](realistic/jungle_dense.jpg)
+
+![River outpost, before / after](realistic/river_outpost.jpg)
+
+![Lab at night, before / after](realistic/lab_night.jpg)
+
 ![In game](realistic/gameplay.jpg)
 
 ## Packing
