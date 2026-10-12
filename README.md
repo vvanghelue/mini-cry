@@ -1,5 +1,9 @@
 # Mini Cry — Isla Sombra
 
+## [▶ Play in the browser](https://vvanghelue.github.io/mini-cry/) · [✎ Open the editor](https://vvanghelue.github.io/mini-cry/editor.html)
+
+<sub>The online editor is read-only: saving needs the dev server (`npm run dev`).</sub>
+
 [![In game: shooting, jeep, jungle, bush plane, coast, village](docs/realistic/gameplay.jpg)](https://vvanghelue.github.io/mini-cry/)
 
 ![Stilt huts on the lagoon](docs/screenshot_beach.jpg)
@@ -11,9 +15,6 @@ for AI agents**. Three.js + Vite. Models, sounds and terrain are described in JS
 their surfaces use CC0 photo textures (Poly Haven, ambientCG) that `mc textures` downloads and
 packs into texture arrays. The UI is in English; the story content (missions, dialogue, voices)
 is in French.
-
-**Demo**: https://vvanghelue.github.io/mini-cry/ (game) · https://vvanghelue.github.io/mini-cry/editor.html
-(editor, read-only: saving needs the dev server).
 
 ```bash
 npm install
