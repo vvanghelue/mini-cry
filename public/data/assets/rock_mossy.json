@@ -1,1 +1,1 @@
-{ "name": "rock_mossy", "category": "vegetation", "label": "Rocher moussu", "generator": { "type": "rock", "params": { "radius": 2.2, "moss": 1, "squash": [1.2, 0.7, 1] } } }
+{ "name": "rock_mossy", "category": "vegetation", "label": "Mossy rock", "generator": { "type": "rock", "params": { "radius": 2.2, "moss": 1, "squash": [1.2, 0.7, 1] } } }

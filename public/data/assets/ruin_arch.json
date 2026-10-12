@@ -1,7 +1,7 @@
 {
   "name": "ruin_arch",
   "category": "building",
-  "label": "Arche en ruine",
+  "label": "Ruined arch",
   "material": "stone",
   "tags": ["ruins", "jungle", "temple", "enterable"],
   "parts": [

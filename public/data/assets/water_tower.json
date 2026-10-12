@@ -1,7 +1,7 @@
 {
   "name": "water_tower",
   "category": "building",
-  "label": "Château d'eau",
+  "label": "Water tower",
   "material": "wood",
   "tags": ["village", "camp", "tower", "climbable"],
   "parts": [

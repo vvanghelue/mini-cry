@@ -1,7 +1,7 @@
 {
   "name": "rifle_m4",
   "category": "weapon",
-  "label": "Carabine M4",
+  "label": "M4 carbine",
   "material": "metal",
   "tags": ["weapon","rifle"],
   "muzzle": [0,0.072,-0.55],

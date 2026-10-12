@@ -1,1 +1,1 @@
-{ "name": "flowers", "category": "vegetation", "label": "Fleurs", "generator": { "type": "flowers", "params": {} } }
+{ "name": "flowers", "category": "vegetation", "label": "Flowers", "generator": { "type": "flowers", "params": {} } }

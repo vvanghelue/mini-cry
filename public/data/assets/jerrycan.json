@@ -1,7 +1,7 @@
 {
   "name": "jerrycan",
   "category": "prop",
-  "label": "Jerrican",
+  "label": "Jerrycan",
   "material": "metal",
   "tags": ["camp","military","fuel"],
   "parts": [

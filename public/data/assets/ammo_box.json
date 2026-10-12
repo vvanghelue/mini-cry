@@ -1,7 +1,7 @@
 {
   "name": "ammo_box",
   "category": "prop",
-  "label": "Caisse de munitions",
+  "label": "Ammo crate",
   "material": "wood",
   "tags": ["military","camp","storage"],
   "parts": [

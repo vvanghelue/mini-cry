@@ -101,14 +101,14 @@ export function Waveform({ samples, timeline, sel, onSelect, loop, playhead }) {
         }
       }
     } else {
-      g.fillStyle = '#5b6773'; g.textBaseline = 'middle'; g.fillText('rendu…', 10, mid);
+      g.fillStyle = '#5b6773'; g.textBaseline = 'middle'; g.fillText('rendering…', 10, mid);
     }
     if (!loop && timeline && timeline.dry < total - 1e-3 && X(timeline.dry) > 0 && X(timeline.dry) < w) {
       const x = Math.round(X(timeline.dry)) + 0.5;
       g.setLineDash([3, 3]); g.strokeStyle = '#8b98a5'; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, WH); g.stroke(); g.setLineDash([]);
-      g.fillStyle = '#8b98a5'; g.textBaseline = 'top'; g.fillText('queue (réverb / écho)', x + 4, 4);
+      g.fillStyle = '#8b98a5'; g.textBaseline = 'top'; g.fillText('tail (reverb / echo)', x + 4, 4);
     }
-    if (loop) { g.fillStyle = '#7bd88f'; g.textBaseline = 'top'; g.fillText('↻ boucle', 6, 4); }
+    if (loop) { g.fillStyle = '#7bd88f'; g.textBaseline = 'top'; g.fillText('↻ loop', 6, 4); }
     // layer timeline
     const y0 = WH + AXIS + 2;
     g.fillStyle = '#161b20'; g.fillRect(0, y0 - 2, w, H - y0 + 2);
@@ -203,8 +203,8 @@ export function Waveform({ samples, timeline, sel, onSelect, loop, playhead }) {
         onPointerDown={onDown} onDblClick={() => setView(null)}
         onPointerMove={(e) => { const p = tAt(e); hover.current = p.y < WH ? p.x : null; }}
         onPointerLeave={() => (hover.current = null)}
-        title="Molette : zoom · glisser : défiler · double-clic : tout afficher · clic sur une barre : sélectionner la couche" />
-      {view && <span class="au-zoom">zoom ×{(total / (v1 - v0)).toFixed(1)} <button class="au-mini" onClick={() => setView(null)}>tout</button></span>}
+        title="Wheel: zoom · drag: scroll · double-click: show all · click a bar: select the layer" />
+      {view && <span class="au-zoom">zoom ×{(total / (v1 - v0)).toFixed(1)} <button class="au-mini" onClick={() => setView(null)}>all</button></span>}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 {
   "name": "pickup_armor",
   "category": "pickup",
-  "label": "Gilet pare-balles",
+  "label": "Body armor",
   "material": "cloth",
   "tags": ["pickup","armor"],
   "parts": [

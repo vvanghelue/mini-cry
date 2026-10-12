@@ -9,7 +9,7 @@ eval (()=>{ const d = window.__drop = game.world.entities.list.find(e => e.temp 
 wait 0.6
 shot loot
 eval game.hud.prompt.textContent
-expect game.hud.prompt.textContent.includes('Pistolet-mitrailleur') && game.actors.byGroup('loot')[0].weaponMesh.visible === false
+expect game.hud.prompt.textContent.includes('Submachine gun') && game.actors.byGroup('loot')[0].weaponMesh.visible === false
 press KeyE
 wait 0.4
 eval ({ owned: [...game.weapons.owned], clip: game.weapons.clip.smg, reserve: game.weapons.ammo.smg, rounds: __drop.rounds })

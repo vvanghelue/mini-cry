@@ -1,7 +1,7 @@
 {
   "name": "rifle_ak",
   "category": "weapon",
-  "label": "Fusil d'assaut AK",
+  "label": "AK assault rifle",
   "material": "metal",
   "tags": ["weapon","rifle"],
   "muzzle": [0,0.083,-0.565],

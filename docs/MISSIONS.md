@@ -2,7 +2,7 @@
 
 Runtime: `src/game/missions/Missions.js` (+ `Dialogue.js`). Data:
 `public/data/game/missions.json` and `public/data/game/dialogue.json`. Edited in the editor
-(🎯 Missions, 💬 Dialogues panels) or with `npm run mc -- mission ...`.
+(🎯 Missions, 💬 Dialogue panels) or with `npm run mc -- mission ...`.
 
 The world is open: missions only add objectives, markers and scripted events on top of it.
 Every reference to a place or a thing is an **entity id** from `world.json` (markers, zones,
@@ -140,7 +140,7 @@ API (`OPENROUTER_API_KEY` in `.env` at the project root, gitignored). The defaul
 - **Editor (💬).** Choose the voice, edit the acting, audition, and generate the missing voices.
 
 In game the clips play on the `voice` bus. Music and ambience are ducked while a clip plays. A
-paused game pauses the voice. Options: "Voix des dialogues", "Volume des voix".
+paused game pauses the voice. Options: "Dialogue voices", "Voice volume".
 
 ## World entities used by scripts
 `marker` (named points, map labels), `zone` (sphere/box triggers), `path` (patrol routes),

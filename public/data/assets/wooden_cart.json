@@ -1,7 +1,7 @@
 {
   "name": "wooden_cart",
   "category": "prop",
-  "label": "Charrette en bois",
+  "label": "Wooden cart",
   "material": "wood",
   "tags": ["village","farm"],
   "parts": [

@@ -1,47 +1,47 @@
 // Asset editor helpers: shape catalogue (labels, defaults, inspector fields), categories,
-// templates for "Nouveau", JSON formatting in the compact one-part-per-line style of
+// templates for "New", JSON formatting in the compact one-part-per-line style of
 // public/data/assets/*.json, and small immutable-update utilities.
 
 export const CATEGORIES = [
-  { value: 'prop', label: 'Objet' },
-  { value: 'building', label: 'Bâtiment' },
-  { value: 'vegetation', label: 'Végétation' },
-  { value: 'vehicle', label: 'Véhicule' },
-  { value: 'weapon', label: 'Arme' },
-  { value: 'pickup', label: 'Ramassable' },
-  { value: 'fx', label: 'Effet' },
+  { value: 'prop', label: 'Prop' },
+  { value: 'building', label: 'Building' },
+  { value: 'vegetation', label: 'Vegetation' },
+  { value: 'vehicle', label: 'Vehicle' },
+  { value: 'weapon', label: 'Weapon' },
+  { value: 'pickup', label: 'Pickup' },
+  { value: 'fx', label: 'Effect' },
 ];
 export const CATEGORY_LABEL = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label]));
 
 export const MATERIALS = [
-  { value: 'wood', label: 'Bois' },
-  { value: 'metal', label: 'Métal' },
-  { value: 'stone', label: 'Pierre' },
-  { value: 'concrete', label: 'Béton' },
-  { value: 'sand', label: 'Sable' },
-  { value: 'foliage', label: 'Feuillage' },
-  { value: 'cloth', label: 'Tissu' },
-  { value: 'water', label: 'Eau' },
+  { value: 'wood', label: 'Wood' },
+  { value: 'metal', label: 'Metal' },
+  { value: 'stone', label: 'Stone' },
+  { value: 'concrete', label: 'Concrete' },
+  { value: 'sand', label: 'Sand' },
+  { value: 'foliage', label: 'Foliage' },
+  { value: 'cloth', label: 'Cloth' },
+  { value: 'water', label: 'Water' },
 ];
 
 export const SHAPES = ['box', 'cylinder', 'cone', 'sphere', 'lump', 'limb', 'wedge', 'plane', 'frond', 'tris', 'ref'];
 export const SHAPE_LABEL = {
-  box: 'Boîte', cylinder: 'Cylindre', cone: 'Cône', sphere: 'Sphère', lump: 'Bloc bruité', limb: 'Tube',
-  wedge: 'Prisme', plane: 'Plan', frond: 'Feuille', tris: 'Triangles', ref: 'Référence',
+  box: 'Box', cylinder: 'Cylinder', cone: 'Cone', sphere: 'Sphere', lump: 'Noisy lump', limb: 'Tube',
+  wedge: 'Prism', plane: 'Plane', frond: 'Frond', tris: 'Triangles', ref: 'Reference',
 };
 export const SHAPE_ICON = { box: '▣', cylinder: '⌭', cone: '▲', sphere: '●', lump: '☁', limb: '⟋', wedge: '⌂', plane: '▭', frond: '❧', tris: '◺', ref: '⎘' };
 export const SHAPE_HELP = {
-  box: 'Boîte centrée sur pos (murs, planches, caisses)',
-  cylinder: 'Cylindre d\'axe Y centré sur pos (poteaux, barils)',
-  cone: 'Cône d\'axe Y centré sur pos',
-  sphere: 'Icosphère (utiliser l\'échelle pour l\'aplatir)',
-  lump: 'Icosphère bruitée : rochers, feuillages',
-  limb: 'Tube effilé entre deux points (branches, cordes, tuyaux)',
-  wedge: 'Prisme triangulaire, arête en haut le long de Z : toits',
-  plane: 'Quad horizontal (à tourner)',
-  frond: 'Bande de feuille tombante (palmes, fougères)',
-  tris: 'Triangles bruts (positions x,y,z…)',
-  ref: 'Insère un autre asset',
+  box: 'Box centered on pos (walls, planks, crates)',
+  cylinder: 'Y-axis cylinder centered on pos (posts, barrels)',
+  cone: 'Y-axis cone centered on pos',
+  sphere: 'Icosphere (use the scale to flatten it)',
+  lump: 'Noisy icosphere: rocks, foliage',
+  limb: 'Tapered tube between two points (branches, ropes, pipes)',
+  wedge: 'Triangular prism, ridge on top along Z: roofs',
+  plane: 'Horizontal quad (rotate it)',
+  frond: 'Drooping leaf strip (palm fronds, ferns)',
+  tris: 'Raw triangles (positions x,y,z…)',
+  ref: 'Inserts another asset',
 };
 
 /** Shape-specific defaults (also the values shown when a field is absent). */
@@ -69,61 +69,61 @@ const radBot = (p) => p.radiusBottom ?? p.radius ?? 0.5;
 /** Inspector fields per shape: { k, type: num|int|vec3|vec2|bool|json|asset, label, def, step, min, max, get?, set? } */
 export const SHAPE_FIELDS = {
   box: [
-    { k: 'size', type: 'vec3', label: 'Taille (l, h, p)', def: [1, 1, 1], step: 0.05 },
-    { k: 'taper', type: 'num', label: 'Rétrécir le haut', def: 1, step: 0.01, min: 0, max: 4, optional: true, title: 'Échelle x/z de la face du haut (1 = droit)' },
+    { k: 'size', type: 'vec3', label: 'Size (w, h, d)', def: [1, 1, 1], step: 0.05 },
+    { k: 'taper', type: 'num', label: 'Taper top', def: 1, step: 0.01, min: 0, max: 4, optional: true, title: 'x/z scale of the top face (1 = straight)' },
   ],
   cylinder: [
-    { k: 'radiusTop', type: 'num', label: 'Rayon haut', step: 0.01, min: 0, get: radTop, set: (p, v) => cylRadius(p, v, radBot(p)) },
-    { k: 'radiusBottom', type: 'num', label: 'Rayon bas', step: 0.01, min: 0, get: radBot, set: (p, v) => cylRadius(p, radTop(p), v) },
-    { k: 'height', type: 'num', label: 'Hauteur', def: 1, step: 0.05, min: 0 },
+    { k: 'radiusTop', type: 'num', label: 'Top radius', step: 0.01, min: 0, get: radTop, set: (p, v) => cylRadius(p, v, radBot(p)) },
+    { k: 'radiusBottom', type: 'num', label: 'Bottom radius', step: 0.01, min: 0, get: radBot, set: (p, v) => cylRadius(p, radTop(p), v) },
+    { k: 'height', type: 'num', label: 'Height', def: 1, step: 0.05, min: 0 },
     { k: 'segments', type: 'int', label: 'Segments', def: 8, step: 0.2, min: 3, max: 32 },
-    { k: 'open', type: 'bool', label: 'Ouvert (sans capots)' },
+    { k: 'open', type: 'bool', label: 'Open (no caps)' },
   ],
   cone: [
-    { k: 'radius', type: 'num', label: 'Rayon', def: 0.5, step: 0.01, min: 0 },
-    { k: 'height', type: 'num', label: 'Hauteur', def: 1, step: 0.05, min: 0 },
+    { k: 'radius', type: 'num', label: 'Radius', def: 0.5, step: 0.01, min: 0 },
+    { k: 'height', type: 'num', label: 'Height', def: 1, step: 0.05, min: 0 },
     { k: 'segments', type: 'int', label: 'Segments', def: 8, step: 0.2, min: 3, max: 32 },
   ],
   sphere: [
-    { k: 'radius', type: 'num', label: 'Rayon', def: 0.5, step: 0.01, min: 0 },
-    { k: 'detail', type: 'int', label: 'Détail (0–2)', def: 1, step: 0.05, min: 0, max: 3 },
+    { k: 'radius', type: 'num', label: 'Radius', def: 0.5, step: 0.01, min: 0 },
+    { k: 'detail', type: 'int', label: 'Detail (0–2)', def: 1, step: 0.05, min: 0, max: 3 },
   ],
   lump: [
-    { k: 'radius', type: 'num', label: 'Rayon', def: 0.5, step: 0.01, min: 0 },
-    { k: 'detail', type: 'int', label: 'Détail (0–2)', def: 1, step: 0.05, min: 0, max: 3 },
-    { k: 'noise', type: 'num', label: 'Bruit (0–0.4)', def: 0.25, step: 0.005, min: 0, max: 1 },
-    { k: 'seed', type: 'int', label: 'Graine', def: 1, step: 0.2 },
+    { k: 'radius', type: 'num', label: 'Radius', def: 0.5, step: 0.01, min: 0 },
+    { k: 'detail', type: 'int', label: 'Detail (0–2)', def: 1, step: 0.05, min: 0, max: 3 },
+    { k: 'noise', type: 'num', label: 'Noise (0–0.4)', def: 0.25, step: 0.005, min: 0, max: 1 },
+    { k: 'seed', type: 'int', label: 'Seed', def: 1, step: 0.2 },
   ],
   limb: [
-    { k: 'from', type: 'vec3', label: 'Départ', def: [0, 0, 0], step: 0.05 },
-    { k: 'to', type: 'vec3', label: 'Arrivée', def: [0, 1, 0], step: 0.05 },
-    { k: 'r0', type: 'num', label: 'Rayon départ', def: 0.1, step: 0.005, min: 0 },
-    { k: 'r1', type: 'num', label: 'Rayon arrivée', def: 0.05, step: 0.005, min: 0 },
+    { k: 'from', type: 'vec3', label: 'Start', def: [0, 0, 0], step: 0.05 },
+    { k: 'to', type: 'vec3', label: 'End', def: [0, 1, 0], step: 0.05 },
+    { k: 'r0', type: 'num', label: 'Start radius', def: 0.1, step: 0.005, min: 0 },
+    { k: 'r1', type: 'num', label: 'End radius', def: 0.05, step: 0.005, min: 0 },
     { k: 'segments', type: 'int', label: 'Segments', def: 6, step: 0.2, min: 3, max: 32 },
-    { k: 'open', type: 'bool', label: 'Ouvert', def: true },
+    { k: 'open', type: 'bool', label: 'Open', def: true },
   ],
-  wedge: [{ k: 'size', type: 'vec3', label: 'Taille (l, h, p)', def: [1, 1, 1], step: 0.05 }],
+  wedge: [{ k: 'size', type: 'vec3', label: 'Size (w, h, d)', def: [1, 1, 1], step: 0.05 }],
   plane: [
-    { k: 'size', type: 'vec2', label: 'Taille (l, p)', def: [1, 1], step: 0.05 },
-    { k: 'doubleSided', type: 'bool', label: 'Double face' },
+    { k: 'size', type: 'vec2', label: 'Size (w, d)', def: [1, 1], step: 0.05 },
+    { k: 'doubleSided', type: 'bool', label: 'Double-sided' },
   ],
   frond: [
     { k: 'base', type: 'vec3', label: 'Base', def: [0, 0, 0], step: 0.05 },
-    { k: 'yaw', type: 'num', label: 'Lacet (°)', def: 0, step: 1 },
-    { k: 'pitch', type: 'num', label: 'Inclinaison (°)', def: 20, step: 1 },
-    { k: 'length', type: 'num', label: 'Longueur', def: 2, step: 0.02, min: 0 },
-    { k: 'width', type: 'num', label: 'Largeur', def: 0.4, step: 0.01, min: 0 },
-    { k: 'droop', type: 'num', label: 'Retombée', def: 0.8, step: 0.02 },
+    { k: 'yaw', type: 'num', label: 'Yaw (°)', def: 0, step: 1 },
+    { k: 'pitch', type: 'num', label: 'Pitch (°)', def: 20, step: 1 },
+    { k: 'length', type: 'num', label: 'Length', def: 2, step: 0.02, min: 0 },
+    { k: 'width', type: 'num', label: 'Width', def: 0.4, step: 0.01, min: 0 },
+    { k: 'droop', type: 'num', label: 'Droop', def: 0.8, step: 0.02 },
     { k: 'segs', type: 'int', label: 'Segments', def: 6, step: 0.2, min: 2, max: 24 },
-    { k: 'fold', type: 'num', label: 'Pli', def: 0.3, step: 0.01 },
-    { k: 'taper', type: 'num', label: 'Effilement', def: 0.9, step: 0.01 },
-    { k: 'pinnate', type: 'bool', label: 'Pennée', title: 'Une foliole triangulaire par segment et par côté (palmes de cocotier)' },
-    { k: 'leafletBase', type: 'num', label: 'Base des folioles', def: 0.6, step: 0.01, min: 0.05, max: 1, optional: true, title: 'Part du segment couverte par la base de chaque foliole (pennée)' },
-    { k: 'doubleSided', type: 'bool', label: 'Double face' },
+    { k: 'fold', type: 'num', label: 'Fold', def: 0.3, step: 0.01 },
+    { k: 'taper', type: 'num', label: 'Taper', def: 0.9, step: 0.01 },
+    { k: 'pinnate', type: 'bool', label: 'Pinnate', title: 'One triangular leaflet per segment and per side (coconut palm fronds)' },
+    { k: 'leafletBase', type: 'num', label: 'Leaflet base', def: 0.6, step: 0.01, min: 0.05, max: 1, optional: true, title: 'Share of the segment covered by the base of each leaflet (pinnate)' },
+    { k: 'doubleSided', type: 'bool', label: 'Double-sided' },
   ],
   tris: [
     { k: 'positions', type: 'json', label: 'Positions', def: [] },
-    { k: 'doubleSided', type: 'bool', label: 'Double face' },
+    { k: 'doubleSided', type: 'bool', label: 'Double-sided' },
   ],
   ref: [{ k: 'asset', type: 'asset', label: 'Asset' }],
 };
@@ -223,10 +223,10 @@ export function formatAsset(def) {
 
 // --- templates -----------------------------------------------------------------------------------
 export const TEMPLATES = [
-  { id: 'empty', label: 'Vide', help: 'Aucune pièce', make: () => ({ category: 'prop', label: 'Nouvel objet', material: 'wood', tags: [], parts: [], collider: 'auto' }) },
+  { id: 'empty', label: 'Empty', help: 'No parts', make: () => ({ category: 'prop', label: 'New prop', material: 'wood', tags: [], parts: [], collider: 'auto' }) },
   {
-    id: 'box', label: 'Caisse (objet)', help: 'Une boîte posée au sol', make: () => ({
-      category: 'prop', label: 'Nouvelle caisse', material: 'wood', tags: ['cover'],
+    id: 'box', label: 'Crate (prop)', help: 'A box sitting on the ground', make: () => ({
+      category: 'prop', label: 'New crate', material: 'wood', tags: ['cover'],
       parts: [
         { shape: 'box', size: [1, 1, 1], pos: [0, 0.5, 0], color: '#9a7446', jitter: 0.07 },
         { shape: 'box', size: [1.04, 0.1, 1.04], pos: [0, 0.05, 0], color: '#6e5030', repeat: { count: 2, offset: [0, 0.9, 0] } },
@@ -235,8 +235,8 @@ export const TEMPLATES = [
     }),
   },
   {
-    id: 'barrel', label: 'Baril (objet)', help: 'Cylindre avec cerclages', make: () => ({
-      category: 'prop', label: 'Nouveau baril', material: 'metal', tags: ['cover'],
+    id: 'barrel', label: 'Barrel (prop)', help: 'Cylinder with hoops', make: () => ({
+      category: 'prop', label: 'New barrel', material: 'metal', tags: ['cover'],
       parts: [
         { shape: 'cylinder', radius: 0.3, height: 0.9, segments: 8, pos: [0, 0.45, 0], color: '#4f6a3a' },
         { shape: 'cylinder', radius: 0.315, height: 0.05, segments: 8, pos: [0, 0.15, 0], color: '#3d5230', repeat: { count: 2, offset: [0, 0.6, 0] } },
@@ -245,8 +245,8 @@ export const TEMPLATES = [
     }),
   },
   {
-    id: 'building', label: 'Bâtiment (coque)', help: 'Dalle, 4 murs avec porte à l\'avant (-Z), toit, collisions', make: () => ({
-      category: 'building', label: 'Nouveau bâtiment', material: 'wood', tags: ['building'],
+    id: 'building', label: 'Building (shell)', help: 'Slab, 4 walls with a door at the front (-Z), roof, colliders', make: () => ({
+      category: 'building', label: 'New building', material: 'wood', tags: ['building'],
       parts: [
         { shape: 'box', size: [5.2, 0.2, 4.2], pos: [0, 0.1, 0], color: '#8f877a' },
         { shape: 'box', size: [5, 2.8, 0.2], pos: [0, 1.6, 1.9], color: '#c9b48a' },
@@ -270,12 +270,12 @@ export const TEMPLATES = [
       ],
     }),
   },
-  { id: 'tree', label: 'Arbre (générateur)', help: 'Feuillu procédural, une variante par graine', make: () => ({ category: 'vegetation', label: 'Nouvel arbre', material: 'foliage', generator: { type: 'broadleaf', params: {} } }) },
-  { id: 'palm', label: 'Palmier (générateur)', help: 'Palmier procédural', make: () => ({ category: 'vegetation', label: 'Nouveau palmier', material: 'foliage', generator: { type: 'palm', params: {} } }) },
-  { id: 'rock', label: 'Rocher (générateur)', help: 'Rocher procédural', make: () => ({ category: 'vegetation', label: 'Nouveau rocher', material: 'stone', generator: { type: 'rock', params: {} } }) },
+  { id: 'tree', label: 'Tree (generator)', help: 'Procedural broadleaf tree, one variant per seed', make: () => ({ category: 'vegetation', label: 'New tree', material: 'foliage', generator: { type: 'broadleaf', params: {} } }) },
+  { id: 'palm', label: 'Palm (generator)', help: 'Procedural palm tree', make: () => ({ category: 'vegetation', label: 'New palm', material: 'foliage', generator: { type: 'palm', params: {} } }) },
+  { id: 'rock', label: 'Rock (generator)', help: 'Procedural rock', make: () => ({ category: 'vegetation', label: 'New rock', material: 'stone', generator: { type: 'rock', params: {} } }) },
   {
-    id: 'weapon', label: 'Arme (fusil)', help: 'Origine à la poignée, canon vers -Z, repères bouche / visée / chargeur', make: () => ({
-      category: 'weapon', label: 'Nouvelle arme', material: 'metal', tags: ['weapon'],
+    id: 'weapon', label: 'Weapon (rifle)', help: 'Origin at the grip, barrel toward -Z, muzzle / sight / magazine points', make: () => ({
+      category: 'weapon', label: 'New weapon', material: 'metal', tags: ['weapon'],
       muzzle: [0, 0.075, -0.74], sight: [0, 0.135, -0.1], magazine: [0, -0.04, -0.13],
       parts: [
         { shape: 'box', size: [0.06, 0.09, 0.42], pos: [0, 0.06, -0.12], color: '#3a3d40' },
@@ -294,11 +294,11 @@ export const TEMPLATES = [
 
 /** Named 3D points shown as markers (weapons: muzzle / sight / magazine; vehicles: wheels / seats). */
 export const POINT_KEYS = [
-  { k: 'muzzle', label: 'Bouche', color: 0xff5a4d },
-  { k: 'sight', label: 'Visée', color: 0x4fe0ff },
-  { k: 'magazine', label: 'Chargeur', color: 0xffa64d },
+  { k: 'muzzle', label: 'Muzzle', color: 0xff5a4d },
+  { k: 'sight', label: 'Sight', color: 0x4fe0ff },
+  { k: 'magazine', label: 'Magazine', color: 0xffa64d },
 ];
 export const POINT_LIST_KEYS = [
-  { k: 'wheels', label: 'Roues', color: 0xc77dff },
-  { k: 'seats', label: 'Sièges', color: 0x7dff9a },
+  { k: 'wheels', label: 'Wheels', color: 0xc77dff },
+  { k: 'seats', label: 'Seats', color: 0x7dff9a },
 ];

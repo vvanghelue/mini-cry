@@ -1,7 +1,7 @@
 {
   "name": "palm",
   "category": "vegetation",
-  "label": "Palmier",
+  "label": "Palm tree",
   "generator": {
     "type": "palm",
     "params": {

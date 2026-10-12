@@ -1,7 +1,7 @@
 {
   "name": "binoculars",
   "category": "weapon",
-  "label": "Jumelles",
+  "label": "Binoculars",
   "material": "metal",
   "tags": ["weapon","tool"],
   "sight": [0,0.004,0.086],

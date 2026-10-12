@@ -1,7 +1,7 @@
 {
   "name": "bridge_road",
   "category": "building",
-  "label": "Pont routier",
+  "label": "Road bridge",
   "material": "wood",
   "tags": ["road", "bridge", "river"],
   "parts": [

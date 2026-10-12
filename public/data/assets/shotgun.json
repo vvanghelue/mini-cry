@@ -1,7 +1,7 @@
 {
   "name": "shotgun",
   "category": "weapon",
-  "label": "Fusil à pompe",
+  "label": "Shotgun",
   "material": "metal",
   "tags": ["weapon","shotgun"],
   "muzzle": [0,0.078,-0.665],

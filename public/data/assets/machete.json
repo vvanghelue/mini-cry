@@ -1,7 +1,7 @@
 {
   "name": "machete",
   "category": "weapon",
-  "label": "Machette",
+  "label": "Machete",
   "material": "metal",
   "tags": ["weapon","melee"],
   "tip": [0,-0.004,-0.528],

@@ -1,7 +1,7 @@
 {
   "name": "fort_tower",
   "category": "building",
-  "label": "Tour de forteresse",
+  "label": "Fort tower",
   "material": "stone",
   "tags": ["fortress", "tower", "modular", "climbable"],
   "parts": [

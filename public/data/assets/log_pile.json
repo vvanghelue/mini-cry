@@ -1,7 +1,7 @@
 {
   "name": "log_pile",
   "category": "prop",
-  "label": "Tas de bûches",
+  "label": "Log pile",
   "material": "wood",
   "tags": ["cover","village","camp"],
   "parts": [

@@ -1,7 +1,7 @@
 {
   "name": "medkit_box",
   "category": "prop",
-  "label": "Boîte de premiers secours",
+  "label": "First aid box",
   "material": "metal",
   "tags": ["medical","interior","camp"],
   "parts": [

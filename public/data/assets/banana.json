@@ -1,1 +1,1 @@
-{ "name": "banana", "category": "vegetation", "label": "Bananier", "generator": { "type": "banana", "params": {} } }
+{ "name": "banana", "category": "vegetation", "label": "Banana tree", "generator": { "type": "banana", "params": {} } }

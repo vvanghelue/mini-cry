@@ -1,7 +1,7 @@
 {
   "name": "sign_post",
   "category": "prop",
-  "label": "Panneau indicateur",
+  "label": "Signpost",
   "material": "wood",
   "tags": ["village","road"],
   "parts": [

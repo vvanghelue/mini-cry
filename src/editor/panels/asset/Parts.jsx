@@ -1,4 +1,4 @@
-// "Pièces" tab: the part list (select, add with a shape picker, duplicate, delete, reorder, toggle
+// "Parts" tab: the part list (select, add with a shape picker, duplicate, delete, reorder, toggle
 // minQuality) and the selected part's inspector (shape fields, transform, colour, jitter, wind,
 // emissive, LOD, repeat / radial modifiers, raw JSON).
 import * as THREE from 'three';
@@ -19,21 +19,21 @@ export function PartsTab({ ses }) {
   return (
     <div class="ap-sec">
       <div class="ap-row-btns">
-        <button class={adding ? 'on' : ''} onClick={() => setAdding(!adding)} title="Ajouter une pièce (après la sélection)">＋ Pièce ▾</button>
-        <button disabled={si < 0} onClick={() => ses.duplicatePart(si)} title="Dupliquer la pièce (Ctrl+D)">⧉ Dupliquer</button>
-        <button disabled={si <= 0} onClick={() => ses.movePart(si, -1)} title="Monter">↑</button>
-        <button disabled={si < 0 || si >= parts.length - 1} onClick={() => ses.movePart(si, 1)} title="Descendre">↓</button>
-        <button class="danger" disabled={si < 0} onClick={() => ses.deletePart(si)} title="Supprimer la pièce (Suppr)">✕</button>
+        <button class={adding ? 'on' : ''} onClick={() => setAdding(!adding)} title="Add a part (after the selection)">＋ Part ▾</button>
+        <button disabled={si < 0} onClick={() => ses.duplicatePart(si)} title="Duplicate the part (Ctrl+D)">⧉ Duplicate</button>
+        <button disabled={si <= 0} onClick={() => ses.movePart(si, -1)} title="Move up">↑</button>
+        <button disabled={si < 0 || si >= parts.length - 1} onClick={() => ses.movePart(si, 1)} title="Move down">↓</button>
+        <button class="danger" disabled={si < 0} onClick={() => ses.deletePart(si)} title="Delete the part (Del)">✕</button>
       </div>
       {adding && (
         <div class="ap-shapes">
           {SHAPES.map((s) => <button title={SHAPE_HELP[s]} onClick={() => { ses.addPart(s); setAdding(false); }}><span>{SHAPE_ICON[s]}</span>{SHAPE_LABEL[s]}</button>)}
         </div>
       )}
-      {d.generator && <p class="hint">+ les pièces du générateur « {d.generator.type} » (onglet Asset → « Cuire en pièces » pour les éditer).</p>}
+      {d.generator && <p class="hint">+ the parts of the "{d.generator.type}" generator (Asset tab → "Bake to parts" to edit them).</p>}
       <div class="ap-parts">
         {parts.map((p, i) => <PartRow ses={ses} p={p} i={i} sel={i === si} />)}
-        {!parts.length && <p class="hint">Aucune pièce. « ＋ Pièce » pour en ajouter.</p>}
+        {!parts.length && <p class="hint">No parts. "＋ Part" to add one.</p>}
       </div>
       {si >= 0 && <PartInspector ses={ses} i={si} p={parts[si]} self={d.name} />}
     </div>
@@ -50,11 +50,11 @@ function PartRow({ ses, p, i, sel }) {
       <span class="sw" style={{ background: p.color ?? '#888888' }} />
       <span class="sh" title={SHAPE_LABEL[p.shape] ?? p.shape}>{SHAPE_ICON[p.shape] ?? '?'} {p.shape}</span>
       <small class="sum">{partSummary(p)}</small>
-      {p.repeat && <span class="tag" title="Répétition">×{p.repeat.count ?? 2}</span>}
-      {p.radial && <span class="tag" title="Copies radiales">✳{p.radial.count ?? 6}</span>}
-      {p.emissive ? <span class="tag em" title={`Émissif ${p.emissive}`}>✦</span> : null}
-      {p.wind ? <span class="tag wind" title={`Vent ${JSON.stringify(p.wind)}`}>≈</span> : null}
-      <button class={'lodtag' + (mq ? ' on' : '')} title={mq ? `Retirée sous la qualité ${p.minQuality} (clic : toujours visible)` : 'Toujours visible (clic : retirer sous la qualité 0.5)'} onClick={(e) => { e.stopPropagation(); ses.patchPart(i, { minQuality: mq ? undefined : 0.5 }); }}>{mq ? `≥${p.minQuality}` : 'LOD'}</button>
+      {p.repeat && <span class="tag" title="Repeat">×{p.repeat.count ?? 2}</span>}
+      {p.radial && <span class="tag" title="Radial copies">✳{p.radial.count ?? 6}</span>}
+      {p.emissive ? <span class="tag em" title={`Emissive ${p.emissive}`}>✦</span> : null}
+      {p.wind ? <span class="tag wind" title={`Wind ${JSON.stringify(p.wind)}`}>≈</span> : null}
+      <button class={'lodtag' + (mq ? ' on' : '')} title={mq ? `Removed below quality ${p.minQuality} (click: always visible)` : 'Always visible (click: remove below quality 0.5)'} onClick={(e) => { e.stopPropagation(); ses.patchPart(i, { minQuality: mq ? undefined : 0.5 }); }}>{mq ? `≥${p.minQuality}` : 'LOD'}</button>
     </div>
   );
 }
@@ -94,7 +94,7 @@ function ShapeField({ f, p, put, ses, self }) {
       field = (
         <>
           <NumberField value={val} step={f.step} min={f.min} max={f.max} onChange={set} />
-          {f.optional && p[f.k] !== undefined && <button class="icon" title="Retirer (valeur par défaut)" onClick={() => set(undefined)}>✕</button>}
+          {f.optional && p[f.k] !== undefined && <button class="icon" title="Remove (default value)" onClick={() => set(undefined)}>✕</button>}
         </>
       );
       break;
@@ -104,7 +104,7 @@ function ShapeField({ f, p, put, ses, self }) {
     case 'bool': field = <BoolField value={p[f.k] ?? f.def ?? false} onChange={(v) => set(v === (f.def ?? false) ? undefined : v)} />; break;
     case 'json':
       return (
-        <Row label={f.label} title={`${Math.floor((val?.length ?? 0) / 9)} triangles (x, y, z par sommet, sens anti-horaire = face avant)`}>
+        <Row label={f.label} title={`${Math.floor((val?.length ?? 0) / 9)} triangles (x, y, z per vertex, counter-clockwise = front face)`}>
           <JsonField value={val} rows={5} onChange={(v) => Array.isArray(v) && set(v)} />
         </Row>
       );
@@ -123,83 +123,83 @@ export function PartInspector({ ses, i, p, self }) {
   const rep = p.repeat, rad = p.radial;
   return (
     <div class="ap-insp">
-      <h4>Pièce {i} — {SHAPE_LABEL[p.shape] ?? p.shape}</h4>
-      <Row label="Forme" title={SHAPE_HELP[p.shape]}>
+      <h4>Part {i} — {SHAPE_LABEL[p.shape] ?? p.shape}</h4>
+      <Row label="Shape" title={SHAPE_HELP[p.shape]}>
         <EnumField value={p.shape} options={SHAPES.map((x) => ({ value: x, label: `${SHAPE_ICON[x]} ${SHAPE_LABEL[x]} (${x})` }))} onChange={(x) => x && x !== p.shape && put(changeShape(p, x), 'shape')} />
       </Row>
       {fields.map((f) => <ShapeField f={f} p={p} put={put} ses={ses} self={self} />)}
-      {p.shape === 'ref' && !p.asset && <p class="err">Choisissez l'asset à insérer.</p>}
+      {p.shape === 'ref' && !p.asset && <p class="err">Choose the asset to insert.</p>}
       {(p.shape === 'limb' || p.shape === 'frond' || p.shape === 'tris') && (
-        <div class="btns"><button class="small" title="Place pos au centre de la géométrie (le gizmo se retrouve sur la pièce), sans la déplacer" onClick={() => put(recenter(p), 'recenter')}>Recentrer le pivot</button></div>
+        <div class="btns"><button class="small" title="Moves pos to the center of the geometry (the gizmo ends up on the part) without moving the part" onClick={() => put(recenter(p), 'recenter')}>Recenter pivot</button></div>
       )}
 
-      <h4>Transformation</h4>
+      <h4>Transform</h4>
       <Row label="Position"><Vec3Field value={p.pos ?? [0, 0, 0]} step={0.01} onChange={(v) => set({ pos: v })} /></Row>
-      <Row label="Rotation (°)" title="Appliquée dans l'ordre Y, X, Z"><Vec3Field value={p.rot ?? [0, 0, 0]} step={0.5} onChange={(v) => set({ rot: v.every((x) => x === 0) ? undefined : v })} /></Row>
-      <Row label="Échelle">
+      <Row label="Rotation (°)" title="Applied in Y, X, Z order"><Vec3Field value={p.rot ?? [0, 0, 0]} step={0.5} onChange={(v) => set({ rot: v.every((x) => x === 0) ? undefined : v })} /></Row>
+      <Row label="Scale">
         {Array.isArray(s) ? (
           <>
             <Vec3Field value={s} step={0.01} onChange={(v) => set({ scale: v })} />
-            <button class="icon" title="Échelle uniforme" onClick={() => set({ scale: s[0] === 1 ? undefined : s[0] })}>=</button>
+            <button class="icon" title="Uniform scale" onClick={() => set({ scale: s[0] === 1 ? undefined : s[0] })}>=</button>
           </>
         ) : (
           <>
             <NumberField value={s ?? 1} step={0.01} onChange={(v) => set({ scale: v === 1 ? undefined : v })} />
-            <button class="icon" title="Échelle par axe (x, y, z)" onClick={() => set({ scale: [s ?? 1, s ?? 1, s ?? 1] })}>xyz</button>
+            <button class="icon" title="Per-axis scale (x, y, z)" onClick={() => set({ scale: [s ?? 1, s ?? 1, s ?? 1] })}>xyz</button>
           </>
         )}
       </Row>
 
-      <h4>Apparence</h4>
-      <Row label="Couleur"><ColorField value={p.color ?? '#888888'} onChange={(v) => set({ color: v })} /></Row>
-      <Row label="Variation" title="jitter : ± variation de luminosité par face (défaut 0.06)"><NumberField value={p.jitter ?? 0.06} step={0.002} min={0} max={0.5} onChange={(v) => set({ jitter: v === 0.06 ? undefined : v })} /></Row>
-      <Row label="Vent" title="0 rigide … 1 bout de feuille ; dégradé [bas, haut] le long de la hauteur locale">
+      <h4>Appearance</h4>
+      <Row label="Color"><ColorField value={p.color ?? '#888888'} onChange={(v) => set({ color: v })} /></Row>
+      <Row label="Variation" title="jitter: ± brightness variation per face (default 0.06)"><NumberField value={p.jitter ?? 0.06} step={0.002} min={0} max={0.5} onChange={(v) => set({ jitter: v === 0.06 ? undefined : v })} /></Row>
+      <Row label="Wind" title="0 rigid … 1 leaf tip; [bottom, top] gradient along the local height">
         {Array.isArray(p.wind) ? (
           <>
-            <span class="ap-mini">bas</span><NumberField value={p.wind[0]} step={0.01} min={0} max={1} onChange={(v) => set({ wind: [v, p.wind[1]] })} />
-            <span class="ap-mini">haut</span><NumberField value={p.wind[1]} step={0.01} min={0} max={1} onChange={(v) => set({ wind: [p.wind[0], v] })} />
-            <button class="icon" title="Valeur unique" onClick={() => set({ wind: p.wind[1] || undefined })}>1</button>
+            <span class="ap-mini">bottom</span><NumberField value={p.wind[0]} step={0.01} min={0} max={1} onChange={(v) => set({ wind: [v, p.wind[1]] })} />
+            <span class="ap-mini">top</span><NumberField value={p.wind[1]} step={0.01} min={0} max={1} onChange={(v) => set({ wind: [p.wind[0], v] })} />
+            <button class="icon" title="Single value" onClick={() => set({ wind: p.wind[1] || undefined })}>1</button>
           </>
         ) : (
           <>
             <NumberField value={p.wind ?? 0} step={0.01} min={0} max={1} onChange={(v) => set({ wind: v || undefined })} />
-            <button class="icon" title="Dégradé bas → haut" onClick={() => set({ wind: [0, p.wind || 0.5] })}>↕</button>
+            <button class="icon" title="Bottom → top gradient" onClick={() => set({ wind: [0, p.wind || 0.5] })}>↕</button>
           </>
         )}
       </Row>
-      <Row label="Émissif" title="0..2 : auto-éclairé (ampoules, feu, écrans)"><NumberField value={p.emissive ?? 0} step={0.02} min={0} max={4} onChange={(v) => set({ emissive: v || undefined })} /></Row>
-      <Row label="Feuillage" title="foliage 0..1 : ombrage doux de houppier (normales tournées vers l'extérieur de « crown », ou de la touffe elle-même) au lieu des facettes">
+      <Row label="Emissive" title="0..2: self-lit (bulbs, fire, screens)"><NumberField value={p.emissive ?? 0} step={0.02} min={0} max={4} onChange={(v) => set({ emissive: v || undefined })} /></Row>
+      <Row label="Foliage" title="foliage 0..1: soft crown shading (normals pointing out of the crown ellipsoid, or of the clump itself) instead of facets">
         <NumberField value={p.foliage ?? 0} step={0.01} min={0} max={1} onChange={(v) => set({ foliage: v || undefined })} />
       </Row>
       {p.foliage > 0 && (
         <div class="ap-indent">
-          <Row label="Houppier" title="crown : [cx, cy, cz, r] ou [cx, cy, cz, rx, ry, rz], ellipsoïde commun à toutes les feuilles de l'arbre (vide = la pièce elle-même)"><JsonField value={p.crown ?? null} rows={1} onChange={(v) => set({ crown: Array.isArray(v) ? v : undefined })} /></Row>
-          <Row label="Occlusion" title="ao : assombrit les feuilles au cœur et sous le houppier (défaut 0.5, avec crown)"><NumberField value={p.ao ?? 0.5} step={0.01} min={0} max={1} onChange={(v) => set({ ao: v === 0.5 ? undefined : v })} /></Row>
+          <Row label="Crown" title="crown: [cx, cy, cz, r] or [cx, cy, cz, rx, ry, rz], ellipsoid shared by every leaf of the tree (empty = the part itself)"><JsonField value={p.crown ?? null} rows={1} onChange={(v) => set({ crown: Array.isArray(v) ? v : undefined })} /></Row>
+          <Row label="Occlusion" title="ao: darkens the leaves deep inside and under the crown (default 0.5, with crown)"><NumberField value={p.ao ?? 0.5} step={0.01} min={0} max={1} onChange={(v) => set({ ao: v === 0.5 ? undefined : v })} /></Row>
         </div>
       )}
-      <Row label="Qualité min." title="minQuality : la pièce disparaît aux LOD de qualité inférieure (petits détails : 0.5)">
+      <Row label="Min. quality" title="minQuality: the part disappears at lower-quality LODs (small details: 0.5)">
         <EnumField value={p.minQuality === undefined ? '' : String(p.minQuality)} options={[...new Set(['0.25', '0.4', '0.5', '0.6', '0.75', '1', ...(p.minQuality !== undefined ? [String(p.minQuality)] : [])])].map((x) => ({ value: x, label: `≥ ${x}` }))} allowEmpty onChange={(v) => set({ minQuality: v === undefined ? undefined : +v })} />
       </Row>
 
-      <h4>Modificateurs</h4>
-      <Row label="Répéter" title="Copies décalées (planches, poteaux, marches)"><BoolField value={!!rep} onChange={(on) => set({ repeat: on ? { count: 3, offset: [0.5, 0, 0] } : undefined })} /></Row>
+      <h4>Modifiers</h4>
+      <Row label="Repeat" title="Offset copies (planks, posts, steps)"><BoolField value={!!rep} onChange={(on) => set({ repeat: on ? { count: 3, offset: [0.5, 0, 0] } : undefined })} /></Row>
       {rep && (
         <div class="ap-indent">
-          <Row label="Nombre"><NumberField value={rep.count ?? 2} step={0.1} min={1} max={500} onChange={(v) => set({ repeat: { ...rep, count: Math.round(v) } }, 'repeat.count')} /></Row>
-          <Row label="Décalage"><Vec3Field value={rep.offset ?? [1, 0, 0]} step={0.01} onChange={(v) => set({ repeat: { ...rep, offset: v } }, 'repeat.offset')} /></Row>
+          <Row label="Count"><NumberField value={rep.count ?? 2} step={0.1} min={1} max={500} onChange={(v) => set({ repeat: { ...rep, count: Math.round(v) } }, 'repeat.count')} /></Row>
+          <Row label="Offset"><Vec3Field value={rep.offset ?? [1, 0, 0]} step={0.01} onChange={(v) => set({ repeat: { ...rep, offset: v } }, 'repeat.offset')} /></Row>
           <Row label="Rotation (°)"><Vec3Field value={rep.rot ?? [0, 0, 0]} step={0.5} onChange={(v) => set({ repeat: patchObj(rep, { rot: v.every((x) => x === 0) ? undefined : v }) }, 'repeat.rot')} /></Row>
         </div>
       )}
-      <Row label="Radial" title="Copies autour de l'axe Y"><BoolField value={!!rad} onChange={(on) => set({ radial: on ? { count: 6, radius: 1 } : undefined })} /></Row>
+      <Row label="Radial" title="Copies around the Y axis"><BoolField value={!!rad} onChange={(on) => set({ radial: on ? { count: 6, radius: 1 } : undefined })} /></Row>
       {rad && (
         <div class="ap-indent">
-          <Row label="Nombre"><NumberField value={rad.count ?? 6} step={0.1} min={1} max={500} onChange={(v) => set({ radial: { ...rad, count: Math.round(v) } }, 'radial.count')} /></Row>
-          <Row label="Rayon"><NumberField value={rad.radius ?? 0} step={0.01} min={0} onChange={(v) => set({ radial: { ...rad, radius: v } }, 'radial.radius')} /></Row>
-          <Row label="Angle départ (°)"><NumberField value={rad.yaw0 ?? 0} step={0.5} onChange={(v) => set({ radial: patchObj(rad, { yaw0: v || undefined }) }, 'radial.yaw0')} /></Row>
+          <Row label="Count"><NumberField value={rad.count ?? 6} step={0.1} min={1} max={500} onChange={(v) => set({ radial: { ...rad, count: Math.round(v) } }, 'radial.count')} /></Row>
+          <Row label="Radius"><NumberField value={rad.radius ?? 0} step={0.01} min={0} onChange={(v) => set({ radial: { ...rad, radius: v } }, 'radial.radius')} /></Row>
+          <Row label="Start angle (°)"><NumberField value={rad.yaw0 ?? 0} step={0.5} onChange={(v) => set({ radial: patchObj(rad, { yaw0: v || undefined }) }, 'radial.yaw0')} /></Row>
         </div>
       )}
       <details class="ap-json">
-        <summary>JSON de la pièce</summary>
+        <summary>Part JSON</summary>
         <JsonField value={p} rows={8} onChange={(np) => { if (np && typeof np === 'object' && !Array.isArray(np) && np.shape) put(np, 'json'); }} />
       </details>
     </div>

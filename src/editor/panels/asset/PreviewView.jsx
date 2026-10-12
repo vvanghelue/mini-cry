@@ -85,32 +85,32 @@ export function PreviewView({ ses }) {
     <>
       <div class="ap-toolbar">
         <span class="ap-seg">
-          {[['translate', '✥', 'Déplacer (W)'], ['rotate', '⟳', 'Tourner (E)'], ['scale', '⤢', 'Échelle (R)']].map(([m, ic, t]) => <button class={v.gizmo === m ? 'on' : ''} title={t} onClick={() => setView({ gizmo: m })}>{ic}</button>)}
+          {[['translate', '✥', 'Move (W)'], ['rotate', '⟳', 'Rotate (E)'], ['scale', '⤢', 'Scale (R)']].map(([m, ic, t]) => <button class={v.gizmo === m ? 'on' : ''} title={t} onClick={() => setView({ gizmo: m })}>{ic}</button>)}
         </span>
-        <button class="tgl" title="Repère du gizmo (global = axes de l'asset, local = axes de la pièce)" onClick={() => setView({ space: v.space === 'local' ? 'world' : 'local' })}>{v.space === 'local' ? 'Local' : 'Global'}</button>
-        {tg('snap', 'Magnét.', 'Magnétisme : pas de la grille / 15°')}
+        <button class="tgl" title="Gizmo space (global = asset axes, local = part axes)" onClick={() => setView({ space: v.space === 'local' ? 'world' : 'local' })}>{v.space === 'local' ? 'Local' : 'Global'}</button>
+        {tg('snap', 'Snap', 'Snap: grid step / 15°')}
         <span class="sep" />
-        {tg('wire', 'Fil de fer', 'Afficher les arêtes des triangles')}
-        {tg('colliders', 'Collisions', 'Afficher les formes de collision (vert solide, bleu échelle, orange non praticable, gris automatique)')}
-        {tg('markers', 'Repères', 'Repères bouche / visée / chargeur, roues, sièges')}
-        {tg('wind', 'Vent', 'Colorer selon le poids du vent (bleu rigide → rouge souple)')}
-        {tg('turntable', 'Rotation', 'Rotation automatique de la caméra')}
+        {tg('wire', 'Wireframe', 'Show the triangle edges')}
+        {tg('colliders', 'Colliders', 'Show the collision shapes (green solid, blue ladder, orange not walkable, grey automatic)')}
+        {tg('markers', 'Markers', 'Muzzle / sight / magazine markers, wheels, seats')}
+        {tg('wind', 'Wind', 'Color by wind weight (blue rigid → red flexible)')}
+        {tg('turntable', 'Turntable', 'Automatic camera rotation')}
         <span class="sep" />
         <span class="ap-lbl">LOD</span>
-        <span class="ap-seg">{[1, 0.5, 0.25].map((q) => <button class={v.quality === q ? 'on' : ''} title={`Qualité ${q}`} onClick={() => setView({ quality: q })}>{q}</button>)}</span>
-        <span class="ap-lbl" title="Variante (graine) pour les générateurs : le monde utilise les variantes 0…n-1">Var.</span>
+        <span class="ap-seg">{[1, 0.5, 0.25].map((q) => <button class={v.quality === q ? 'on' : ''} title={`Quality ${q}`} onClick={() => setView({ quality: q })}>{q}</button>)}</span>
+        <span class="ap-lbl" title="Variant (seed) for generators: the world uses variants 0…n-1">Var.</span>
         <span class="ap-seg">
-          <button title="Variante précédente" onClick={() => setView({ variant: Math.max(0, v.variant - 1) })}>‹</button>
-          <button class="ap-var" title="Variante d'aperçu (graine = variante + 1)" onClick={() => setView({ variant: 0 })}>{v.variant}</button>
-          <button title="Variante suivante" onClick={() => setView({ variant: v.variant + 1 })}>›</button>
+          <button title="Previous variant" onClick={() => setView({ variant: Math.max(0, v.variant - 1) })}>‹</button>
+          <button class="ap-var" title="Preview variant (seed = variant + 1)" onClick={() => setView({ variant: 0 })}>{v.variant}</button>
+          <button title="Next variant" onClick={() => setView({ variant: v.variant + 1 })}>›</button>
         </span>
-        <button title="Cadrer l'asset (F) — double-clic : cadrer la sélection" onClick={() => ses.preview?.frame()}>⌖</button>
+        <button title="Frame the asset (F) — double-click: frame the selection" onClick={() => ses.preview?.frame()}>⌖</button>
       </div>
       <div class="ap-view">
         <div class="ap-host" ref={host} />
         <Stats />
         {A.err.value && <div class="ap-err">⚠ {A.err.value}</div>}
-        <div class="ap-help">Clic : sélectionner · Glisser : orbiter · Clic droit : panoramique · Molette : zoom · Double-clic : cadrer · W/E/R : gizmo · Suppr · Ctrl+D · Ctrl+Z/Y</div>
+        <div class="ap-help">Click: select · Drag: orbit · Right-click: pan · Wheel: zoom · Double-click: frame · W/E/R: gizmo · Del · Ctrl+D · Ctrl+Z/Y</div>
       </div>
     </>
   );
@@ -121,13 +121,13 @@ function Stats() {
   if (!st || !d) return null;
   const budget = BUDGET[d.category ?? 'prop'] ?? 1000;
   const t = st.tris;
-  const mode = Array.isArray(d.collider) ? 'liste' : d.collider ?? 'défaut';
+  const mode = Array.isArray(d.collider) ? 'list' : d.collider ?? 'default';
   return (
     <div class="ap-stats">
-      <span title={`Triangles par qualité de LOD (budget conseillé ${d.category ?? 'prop'} : ${budget})`}>Triangles <b class={t[1] > budget ? 'over' : ''}>{t[1] ?? '—'}</b> · ½ {t[0.5] ?? '—'} · ¼ {t[0.25] ?? '—'}</span>
-      {st.size && <span>Taille {st.size[0]} × {st.size[1]} × {st.size[2]} m</span>}
-      <span>Pièces {st.parts}{st.gen ? ` + ${st.gen} générées` : ''}</span>
-      <span>Collisions {st.colliders} ({mode})</span>
+      <span title={`Triangles per LOD quality (recommended budget for ${d.category ?? 'prop'}: ${budget})`}>Triangles <b class={t[1] > budget ? 'over' : ''}>{t[1] ?? '—'}</b> · ½ {t[0.5] ?? '—'} · ¼ {t[0.25] ?? '—'}</span>
+      {st.size && <span>Size {st.size[0]} × {st.size[1]} × {st.size[2]} m</span>}
+      <span>Parts {st.parts}{st.gen ? ` + ${st.gen} generated` : ''}</span>
+      <span>Colliders {st.colliders} ({mode})</span>
       {st.ms !== undefined && <span class="dim">{st.ms.toFixed(1)} ms</span>}
     </div>
   );

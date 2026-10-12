@@ -103,7 +103,7 @@ export class AssetSession {
     h.redo.push(A.def.value);
     h.key = null;
     this._apply(prev);
-    log(`Asset ${A.name.value} : annuler (${h.undo.length})`);
+    log(`Asset ${A.name.value}: undo (${h.undo.length})`);
   }
 
   redo() {
@@ -112,7 +112,7 @@ export class AssetSession {
     h.undo.push(A.def.value);
     h.key = null;
     this._apply(next);
-    log(`Asset ${A.name.value} : rétablir`);
+    log(`Asset ${A.name.value}: redo`);
   }
 
   _clampSel() {
@@ -154,7 +154,7 @@ export class AssetSession {
     const used = new Set(ents.list.filter((e) => e.type === 'prop').map((e) => e.asset));
     const refs = (n) => (this.lib.get(n)?.parts ?? []).some((p) => p.shape === 'ref' && p.asset === name);
     if (used.has(name) || [...used].some(refs)) {
-      try { ents._rebuildProps(); } catch (e) { log(`Mise à jour du monde : ${e.message}`, 'error'); }
+      try { ents._rebuildProps(); } catch (e) { log(`World update: ${e.message}`, 'error'); }
     }
     this._refreshVegetation(name);
     const path = `assets/${name}.json`, text = formatAsset(def);
@@ -197,7 +197,7 @@ export class AssetSession {
           mesh.userData.tris = b.triangles;
         }));
       }
-    } catch (e) { log(`Végétation (${name}) : ${e.message}`, 'warn'); }
+    } catch (e) { log(`Vegetation (${name}): ${e.message}`, 'warn'); }
   }
 
   /** Stage assets/index.json = every asset file on disk + the library's names (sorted). */
@@ -219,13 +219,13 @@ export class AssetSession {
       if (name !== A.name.value || !this.lib.has(name)) return;
       const disk = { ...this.lib.get(name), name };
       if (formatAsset(disk) === formatAsset(A.def.value)) return;
-      if (this.isDirty(name)) { log(`${path} modifié à l'extérieur : modifications locales conservées`, 'warn'); return; }
+      if (this.isDirty(name)) { log(`${path} changed outside the editor: local changes kept`, 'warn'); return; }
       this.base.set(name, formatAsset(disk));
       this._h(name).undo.push(A.def.value);
       A.def.value = disk;
       A.hist.value++;
       this._clampSel();
-      log(`Asset ${name} rechargé (modifié à l'extérieur)`);
+      log(`Asset ${name} reloaded (changed outside the editor)`);
     }, 400);
   }
 
@@ -237,8 +237,8 @@ export class AssetSession {
       const n = prompt(question, def);
       if (n === null) return null;
       const name = n.trim();
-      if (!NAME_RE.test(name)) { alert('Nom invalide : lettres minuscules, chiffres et _ uniquement.'); def = name.toLowerCase().replace(/[^a-z0-9_]+/g, '_'); continue; }
-      if (this.lib.has(name) || name === 'index') { alert(`L'asset « ${name} » existe déjà.`); def = name; continue; }
+      if (!NAME_RE.test(name)) { alert('Invalid name: lowercase letters, digits and _ only.'); def = name.toLowerCase().replace(/[^a-z0-9_]+/g, '_'); continue; }
+      if (this.lib.has(name) || name === 'index') { alert(`The asset "${name}" already exists.`); def = name; continue; }
       return name;
     }
   }
@@ -255,39 +255,39 @@ export class AssetSession {
     A.lib.value++;
     A.name.value = null;
     this.open(name);
-    log(`${what} : ${name} (à enregistrer)`);
+    log(`${what}: ${name} (to be saved)`);
   }
 
   create(templateId, name) {
     const t = TEMPLATES.find((x) => x.id === templateId) ?? TEMPLATES[0];
-    name ??= this.askName(`nouveau_${t.id}`, `Nom du nouvel asset (${t.label}) — minuscules, chiffres, _ :`);
+    name ??= this.askName(`new_${t.id}`, `Name of the new asset (${t.label}) — lowercase, digits, _:`);
     if (!name) return;
-    this._addAsset(name, t.make(), 'Asset créé');
+    this._addAsset(name, t.make(), 'Asset created');
     if (t.id === 'empty') A.tab.value = 'parts';
   }
 
   duplicate(name) {
     const src = A.def.value;
     if (!src) return;
-    name ??= this.askName(`${A.name.value}_copie`, `Dupliquer « ${A.name.value} » sous le nom :`);
+    name ??= this.askName(`${A.name.value}_copy`, `Duplicate "${A.name.value}" as:`);
     if (!name) return;
     const def = structuredClone(src);
-    if (def.label) def.label += ' (copie)';
-    this._addAsset(name, def, 'Asset dupliqué');
+    if (def.label) def.label += ' (copy)';
+    this._addAsset(name, def, 'Asset duplicated');
   }
 
   async remove(name = A.name.value, { confirmed = false } = {}) {
     if (!name) return;
     const uses = this.usage(name);
-    if (!confirmed && !confirm(`Supprimer définitivement l'asset « ${name} » ?${uses ? `\n\n⚠ ${uses} objet(s) placé(s) dans le monde l'utilisent et disparaîtront.` : ''}\n\n(une copie est gardée dans .mc-backup/)`)) return;
+    if (!confirmed && !confirm(`Permanently delete the asset "${name}"?${uses ? `\n\n⚠ ${uses} object(s) placed in the world use it and will disappear.` : ''}\n\n(a copy is kept in .mc-backup/)`)) return;
     clearTimeout(this._liveTimer);
     this._liveTimer = null;
     const path = `assets/${name}.json`;
     try {
       const r = await fetch(`/api/delete?path=${encodeURIComponent(path)}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    } catch (e) { log(`Suppression de ${path} impossible : ${e.message}`, 'error'); return; }
-    // drop a staged (unsaved) version so "Enregistrer" doesn't recreate the file
+    } catch (e) { log(`Could not delete ${path}: ${e.message}`, 'error'); return; }
+    // drop a staged (unsaved) version so "Save" doesn't recreate the file
     this._unstage(path);
     this.base.delete(name);
     this.staged.delete(name);
@@ -306,7 +306,7 @@ export class AssetSession {
     this.history.delete(name);
     A.lib.value++;
     if (A.name.value === name) { A.name.value = null; A.def.value = null; A.sel.value = null; this.open(this.names[0]); }
-    log(`Asset ${name} supprimé`);
+    log(`Asset ${name} deleted`);
   }
 
   placeInWorld() {
@@ -334,7 +334,7 @@ export class AssetSession {
     }
     this.commit(next);
     A.tab.value = 'parts';
-    log(`Générateur cuit : ${parts.length} pièces (variante ${A.view.value.variant})`);
+    log(`Generator baked: ${parts.length} parts (variant ${A.view.value.variant})`);
   }
 
   // --- parts -------------------------------------------------------------------------------------

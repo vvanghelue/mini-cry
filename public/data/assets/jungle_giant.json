@@ -1,7 +1,7 @@
 {
   "name": "jungle_giant",
   "category": "vegetation",
-  "label": "G\u00e9ant de la jungle",
+  "label": "Jungle giant",
   "generator": {
     "type": "jungleTree",
     "params": {

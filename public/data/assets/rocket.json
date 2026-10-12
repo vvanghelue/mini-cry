@@ -1,7 +1,7 @@
 {
   "name": "rocket",
   "category": "weapon",
-  "label": "Roquette",
+  "label": "Rocket",
   "material": "metal",
   "tags": ["weapon","projectile"],
   "exhaust": [0,0,0.3],

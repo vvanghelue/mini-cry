@@ -1,1 +1,1 @@
-{ "name": "fern", "category": "vegetation", "label": "Fougère", "generator": { "type": "fern", "params": {} } }
+{ "name": "fern", "category": "vegetation", "label": "Fern", "generator": { "type": "fern", "params": {} } }

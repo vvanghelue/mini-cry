@@ -1,7 +1,7 @@
 {
   "name": "campfire",
   "category": "prop",
-  "label": "Feu de camp",
+  "label": "Campfire",
   "material": "stone",
   "tags": ["camp","light"],
   "parts": [

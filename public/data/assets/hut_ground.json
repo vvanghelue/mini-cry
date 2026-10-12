@@ -1,7 +1,7 @@
 {
   "name": "hut_ground",
   "category": "building",
-  "label": "Hutte en chaume",
+  "label": "Thatched hut",
   "material": "wood",
   "tags": ["village", "hut", "enterable"],
   "parts": [

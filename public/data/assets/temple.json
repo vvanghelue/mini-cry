@@ -1,7 +1,7 @@
 {
   "name": "temple",
   "category": "building",
-  "label": "Temple maya",
+  "label": "Mayan temple",
   "material": "stone",
   "tags": ["ruins", "jungle", "temple", "landmark", "climbable"],
   "lods": [{"distance": 200, "quality": 1},{"distance": 1200, "quality": 0.5}],

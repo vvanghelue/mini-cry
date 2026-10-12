@@ -19,7 +19,7 @@ const D2R = Math.PI / 180;
 
 export const S = {
   ready: signal(false),
-  loading: signal('Chargement…'),
+  loading: signal('Loading…'),
   selection: signal([]),
   tool: signal('select'), // select | place | sculpt | paint | foliage | path
   gizmo: signal('translate'), // translate | rotate | scale
@@ -57,7 +57,7 @@ export class EditorCore {
     this.input = new Input(engine.canvas);
     this.input.requireLock = false;
     const world = (this.world = new World(engine, { mode: 'editor' }));
-    await world.load({ onProgress: (p, l) => (S.loading.value = `Chargement : ${l} (${Math.round(p * 100)}%)`) });
+    await world.load({ onProgress: (p, l) => (S.loading.value = `Loading: ${l} (${Math.round(p * 100)}%)`) });
     world.advanceDay = false;
     engine.addSystem(world);
     // items data for pickups previews
@@ -81,7 +81,7 @@ export class EditorCore {
     import.meta.hot?.on('mc:data-changed', (d) => this._externalChange(d.path));
     world.entities.on('change', () => (S.version.value++));
     S.ready.value = true;
-    log(`Monde chargé : ${world.entities.list.length} entités, ${world.vegetation.data.n} végétaux`);
+    log(`World loaded: ${world.entities.list.length} entities, ${world.vegetation.data.n} plants`);
     window.__mc = { engine, world, editor: this, THREE, ready: true };
   }
 
@@ -289,7 +289,7 @@ export class EditorCore {
     for (const [id, patch] of Object.entries(this._pendingPatch ?? {})) this.world.entities.patch(id, patch);
     this._pendingPatch = {};
     const after = S.selection.value.map((id) => structuredClone(this.world.entities.get(id)));
-    if (JSON.stringify(before) !== JSON.stringify(after)) this.pushUndo({ label: 'Transformer', undo: () => before.forEach((e) => this.world.entities.set(e.id, e)), redo: () => after.forEach((e) => this.world.entities.set(e.id, e)) });
+    if (JSON.stringify(before) !== JSON.stringify(after)) this.pushUndo({ label: 'Transform', undo: () => before.forEach((e) => this.world.entities.set(e.id, e)), redo: () => after.forEach((e) => this.world.entities.set(e.id, e)) });
     this.markDirty('world.json');
     this._dragStart = null;
     this._attachGizmo();
@@ -309,7 +309,7 @@ export class EditorCore {
     if (!c) return;
     c.undo();
     this.redoStack.push(c);
-    log(`Annuler : ${c.label}`);
+    log(`Undo: ${c.label}`);
     this._afterChange(c);
   }
 
@@ -318,7 +318,7 @@ export class EditorCore {
     if (!c) return;
     c.redo();
     this.undoStack.push(c);
-    log(`Rétablir : ${c.label}`);
+    log(`Redo: ${c.label}`);
     this._afterChange(c);
   }
 
@@ -331,7 +331,7 @@ export class EditorCore {
   addEntity(data, { select = true } = {}) {
     const e = this.world.entities.add(data);
     const snap = structuredClone(e);
-    this.pushUndo({ label: `Ajouter ${e.id}`, undo: () => this.world.entities.remove(snap.id), redo: () => this.world.entities.add(structuredClone(snap)) });
+    this.pushUndo({ label: `Add ${e.id}`, undo: () => this.world.entities.remove(snap.id), redo: () => this.world.entities.add(structuredClone(snap)) });
     this.markDirty('world.json');
     if (select) this.select([e.id]);
     return e;
@@ -341,10 +341,10 @@ export class EditorCore {
     const before = structuredClone(this.world.entities.get(id));
     if (!before) return null;
     const errs = validateEntity({ ...data, id: data.id ?? id });
-    if (errs.length) log(`${id} : ${errs.join(', ')}`, 'warn');
+    if (errs.length) log(`${id}: ${errs.join(', ')}`, 'warn');
     const e = this.world.entities.set(id, data);
     const after = structuredClone(e);
-    this.pushUndo({ label: `Modifier ${id}`, undo: () => { this.world.entities.remove(after.id); this.world.entities.add(structuredClone(before)); }, redo: () => { this.world.entities.remove(before.id); this.world.entities.add(structuredClone(after)); } });
+    this.pushUndo({ label: `Edit ${id}`, undo: () => { this.world.entities.remove(after.id); this.world.entities.add(structuredClone(before)); }, redo: () => { this.world.entities.remove(before.id); this.world.entities.add(structuredClone(after)); } });
     this.markDirty('world.json');
     if (after.id !== id) this.select([after.id]); else this._updateSelectionBox();
     return e;
@@ -355,7 +355,7 @@ export class EditorCore {
     if (!ids.length) return;
     const snaps = ids.map((id) => structuredClone(this.world.entities.get(id))).filter(Boolean);
     for (const s of snaps) this.world.entities.remove(s.id);
-    this.pushUndo({ label: `Supprimer ${snaps.length}`, undo: () => snaps.forEach((s) => this.world.entities.add(structuredClone(s))), redo: () => snaps.forEach((s) => this.world.entities.remove(s.id)) });
+    this.pushUndo({ label: `Delete ${snaps.length}`, undo: () => snaps.forEach((s) => this.world.entities.add(structuredClone(s))), redo: () => snaps.forEach((s) => this.world.entities.remove(s.id)) });
     this.markDirty('world.json');
     this.select([]);
   }
@@ -416,7 +416,7 @@ export class EditorCore {
     const data = { ...spec, pos: [+p.x.toFixed(2), +p.y.toFixed(3), +p.z.toFixed(2)], rot: [0, this.placeYaw ?? 0, 0] };
     if (spec.type === 'path') data.points = [data.pos.slice()];
     const e = this.addEntity(data, { select: !keep });
-    log(`Placé ${e.id}`);
+    log(`Placed ${e.id}`);
     if (!keep) { S.place.value = null; this._makeGhost(null); this.select([e.id]); }
   }
 
@@ -498,15 +498,15 @@ export class EditorCore {
       w.vegetation.rebuild();
       w.addVegetationColliders();
       const before = st.vegBefore, after = w.vegetation.encode();
-      this.pushUndo({ label: 'Végétation', file: 'vegetation.bin', undo: () => { w.vegetation.rebuild(before); w.addVegetationColliders(); }, redo: () => { w.vegetation.rebuild(after); w.addVegetationColliders(); } });
+      this.pushUndo({ label: 'Vegetation', file: 'vegetation.bin', undo: () => { w.vegetation.rebuild(before); w.addVegetationColliders(); }, redo: () => { w.vegetation.rebuild(after); w.addVegetationColliders(); } });
       this.markDirty('vegetation.bin');
-      log(st.added ? `+${st.added} végétaux` : `-${st.removed} végétaux`);
+      log(st.added ? `+${st.added} plants` : `-${st.removed} plants`);
       return;
     }
     if (!st.rect) return;
     const afterH = T.heights.slice(), afterM = T.material.slice();
     const apply = (H, M) => { T.heights.set(H); T.material.set(M); T.buildWaterGrid(); T.invalidateColors(st.rect); T.version++; w.terrainRenderer.invalidate(st.rect); this._terrainChanged(); };
-    this.pushUndo({ label: st.tool === 'paint' ? 'Peindre le terrain' : 'Sculpter', file: 'terrain', undo: () => apply(st.beforeH, st.beforeM), redo: () => apply(afterH, afterM) });
+    this.pushUndo({ label: st.tool === 'paint' ? 'Paint terrain' : 'Sculpt', file: 'terrain', undo: () => apply(st.beforeH, st.beforeM), redo: () => apply(afterH, afterM) });
     this._terrainChanged();
     this.markDirty('terrain');
   }
@@ -525,7 +525,7 @@ export class EditorCore {
     const id = S.selection.value[0];
     const e = this.world.entities.get(id);
     const p = this.groundHit();
-    if (!e || e.type !== 'path' || !p) { log('Sélectionnez un chemin, puis cliquez sur le terrain pour ajouter des points', 'warn'); return; }
+    if (!e || e.type !== 'path' || !p) { log('Select a path, then click the terrain to add points', 'warn'); return; }
     this.updateEntity(id, { ...e, points: [...(e.points ?? []), [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)]] });
   }
 
@@ -557,9 +557,9 @@ export class EditorCore {
       const n = Object.keys(d).length;
       S.dirty.value = {};
       this._savedAt = Date.now();
-      log(n ? `Enregistré (${n} fichier${n > 1 ? 's' : ''})` : 'Rien à enregistrer');
+      log(n ? `Saved (${n} file${n > 1 ? 's' : ''})` : 'Nothing to save');
     } catch (e) {
-      log(`Échec de l'enregistrement : ${e.message}`, 'error');
+      log(`Save failed: ${e.message}`, 'error');
     } finally {
       this._saving = false;
       this._savedAt = Date.now();
@@ -581,12 +581,12 @@ export class EditorCore {
       for (const e of [...ents.list]) ents.remove(e.id);
       ents.load(data.entities ?? []);
       this.world.data = data;
-      log('world.json modifié à l\'extérieur : rechargé');
+      log('world.json changed externally: reloaded');
     } else if (path.startsWith('assets/')) {
       const name = path.slice(7, -5);
       const def = await Data.json(path, { fresh: true }).catch(() => null);
-      if (def) { this.world.assets.set(name, def); this.world.entities._rebuildProps(); log(`Asset ${name} rechargé`); }
-    } else log(`${path} modifié à l'extérieur`, 'warn');
+      if (def) { this.world.assets.set(name, def); this.world.entities._rebuildProps(); log(`Asset ${name} reloaded`); }
+    } else log(`${path} changed externally`, 'warn');
   }
 
   // --- per frame ------------------------------------------------------------------------------

@@ -244,16 +244,16 @@ function place(obj, e) {
 }
 
 const COMMON = {
-  name: { type: 'string', label: 'Nom' },
+  name: { type: 'string', label: 'Name' },
   pos: { type: 'vec3', label: 'Position', required: true },
   tags: { type: 'list', label: 'Tags' },
-  group: { type: 'string', label: 'Groupe' },
+  group: { type: 'string', label: 'Group' },
 };
 export { COMMON as COMMON_SCHEMA };
 
 registerEntityType('prop', {
-  label: 'Objet (prop)', color: '#c8a060', category: 'Décor',
-  schema: { ...COMMON, asset: { type: 'asset', label: 'Asset', required: true }, rot: { type: 'vec3', label: 'Rotation (°)' }, scale: { type: 'number', label: 'Échelle', min: 0.05, max: 20, step: 0.05 }, collide: { type: 'bool', label: 'Collision' }, dynamic: { type: 'bool', label: 'Mesh individuel' }, clearRadius: { type: 'number', label: 'Dégager la végétation (m)' } },
+  label: 'Prop', color: '#c8a060', category: 'Decor',
+  schema: { ...COMMON, asset: { type: 'asset', label: 'Asset', required: true }, rot: { type: 'vec3', label: 'Rotation (°)' }, scale: { type: 'number', label: 'Scale', min: 0.05, max: 20, step: 0.05 }, collide: { type: 'bool', label: 'Collision' }, dynamic: { type: 'bool', label: 'Individual mesh' }, clearRadius: { type: 'number', label: 'Clear vegetation (m)' } },
   defaults: { rot: [0, 0, 0], scale: 1, collide: true },
   create(ctx, e) {
     // only dynamic props get here (static ones are batched)
@@ -267,8 +267,8 @@ registerEntityType('prop', {
 });
 
 registerEntityType('marker', {
-  label: 'Marqueur', color: '#ffffff', category: 'Logique',
-  schema: { ...COMMON, rot: { type: 'vec3', label: 'Rotation (°)' }, label: { type: 'string', label: 'Texte sur la carte' }, icon: { type: 'enum', label: 'Icône carte', options: ['none', 'objective', 'camp', 'village', 'tower', 'cave', 'boat', 'collectible'] } },
+  label: 'Marker', color: '#ffffff', category: 'Logic',
+  schema: { ...COMMON, rot: { type: 'vec3', label: 'Rotation (°)' }, label: { type: 'string', label: 'Map label' }, icon: { type: 'enum', label: 'Map icon', options: ['none', 'objective', 'camp', 'village', 'tower', 'cave', 'boat', 'collectible'] } },
   defaults: { icon: 'none' },
   create(ctx, e) {
     const g = new THREE.Group();
@@ -282,8 +282,8 @@ registerEntityType('marker', {
 });
 
 registerEntityType('zone', {
-  label: 'Zone (déclencheur)', color: '#3080ff', category: 'Logique',
-  schema: { ...COMMON, shape: { type: 'enum', label: 'Forme', options: ['sphere', 'box'] }, radius: { type: 'number', label: 'Rayon', min: 0.5 }, size: { type: 'vec3', label: 'Taille (boîte)' }, rot: { type: 'vec3', label: 'Rotation (°)' } },
+  label: 'Zone (trigger)', color: '#3080ff', category: 'Logic',
+  schema: { ...COMMON, shape: { type: 'enum', label: 'Shape', options: ['sphere', 'box'] }, radius: { type: 'number', label: 'Radius', min: 0.5 }, size: { type: 'vec3', label: 'Size (box)' }, rot: { type: 'vec3', label: 'Rotation (°)' } },
   defaults: { shape: 'sphere', radius: 8, size: [10, 6, 10] },
   create(ctx, e) {
     const geo = e.shape === 'box' ? new THREE.BoxGeometry(...(e.size ?? [10, 6, 10])).translate(0, (e.size?.[1] ?? 6) / 2, 0) : new THREE.SphereGeometry(e.radius ?? 8, 16, 10);
@@ -312,8 +312,8 @@ registerEntityType('zone', {
 });
 
 registerEntityType('path', {
-  label: 'Chemin (patrouille)', color: '#30ff90', category: 'Logique',
-  schema: { ...COMMON, points: { type: 'points', label: 'Points' }, loop: { type: 'bool', label: 'Boucle' }, wait: { type: 'number', label: 'Pause aux points (s)' } },
+  label: 'Path (patrol)', color: '#30ff90', category: 'Logic',
+  schema: { ...COMMON, points: { type: 'points', label: 'Points' }, loop: { type: 'bool', label: 'Loop' }, wait: { type: 'number', label: 'Wait at points (s)' } },
   defaults: { points: [], loop: true, wait: 2 },
   create(ctx, e) {
     const pts = (e.points ?? []).map((p) => new THREE.Vector3(...p).add(new THREE.Vector3(0, 0.3, 0)));
@@ -333,7 +333,7 @@ registerEntityType('path', {
 });
 
 registerEntityType('spawn', {
-  label: 'Point de réapparition', color: '#00ff80', category: 'Logique',
+  label: 'Spawn point', color: '#00ff80', category: 'Logic',
   schema: { ...COMMON, rot: { type: 'vec3', label: 'Rotation (°)' }, checkpoint: { type: 'string', label: 'Checkpoint (id)' } },
   defaults: {},
   create(ctx, e) {

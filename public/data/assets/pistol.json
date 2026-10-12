@@ -1,7 +1,7 @@
 {
   "name": "pistol",
   "category": "weapon",
-  "label": "Pistolet",
+  "label": "Pistol",
   "material": "metal",
   "tags": ["weapon","pistol"],
   "muzzle": [0,0.057,-0.167],

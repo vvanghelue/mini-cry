@@ -1,7 +1,7 @@
 {
   "name": "ruin_wall",
   "category": "building",
-  "label": "Mur en ruine",
+  "label": "Ruined wall",
   "material": "stone",
   "tags": ["ruins", "jungle", "temple", "cover"],
   "parts": [

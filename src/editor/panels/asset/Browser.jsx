@@ -1,5 +1,5 @@
 // Left column: asset browser (search, category filter, thumbnails, triangle counts) and the
-// Nouveau (templates) / Dupliquer / Supprimer buttons.
+// New (templates) / Duplicate / Delete buttons.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { S } from '../../core.js';
 import { A } from './session.js';
@@ -33,12 +33,12 @@ function AssetRow({ ses, name, sel }) {
   useEffect(() => { if (sel) ref.current?.scrollIntoView({ block: 'nearest' }); }, [sel]);
   const dirty = ses.isDirty(name);
   return (
-    <div ref={ref} class={'ap-item' + (sel ? ' sel' : '')} title={`${name}${def.tags?.length ? '\nTags : ' + def.tags.join(', ') : ''}`} onClick={() => ses.open(name)}>
+    <div ref={ref} class={'ap-item' + (sel ? ' sel' : '')} title={`${name}${def.tags?.length ? '\nTags: ' + def.tags.join(', ') : ''}`} onClick={() => ses.open(name)}>
       {info?.url ? <img src={info.url} alt="" /> : <div class="ap-thumb">…</div>}
       <div class="ap-meta">
-        <b>{def.label ?? name}{dirty && <span class="ap-dot" title="Modifié, non enregistré"> ●</span>}</b>
+        <b>{def.label ?? name}{dirty && <span class="ap-dot" title="Modified, unsaved"> ●</span>}</b>
         <small>{name}</small>
-        <small>{CATEGORY_LABEL[def.category ?? 'prop'] ?? def.category}{def.generator ? ' · gén.' : ''} · {info?.tris ?? '…'} tri</small>
+        <small>{CATEGORY_LABEL[def.category ?? 'prop'] ?? def.category}{def.generator ? ' · gen.' : ''} · {info?.tris ?? '…'} tri</small>
       </div>
     </div>
   );
@@ -64,24 +64,24 @@ export function Browser({ ses }) {
     <div class="ap-left">
       <div class="ap-btns">
         <span class="ap-menu-wrap">
-          <button class={menu ? 'on' : ''} onClick={() => setMenu(!menu)} title="Créer un asset à partir d'un modèle">＋ Nouveau ▾</button>
+          <button class={menu ? 'on' : ''} onClick={() => setMenu(!menu)} title="Create an asset from a template">＋ New ▾</button>
           {menu && (
             <div class="ap-menu" onMouseLeave={() => setMenu(false)}>
               {TEMPLATES.map((t) => <button title={t.help} onClick={() => { setMenu(false); ses.create(t.id); }}>{t.label}<small>{t.help}</small></button>)}
             </div>
           )}
         </span>
-        <button disabled={!cur} onClick={() => ses.duplicate()} title="Copier l'asset sous un nouveau nom">Dupliquer</button>
-        <button class="danger" disabled={!cur} onClick={() => ses.remove()} title="Supprimer le fichier de l'asset">Supprimer</button>
+        <button disabled={!cur} onClick={() => ses.duplicate()} title="Copy the asset under a new name">Duplicate</button>
+        <button class="danger" disabled={!cur} onClick={() => ses.remove()} title="Delete the asset file">Delete</button>
       </div>
-      <input class="ap-search" type="text" placeholder="Rechercher (nom, libellé, tag)…" value={q} onInput={(e) => setQ(e.target.value)} />
+      <input class="ap-search" type="text" placeholder="Search (name, label, tag)…" value={q} onInput={(e) => setQ(e.target.value)} />
       <select class="ap-cat" value={cat} onChange={(e) => setCat(e.target.value)}>
-        <option value="">Toutes les catégories ({names.length})</option>
+        <option value="">All categories ({names.length})</option>
         {CATEGORIES.filter((c) => counts[c.value] || c.value === cat).map((c) => <option value={c.value}>{c.label} ({counts[c.value] ?? 0})</option>)}
       </select>
       <div class="ap-list">
         {list.map((n) => <AssetRow key={n} ses={ses} name={n} sel={n === cur} />)}
-        {!list.length && <p class="hint">Aucun asset.</p>}
+        {!list.length && <p class="hint">No assets.</p>}
       </div>
       <p class="hint ap-count">{list.length} / {names.length} assets</p>
     </div>

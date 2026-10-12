@@ -1,7 +1,7 @@
 {
   "name": "fort_gate",
   "category": "building",
-  "label": "Porte de forteresse",
+  "label": "Fort gate",
   "material": "stone",
   "tags": ["fortress", "gate", "modular", "enterable"],
   "parts": [

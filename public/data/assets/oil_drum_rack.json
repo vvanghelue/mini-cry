@@ -1,7 +1,7 @@
 {
   "name": "oil_drum_rack",
   "category": "prop",
-  "label": "Râtelier à fûts",
+  "label": "Oil drum rack",
   "material": "metal",
   "tags": ["industrial","fuel","cover"],
   "parts": [

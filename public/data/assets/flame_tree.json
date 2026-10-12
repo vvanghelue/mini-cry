@@ -1,7 +1,7 @@
 {
   "name": "flame_tree",
   "category": "vegetation",
-  "label": "Flamboyant",
+  "label": "Flame tree",
   "generator": {
     "type": "tree",
     "params": {

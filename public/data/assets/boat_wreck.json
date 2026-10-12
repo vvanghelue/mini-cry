@@ -1,7 +1,7 @@
 {
   "name": "boat_wreck",
   "category": "prop",
-  "label": "Épave de chalutier",
+  "label": "Trawler wreck",
   "material": "metal",
   "tags": ["coast", "beach", "wreck", "cover"],
   "parts": [

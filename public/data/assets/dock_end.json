@@ -1,7 +1,7 @@
 {
   "name": "dock_end",
   "category": "building",
-  "label": "Bout de ponton",
+  "label": "Dock end",
   "material": "wood",
   "tags": ["coast", "village", "dock", "modular"],
   "parts": [

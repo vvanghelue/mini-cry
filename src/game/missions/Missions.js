@@ -51,7 +51,7 @@ export class Missions {
     if (!m || this.state[id]?.status === 'active' || this.state[id]?.status === 'done') return;
     this.state[id] = { status: 'active', obj: 0, t: 0, c: {} };
     if (m.type !== 'side' || !this.focus) this.focus = id;
-    this.game.hud?.showBanner(m.title, m.type === 'side' ? 'Mission secondaire' : 'Nouvelle mission', 4000);
+    this.game.hud?.showBanner(m.title, m.type === 'side' ? 'Side mission' : 'New mission', 4000);
     this.game.audio?.play('objective_new', { volume: 0.6 });
     this.run(m.onStart);
     this._startObjective(m, this.state[id]);
@@ -66,7 +66,7 @@ export class Missions {
     st.c = {};
     if (o.type === 'collect') st.c.start = this.game.collected?.[o.item] ?? 0;
     this.run(o.onStart);
-    if (o.text && !o.hidden && st.obj > 0) this.game.hud?.notify(`Objectif : ${o.text}`);
+    if (o.text && !o.hidden && st.obj > 0) this.game.hud?.notify(`Objective: ${o.text}`);
     this._refreshHud();
   }
 
@@ -87,7 +87,7 @@ export class Missions {
     const m = this.defs.get(id), st = this.state[id];
     if (!m || !st || st.status !== 'active') return;
     st.status = 'done';
-    this.game.hud?.showBanner('Mission accomplie', m.title, 4500);
+    this.game.hud?.showBanner('Mission complete', m.title, 4500);
     this.game.audio?.play('mission_complete', { volume: 0.8 });
     if (this.focus === id) this.focus = Object.keys(this.state).find((k) => this.state[k].status === 'active') ?? null;
     this.run(m.onComplete);
@@ -99,7 +99,7 @@ export class Missions {
   fail(id, reason) {
     const m = this.defs.get(id), st = this.state[id];
     if (!m || st?.status !== 'active') return;
-    this.game.hud?.showBanner('Mission échouée', reason ?? '', 4500, 'fail');
+    this.game.hud?.showBanner('Mission failed', reason ?? '', 4500, 'fail');
     this.run(m.onFail);
     // restart the mission from the last checkpoint
     setTimeout(() => this.game.loadCheckpoint?.(), 3500);
@@ -216,7 +216,7 @@ export class Missions {
       const m = this.defs.get(id);
       if (!m) continue;
       st.t += dt;
-      for (const f of m.failIf ?? []) if (this.check(f)) { st.status = 'failing'; this.fail(id, f.reason ?? 'Objectif compromis'); }
+      for (const f of m.failIf ?? []) if (this.check(f)) { st.status = 'failing'; this.fail(id, f.reason ?? 'Objective compromised'); }
       const o = m.objectives?.[st.obj];
       if (o && this._objectiveDone(o, st, dt)) this.completeObjective(id, o.id);
     }

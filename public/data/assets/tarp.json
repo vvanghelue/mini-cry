@@ -1,7 +1,7 @@
 {
   "name": "tarp",
   "category": "building",
-  "label": "Abri bâche",
+  "label": "Tarp shelter",
   "material": "cloth",
   "tags": ["camp", "village", "shelter"],
   "parts": [

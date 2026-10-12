@@ -43,7 +43,7 @@ export async function load(ed, { force = false } = {}) {
   try {
     const text = await readText();
     const doc = JSON.parse(text);
-    if (!doc || typeof doc !== 'object' || typeof doc.sounds !== 'object') throw new Error('pas de section "sounds"');
+    if (!doc || typeof doc !== 'object' || typeof doc.sounds !== 'object') throw new Error('no "sounds" section');
     if (A.doc.value && isDirty() && !force) return; // edited while loading
     layout = scanLayout(text);
     A.doc.value = doc;
@@ -61,7 +61,7 @@ export async function load(ed, { force = false } = {}) {
     if (!A.sel.value || !doc.sounds[A.sel.value]) A.sel.value = names[0] ?? null;
   } catch (e) {
     if (!A.doc.value) { A.status.value = 'error'; A.error.value = e.message; }
-    log(`Audio : lecture de ${FILE} impossible (${e.message})`, 'error');
+    log(`Audio: could not read ${FILE} (${e.message})`, 'error');
   }
 }
 
@@ -75,7 +75,7 @@ function apply(ed, doc) {
  * Replace the document (undoable, staged for saving). `key` merges rapid edits of the same field
  * (drag-scrubbing a number) into one undo step.
  */
-export function setDoc(ed, next, label = 'Modifier', key = null) {
+export function setDoc(ed, next, label = 'Edit', key = null) {
   const before = A.doc.value;
   if (before === next || !next) return;
   apply(ed, next);
@@ -87,7 +87,7 @@ export function setDoc(ed, next, label = 'Modifier', key = null) {
   }
   const sel = A.sel.value;
   ed.pushUndo({
-    label: `${label} (son)`, file: FILE, _audioKey: key, _t: Date.now(),
+    label: `${label} (sound)`, file: FILE, _audioKey: key, _t: Date.now(),
     undo: () => restore(ed, before, sel),
     redo: () => restore(ed, next, sel),
   });
@@ -104,13 +104,13 @@ export function setRecipe(ed, name, recipe, label, key) {
   const doc = A.doc.value;
   const sounds = { ...doc.sounds };
   if (recipe == null) delete sounds[name]; else sounds[name] = recipe;
-  setDoc(ed, { ...doc, sounds }, label ?? `Modifier ${name}`, key ? `${name}:${key}` : null);
+  setDoc(ed, { ...doc, sounds }, label ?? `Edit ${name}`, key ? `${name}:${key}` : null);
 }
 
 /** Set a top-level section (music / ambient). */
 export function setSection(ed, sec, value, key) {
   const doc = A.doc.value;
-  setDoc(ed, { ...doc, [sec]: value }, `Réglages ${sec}`, key ? `${sec}:${key}` : null);
+  setDoc(ed, { ...doc, [sec]: value }, `${sec} settings`, key ? `${sec}:${key}` : null);
 }
 
 /** Insert `key: value` right after `after` (or at the end), keeping the key order of the file. */
@@ -153,6 +153,6 @@ import.meta.hot?.on('mc:data-changed', async (d) => {
     A.doc.value = disk;
     if (window.__editor) window.__editor.sounds = disk;
     if (!disk.sounds?.[A.sel.value]) A.sel.value = Object.keys(disk.sounds ?? {})[0] ?? null;
-    log(`${FILE} rechargé (modifié sur le disque)`);
+    log(`${FILE} reloaded (changed on disk)`);
   } catch { /* ignore */ }
 });

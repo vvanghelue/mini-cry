@@ -46,14 +46,14 @@ Bake options: `--rays 128` per probe, `--bounces 2` (after the direct pass), `--
   eased (fast towards bright, slow towards dark), snapped when the camera jumps > 30 m. The view
   model's hemisphere light takes the probe light at the eye.
 
-## Tuning (environment.json, editor ☀, F2 > Graphismes > GI)
+## Tuning (environment.json, editor ☀, F2 > Graphics > GI)
 - `gi.intensity` (1): scales the probe light. `gi.floor` (0.12): part of the old flat ambient kept
   everywhere (artistic: nothing goes pitch black under the canopy). `gi.bias` (0.6 m): shading
   point pushed along the normal before the lookup (less self-shadowing from the probe behind a wall).
 - `autoExposure`: `enabled`, `strength` (0.5), `reference` (0.85: openness of a usual outdoor
   spot, no compensation above it), `min` / `max` (0.85 / 2.2), `speedUp` / `speedDown` (0.8 / 3 per s).
-- F2 "vue irradiance seule" shows the probe light alone (white albedo, no sun).
-- F2 "voir les probes" draws a sphere at each probe around the camera, shaded by its irradiance
+- F2 "irradiance only view" shows the probe light alone (white albedo, no sun).
+- F2 "show probes" draws a sphere at each probe around the camera, shaded by its irradiance
   (`render/GIProbeView.js`; radius, sphere size and layer filter next to it).
 
 ## Limits / next steps

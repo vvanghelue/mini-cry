@@ -7,6 +7,9 @@ const h = (tag, cls, parent, html) => {
   return e;
 };
 
+// difficulty setting values (saved in the settings, keys of Game.js DIFFICULTY) -> displayed label
+const DIFFICULTY_LABELS = [['facile', 'Easy'], ['normal', 'Normal'], ['difficile', 'Hard']];
+
 export class Menus {
   constructor(game) {
     this.game = game;
@@ -36,13 +39,13 @@ export class Menus {
     if (g.params.has('continue')) { setTimeout(() => g.newGame({ fromCheckpoint: true }), 0); return; }
     this._show(`
       <div class="logo">MINI <span>CRY</span></div>
-      <div class="tag">Isla Sombra — un FPS en monde ouvert low-poly</div>
-      <button class="b-new">Nouvelle partie</button>
-      ${cont ? '<button class="b-cont">Continuer</button>' : ''}
+      <div class="tag">Isla Sombra — a low-poly open-world FPS</div>
+      <button class="b-new">New game</button>
+      ${cont ? '<button class="b-cont">Continue</button>' : ''}
       <button class="b-opt">Options</button>
-      <button class="b-edit">Éditeur</button>
-      <div class="help">ZQSD/WASD se déplacer · Souris viser · Clic tirer · Clic droit viser · R recharger · E utiliser · G grenade · V coup de machette · Maj sprint · Ctrl accroupi · Espace sauter · B jumelles · M carte · 1-5 armes</div>
-      <div class="load">${g.loadMs ? `Chargé en ${(g.loadMs / 1000).toFixed(1)} s` : ''}</div>`, {
+      <button class="b-edit">Editor</button>
+      <div class="help">WASD/ZQSD move · Mouse look · Click fire · Right-click aim · R reload · E use · G grenade · V machete strike · Shift sprint · Ctrl crouch · Space jump · B binoculars · M map · 1-5 weapons</div>
+      <div class="load">${g.loadMs ? `Loaded in ${(g.loadMs / 1000).toFixed(1)} s` : ''}</div>`, {
       '.b-new': () => { try { localStorage.removeItem('minicry.save.v1'); } catch { /* */ } g.newGame(); },
       '.b-cont': () => g.newGame({ fromCheckpoint: true }),
       '.b-opt': () => this.showSettings(() => this.showMain()),
@@ -55,12 +58,12 @@ export class Menus {
     const s = g.stats;
     this._show(`
       <div class="title">PAUSE</div>
-      <button class="b-res">Reprendre</button>
-      <button class="b-map">Carte</button>
-      <button class="b-cp">Recharger le dernier point de contrôle</button>
+      <button class="b-res">Resume</button>
+      <button class="b-map">Map</button>
+      <button class="b-cp">Load last checkpoint</button>
       <button class="b-opt">Options</button>
-      <button class="b-quit">Menu principal</button>
-      <div class="stats">Tués ${s.kills} · Éliminations furtives ${s.takedowns} · Précision ${s.shots ? Math.round((s.hits / s.shots) * 100) : 0}% · Avant-postes ${g.liberated.size}</div>`, {
+      <button class="b-quit">Main menu</button>
+      <div class="stats">Kills ${s.kills} · Stealth takedowns ${s.takedowns} · Accuracy ${s.shots ? Math.round((s.hits / s.shots) * 100) : 0}% · Outposts ${g.liberated.size}</div>`, {
       '.b-res': () => g.resume(),
       '.b-map': () => { this.hideAll(); this.toggleMap(); },
       '.b-cp': () => g.loadCheckpoint(),
@@ -72,9 +75,9 @@ export class Menus {
   showDeath() {
     const g = this.game;
     this._show(`
-      <div class="title red">MORT</div>
-      <button class="b-cp">Reprendre au dernier point de contrôle</button>
-      <button class="b-quit">Menu principal</button>`, {
+      <div class="title red">YOU DIED</div>
+      <button class="b-cp">Restart from last checkpoint</button>
+      <button class="b-quit">Main menu</button>`, {
       '.b-cp': () => (g.hasSave() ? g.loadCheckpoint() : location.reload()),
       '.b-quit': () => (location.href = location.pathname),
     });
@@ -83,11 +86,11 @@ export class Menus {
   showEnd(a = {}) {
     const g = this.game, s = g.stats;
     this._show(`
-      <div class="title">${a.title ?? 'FIN'}</div>
-      <div class="tag">${a.text ?? 'Isla Sombra est libre.'}</div>
-      <div class="stats">Temps ${Math.round(s.playTime / 60)} min · Tués ${s.kills} · Tirs à la tête ${s.headshots} · Éliminations furtives ${s.takedowns} · Avant-postes ${g.liberated.size} · Reliques ${g.collected.relic ?? 0}</div>
-      <button class="b-free">Continuer à explorer</button>
-      <button class="b-quit">Menu principal</button>`, {
+      <div class="title">${a.title ?? 'THE END'}</div>
+      <div class="tag">${a.text ?? 'Isla Sombra is free.'}</div>
+      <div class="stats">Time ${Math.round(s.playTime / 60)} min · Kills ${s.kills} · Headshots ${s.headshots} · Stealth takedowns ${s.takedowns} · Outposts ${g.liberated.size} · Relics ${g.collected.relic ?? 0}</div>
+      <button class="b-free">Keep exploring</button>
+      <button class="b-quit">Main menu</button>`, {
       '.b-free': () => { g.started = true; g.resume(); },
       '.b-quit': () => (location.href = location.pathname),
     });
@@ -97,19 +100,19 @@ export class Menus {
     const g = this.game, s = g.settings;
     this._show(`
       <div class="title">OPTIONS</div>
-      <label>Qualité <select name="quality">${['low', 'medium', 'high', 'ultra'].map((q) => `<option ${q === s.quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
-      <label>Occlusion ambiante (SSAO) <input name="ao" type="checkbox" ${s.ao !== false ? 'checked' : ''}></label>
-      <label>Reflets du soleil (lens flare) <input name="flare" type="checkbox" ${s.flare !== false ? 'checked' : ''}></label>
-      <label>Difficulté <select name="difficulty">${['facile', 'normal', 'difficile'].map((q) => `<option ${q === s.difficulty ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
-      <label>Sensibilité souris <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>
-      <label>Champ de vision <input name="fov" type="range" min="60" max="95" step="1" value="${s.fov}"></label>
-      <label>Inverser l'axe Y <input name="invertY" type="checkbox" ${s.invertY ? 'checked' : ''}></label>
+      <label>Quality <select name="quality">${['low', 'medium', 'high', 'ultra'].map((q) => `<option ${q === s.quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
+      <label>Ambient occlusion (SSAO) <input name="ao" type="checkbox" ${s.ao !== false ? 'checked' : ''}></label>
+      <label>Sun lens flare <input name="flare" type="checkbox" ${s.flare !== false ? 'checked' : ''}></label>
+      <label>Difficulty <select name="difficulty">${DIFFICULTY_LABELS.map(([q, l]) => `<option value="${q}" ${q === s.difficulty ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label>Mouse sensitivity <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>
+      <label>Field of view <input name="fov" type="range" min="60" max="95" step="1" value="${s.fov}"></label>
+      <label>Invert Y axis <input name="invertY" type="checkbox" ${s.invertY ? 'checked' : ''}></label>
       <label>Volume <input name="volume" type="range" min="0" max="1" step="0.05" value="${s.volume}"></label>
-      <label>Musique <input name="music" type="range" min="0" max="1" step="0.05" value="${s.music}"></label>
-      <label>Voix des dialogues <input name="voices" type="checkbox" ${s.voices ? 'checked' : ''}></label>
-      <label>Volume des voix <input name="voiceVolume" type="range" min="0" max="1.5" step="0.05" value="${s.voiceVolume ?? 1}"></label>
-      <label>Afficher les performances (F3) <input name="perf" type="checkbox" ${document.getElementById('perf')?.hidden === false ? 'checked' : ''}></label>
-      <button class="b-back">Retour</button>`, {
+      <label>Music <input name="music" type="range" min="0" max="1" step="0.05" value="${s.music}"></label>
+      <label>Dialogue voices <input name="voices" type="checkbox" ${s.voices ? 'checked' : ''}></label>
+      <label>Voice volume <input name="voiceVolume" type="range" min="0" max="1.5" step="0.05" value="${s.voiceVolume ?? 1}"></label>
+      <label>Show performance stats (F3) <input name="perf" type="checkbox" ${document.getElementById('perf')?.hidden === false ? 'checked' : ''}></label>
+      <button class="b-back">Back</button>`, {
       '.b-back': () => back(),
     });
     this.panel.querySelectorAll('input, select').forEach((inp) => inp.addEventListener('input', () => {
@@ -159,7 +162,7 @@ export class Menus {
         ctx.fillStyle = lib ? '#3fb0ff' : '#e03030';
         ctx.beginPath(); ctx.arc(px(e.pos[0]), px(e.pos[2]), 7, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#000'; ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.fillText(e.name ?? 'Avant-poste', px(e.pos[0]), px(e.pos[2]) - 12);
+        ctx.fillStyle = '#fff'; ctx.fillText(e.name ?? 'Outpost', px(e.pos[0]), px(e.pos[2]) - 12);
         if (lib && e.fastTravel !== false) this._fast.push({ id: e.id, x: px(e.pos[0]), y: px(e.pos[2]) });
       }
     }
@@ -182,7 +185,7 @@ export class Menus {
     ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
     const m = g.missions.focus && g.missions.defs.get(g.missions.focus);
-    this.mapInfo.innerHTML = `<b>${m?.title ?? 'Exploration libre'}</b><br>${m ? (m.objectives[g.missions.state[m.id]?.obj]?.text ?? '') : ''}<br><small>${this._fast.length ? 'Cliquez sur un avant-poste libéré (bleu) pour y voyager.' : 'Libérez des avant-postes pour débloquer le voyage rapide.'} · M / Échap pour fermer</small>`;
+    this.mapInfo.innerHTML = `<b>${m?.title ?? 'Free roam'}</b><br>${m ? (m.objectives[g.missions.state[m.id]?.obj]?.text ?? '') : ''}<br><small>${this._fast.length ? 'Click a liberated outpost (blue) to travel there.' : 'Liberate outposts to unlock fast travel.'} · M / Esc to close</small>`;
   }
 
   _mapClick(e) {

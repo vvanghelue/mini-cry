@@ -1,7 +1,7 @@
 {
   "name": "truck_wheel",
   "category": "vehicle",
-  "label": "Roue de camion",
+  "label": "Truck wheel",
   "material": "metal",
   "tags": ["vehicle","wheel"],
   "parts": [

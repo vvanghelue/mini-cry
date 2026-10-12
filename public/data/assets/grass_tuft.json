@@ -1,1 +1,1 @@
-{ "name": "grass_tuft", "category": "vegetation", "label": "Touffe d herbe", "generator": { "type": "grass", "params": {} } }
+{ "name": "grass_tuft", "category": "vegetation", "label": "Grass tuft", "generator": { "type": "grass", "params": {} } }

@@ -1,7 +1,7 @@
 {
   "name": "gas_pump",
   "category": "prop",
-  "label": "Pompe à essence",
+  "label": "Gas pump",
   "material": "metal",
   "tags": ["road","village","fuel"],
   "parts": [

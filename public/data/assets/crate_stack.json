@@ -1,7 +1,7 @@
 {
   "name": "crate_stack",
   "category": "prop",
-  "label": "Pile de caisses",
+  "label": "Crate stack",
   "material": "wood",
   "tags": ["cover","camp","storage"],
   "parts": [

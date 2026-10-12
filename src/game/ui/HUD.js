@@ -30,7 +30,7 @@ export class HUD {
     this.compass = el('div', 'hud-compass', root);
     this.compassStrip = el('div', 'strip', this.compass);
     for (let d = -360; d <= 720; d += 15) {
-      const t = el('span', d % 90 === 0 ? 'card' : d % 45 === 0 ? 'mid' : 'tick', this.compassStrip, d % 90 === 0 ? ['N', 'E', 'S', 'O'][(((d / 90) % 4) + 4) % 4] : d % 45 === 0 ? ['NE', 'SE', 'SO', 'NO'][((((d - 45) / 90) % 4) + 4) % 4] : '');
+      const t = el('span', d % 90 === 0 ? 'card' : d % 45 === 0 ? 'mid' : 'tick', this.compassStrip, d % 90 === 0 ? ['N', 'E', 'S', 'W'][(((d / 90) % 4) + 4) % 4] : d % 45 === 0 ? ['NE', 'SE', 'SW', 'NW'][((((d - 45) / 90) % 4) + 4) % 4] : '');
       t.style.left = `${(d + 360) * 4}px`;
     }
     this.compassMarks = el('div', 'marks', this.compass);
@@ -156,7 +156,7 @@ export class HUD {
   }
 
   onEnemyAlert() {
-    this.alertEl.textContent = 'REPÉRÉ !';
+    this.alertEl.textContent = 'SPOTTED!';
     this.alertEl.className = 'hud-alert show';
     clearTimeout(this._alertT);
     this._alertT = setTimeout(() => (this.alertEl.className = 'hud-alert'), 1600);
@@ -183,7 +183,7 @@ export class HUD {
   }
 
   subtitle(speaker, text, ms) {
-    this.subs.innerHTML = speaker ? `<b>${speaker} :</b> ${text}` : text;
+    this.subs.innerHTML = speaker ? `<b>${speaker}:</b> ${text}` : text;
     this.subs.classList.add('show');
     clearTimeout(this._subT);
     this._subT = setTimeout(() => this.subs.classList.remove('show'), ms);

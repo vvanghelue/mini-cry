@@ -1,10 +1,10 @@
 // Asset editor: visual editor for the low-poly JSON models (public/data/assets/*.json).
-//   left   : asset browser (search, category, thumbnails, tris) + Nouveau / Dupliquer / Supprimer
+//   left   : asset browser (search, category, thumbnails, tris) + New / Duplicate / Delete
 //   centre : live 3D preview (orbit, gizmo, colliders, markers, LOD, variant, stats)
-//   right  : tabs Asset (properties, LOD, weapon points, generator), Pièces (list + inspector),
-//            Collisions (mode + list + inspector)
+//   right  : tabs Asset (properties, LOD, weapon points, generator), Parts (list + inspector),
+//            Colliders (mode + list + inspector)
 // Every edit rebuilds the preview, is pushed live into the running world (AssetLibrary.set +
-// re-batched props) and stages assets/<name>.json for 💾 Enregistrer. Ctrl+Z / Ctrl+Y undo inside
+// re-batched props) and stages assets/<name>.json for 💾 Save. Ctrl+Z / Ctrl+Y undo inside
 // the panel (history per asset). State lives in asset/session.js and survives panel switches.
 import { useEffect, useMemo } from 'preact/hooks';
 import { A, getSession, setView } from './asset/session.js';
@@ -39,7 +39,7 @@ export function AssetPanel({ ed }) {
       else handled = false;
       if (handled) { e.preventDefault(); e.stopPropagation(); }
     };
-    // any click first pushes a pending edit (so 💾 Enregistrer always saves the latest version)
+    // any click first pushes a pending edit (so 💾 Save always saves the latest version)
     const onDown = () => ses.flushLive();
     addEventListener('keydown', onKey, true);
     addEventListener('pointerdown', onDown, true);
@@ -54,9 +54,9 @@ export function AssetPanel({ ed }) {
   const d = A.def.value;
   const tab = A.tab.value;
   const tabs = [
-    ['asset', 'Asset', 'Propriétés, LOD, générateur'],
-    ['parts', `Pièces (${d?.parts?.length ?? 0})`, 'Liste des pièces et inspecteur'],
-    ['colliders', `Collisions${Array.isArray(d?.collider) ? ` (${d.collider.length})` : d?.collider ? ` (${d.collider === 'none' ? 0 : d.collider})` : ''}`, 'Formes de collision'],
+    ['asset', 'Asset', 'Properties, LOD, generator'],
+    ['parts', `Parts (${d?.parts?.length ?? 0})`, 'Part list and inspector'],
+    ['colliders', `Colliders${Array.isArray(d?.collider) ? ` (${d.collider.length})` : d?.collider ? ` (${d.collider === 'none' ? 0 : d.collider})` : ''}`, 'Collision shapes'],
   ];
   return (
     <div class="ap">
@@ -70,7 +70,7 @@ export function AssetPanel({ ed }) {
           {tabs.map(([k, l, t]) => <button class={tab === k ? 'on' : ''} title={t} onClick={() => (A.tab.value = k)}>{l}</button>)}
         </div>
         <div class="ap-scroll">
-          {!d && <p class="hint">Sélectionnez un asset dans la liste.</p>}
+          {!d && <p class="hint">Select an asset in the list.</p>}
           {d && tab === 'asset' && <AssetTab ses={ses} />}
           {d && tab === 'parts' && <PartsTab ses={ses} />}
           {d && tab === 'colliders' && <CollidersTab ses={ses} />}
@@ -88,10 +88,10 @@ function Header({ ses }) {
     <div class="ap-head">
       <b class="ap-title">{d?.label ?? name ?? '—'}</b>
       {name && <code>{name}.json</code>}
-      {dirty && <span class="ap-dirty" title="Modifications appliquées au monde mais pas encore enregistrées (💾 Enregistrer ou Ctrl+S)">● non enregistré</span>}
+      {dirty && <span class="ap-dirty" title="Changes applied to the world but not saved yet (💾 Save or Ctrl+S)">● unsaved</span>}
       <span class="grow" />
-      <button title="Annuler (Ctrl+Z)" disabled={!ses.canUndo} onClick={() => ses.undo()}>↶ Annuler</button>
-      <button title="Rétablir (Ctrl+Y)" disabled={!ses.canRedo} onClick={() => ses.redo()}>↷</button>
+      <button title="Undo (Ctrl+Z)" disabled={!ses.canUndo} onClick={() => ses.undo()}>↶ Undo</button>
+      <button title="Redo (Ctrl+Y)" disabled={!ses.canRedo} onClick={() => ses.redo()}>↷</button>
     </div>
   );
 }

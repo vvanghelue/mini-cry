@@ -1,7 +1,7 @@
 {
   "name": "rpg",
   "category": "weapon",
-  "label": "Lance-roquettes",
+  "label": "Rocket launcher",
   "material": "metal",
   "tags": ["weapon","launcher"],
   "muzzle": [0,0.088,-0.5],

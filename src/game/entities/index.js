@@ -42,16 +42,16 @@ function actorProxy(e, color) {
 const ACTOR_SCHEMA = {
   ...COMMON_SCHEMA,
   rot: { type: 'vec3', label: 'Rotation (°)' },
-  archetype: { type: 'archetype', label: 'Archétype', required: true },
-  patrol: { type: 'entity', ref: 'path', label: 'Chemin de patrouille' },
-  pose: { type: 'enum', label: 'Posture au repos', options: ['stand', 'sit', 'talk', 'work', 'dance'] },
-  dormant: { type: 'bool', label: 'Dormant (activé par script)' },
-  team: { type: 'enum', label: 'Camp', options: ['merc', 'civilian', 'ally'] },
-  calm: { type: 'bool', label: 'Ne fuit pas (PNJ d\'histoire)' },
+  archetype: { type: 'archetype', label: 'Archetype', required: true },
+  patrol: { type: 'entity', ref: 'path', label: 'Patrol path' },
+  pose: { type: 'enum', label: 'Idle pose', options: ['stand', 'sit', 'talk', 'work', 'dance'] },
+  dormant: { type: 'bool', label: 'Dormant (woken by script)' },
+  team: { type: 'enum', label: 'Team', options: ['merc', 'civilian', 'ally'] },
+  calm: { type: 'bool', label: 'Never flees (story NPC)' },
 };
 
 registerEntityType('enemy', {
-  label: 'Ennemi', color: '#e03030', category: 'Personnages',
+  label: 'Enemy', color: '#e03030', category: 'Characters',
   schema: ACTOR_SCHEMA,
   defaults: { archetype: 'merc_rifle', pose: 'stand', team: 'merc' },
   create(ctx, e) {
@@ -63,10 +63,10 @@ registerEntityType('enemy', {
 });
 
 registerEntityType('npc', {
-  label: 'PNJ', color: '#30a0e0', category: 'Personnages',
+  label: 'NPC', color: '#30a0e0', category: 'Characters',
   schema: {
-    ...ACTOR_SCHEMA, dialogue: { type: 'string', label: 'Dialogue (parler)' }, talkPrompt: { type: 'string', label: 'Texte d\'action' },
-    talkIf: { type: 'json', label: 'Parle seulement si (condition de mission)' },
+    ...ACTOR_SCHEMA, dialogue: { type: 'string', label: 'Dialogue (talk)' }, talkPrompt: { type: 'string', label: 'Prompt text' },
+    talkIf: { type: 'json', label: 'Talks only if (mission condition)' },
   },
   defaults: { archetype: 'villager', pose: 'stand', team: 'civilian' },
   create(ctx, e) {
@@ -81,7 +81,7 @@ registerEntityType('npc', {
     return {
       actor: a,
       object: a?.root,
-      interact: e.dialogue ? { prompt: () => (canTalk() ? (e.talkPrompt ?? `Parler à ${e.name ?? a.arch.label}`) : null), range: 2.6 } : null,
+      interact: e.dialogue ? { prompt: () => (canTalk() ? (e.talkPrompt ?? `Talk to ${e.name ?? a.arch.label}`) : null), range: 2.6 } : null,
       use() {
         if (!canTalk() || game.time - talked < 2) return;
         talked = game.time;
@@ -97,11 +97,11 @@ registerEntityType('npc', {
 });
 
 registerEntityType('pickup', {
-  label: 'Objet à ramasser', color: '#ffd030', category: 'Gameplay', cullDistance: 90,
+  label: 'Pickup', color: '#ffd030', category: 'Gameplay', cullDistance: 90,
   schema: {
-    ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, item: { type: 'item', label: 'Objet', required: true }, auto: { type: 'bool', label: 'Ramassage automatique' },
-    respawn: { type: 'number', label: 'Réapparition (s, 0 = jamais)' }, still: { type: 'bool', label: 'Posé au sol (ne tourne pas)' },
-    rounds: { type: 'int', min: 0, label: 'Munitions dans l\'arme (0 = par défaut)' },
+    ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, item: { type: 'item', label: 'Item', required: true }, auto: { type: 'bool', label: 'Auto pickup' },
+    respawn: { type: 'number', label: 'Respawn (s, 0 = never)' }, still: { type: 'bool', label: 'Lying on the ground (no spin)' },
+    rounds: { type: 'int', min: 0, label: 'Rounds in the weapon (0 = default)' },
   },
   defaults: { item: 'medkit', auto: false, respawn: 0 },
   create(ctx, e) {
@@ -118,7 +118,7 @@ registerEntityType('pickup', {
     let t = Math.random() * 6, taken = false, respawnT = 0, life = 0;
     const h = {
       object: g,
-      interact: item?.weapon || item?.collectible || item?.key || !e.auto ? { prompt: () => `Ramasser ${item?.label ?? e.item}`, range: 2.2 } : null,
+      interact: item?.weapon || item?.collectible || item?.key || !e.auto ? { prompt: () => `Pick up ${item?.label ?? e.item}`, range: 2.2 } : null,
       use() { if (!taken && game.pickupItem(e.item, e.id)) take(); },
       update(dt) {
         // temporary loot (ttl, game time) vanishes unless picked up
@@ -145,11 +145,11 @@ registerEntityType('pickup', {
 });
 
 registerEntityType('outpost', {
-  label: 'Avant-poste', color: '#b030d0', category: 'Gameplay',
+  label: 'Outpost', color: '#b030d0', category: 'Gameplay',
   schema: {
-    ...COMMON_SCHEMA, radius: { type: 'number', label: 'Rayon (m)' }, alarm: { type: 'entity', ref: 'alarm', label: 'Alarme' },
-    reinforcements: { type: 'json', label: 'Renforts [{archetype, count}]' }, reinforceFrom: { type: 'entity', ref: 'marker', label: 'Arrivée des renforts' },
-    fastTravel: { type: 'bool', label: 'Voyage rapide une fois libéré' }, reward: { type: 'json', label: 'Récompense (items)' },
+    ...COMMON_SCHEMA, radius: { type: 'number', label: 'Radius (m)' }, alarm: { type: 'entity', ref: 'alarm', label: 'Alarm' },
+    reinforcements: { type: 'json', label: 'Reinforcements [{archetype, count}]' }, reinforceFrom: { type: 'entity', ref: 'marker', label: 'Reinforcements come from' },
+    fastTravel: { type: 'bool', label: 'Fast travel once liberated' }, reward: { type: 'json', label: 'Reward (items)' },
   },
   defaults: { radius: 45, reinforcements: [{ archetype: 'merc_rifle', count: 3 }], fastTravel: true },
   create(ctx, e) {
@@ -185,8 +185,8 @@ registerEntityType('outpost', {
 });
 
 registerEntityType('alarm', {
-  label: 'Alarme', color: '#ff4040', category: 'Gameplay', cullDistance: 160,
-  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, outpost: { type: 'entity', ref: 'outpost', label: 'Avant-poste' } },
+  label: 'Alarm', color: '#ff4040', category: 'Gameplay', cullDistance: 160,
+  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, outpost: { type: 'entity', ref: 'outpost', label: 'Outpost' } },
   defaults: {},
   create(ctx, e) {
     const mesh = assetMesh(ctx, 'alarm', 0.5);
@@ -196,8 +196,8 @@ registerEntityType('alarm', {
     const game = ctx.world.game;
     const h = {
       object: mesh, disabled: false, ringing: false,
-      interact: { prompt: () => (h.disabled ? null : 'Saboter l\'alarme'), range: 2 },
-      use() { if (h.disabled) return; h.disabled = true; h.stop(); game.hud.notify('Alarme sabotée'); game.audio?.play('glass_break', { position: mesh.position }); game.missions.emit('interact', { entity: e.id }); },
+      interact: { prompt: () => (h.disabled ? null : 'Sabotage the alarm'), range: 2 },
+      use() { if (h.disabled) return; h.disabled = true; h.stop(); game.hud.notify('Alarm sabotaged'); game.audio?.play('glass_break', { position: mesh.position }); game.missions.emit('interact', { entity: e.id }); },
       trigger() {
         if (h.disabled || h.ringing) return false;
         h.ringing = true;
@@ -212,8 +212,8 @@ registerEntityType('alarm', {
 });
 
 registerEntityType('explosive', {
-  label: 'Baril explosif', color: '#ff6020', category: 'Gameplay', cullDistance: 180,
-  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, asset: { type: 'asset', label: 'Asset' }, health: { type: 'number', label: 'Points de vie' }, radius: { type: 'number', label: 'Rayon d\'explosion' }, damage: { type: 'number', label: 'Dégâts' } },
+  label: 'Explosive barrel', color: '#ff6020', category: 'Gameplay', cullDistance: 180,
+  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, asset: { type: 'asset', label: 'Asset' }, health: { type: 'number', label: 'Health' }, radius: { type: 'number', label: 'Blast radius' }, damage: { type: 'number', label: 'Damage' } },
   defaults: { asset: 'barrel_explosive', health: 30, radius: 6, damage: 180 },
   create(ctx, e) {
     const mesh = assetMesh(ctx, e.asset ?? 'barrel_explosive', 0.8);
@@ -247,9 +247,9 @@ registerEntityType('explosive', {
 });
 
 registerEntityType('interactable', {
-  label: 'Interactif', color: '#40e0a0', category: 'Gameplay', cullDistance: 160,
-  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, asset: { type: 'asset', label: 'Asset' }, prompt: { type: 'string', label: 'Texte d\'action' }, requires: { type: 'item', label: 'Objet requis' }, once: { type: 'bool', label: 'Une seule fois' }, range: { type: 'number', label: 'Portée' } },
-  defaults: { asset: 'radio_table', prompt: 'Utiliser', once: true, range: 2.2 },
+  label: 'Interactable', color: '#40e0a0', category: 'Gameplay', cullDistance: 160,
+  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, asset: { type: 'asset', label: 'Asset' }, prompt: { type: 'string', label: 'Prompt text' }, requires: { type: 'item', label: 'Required item' }, once: { type: 'bool', label: 'Once only' }, range: { type: 'number', label: 'Range' } },
+  defaults: { asset: 'radio_table', prompt: 'Use', once: true, range: 2.2 },
   create(ctx, e) {
     const mesh = assetMesh(ctx, e.asset ?? 'radio_table', 0.6);
     place(mesh, e);
@@ -261,7 +261,7 @@ registerEntityType('interactable', {
     let used = false;
     const h = {
       object: mesh,
-      interact: { prompt: () => (used && e.once !== false ? null : e.requires && !game.inventory.has(e.requires) ? `${e.prompt} (requiert : ${game.data.items.items[e.requires]?.label ?? e.requires})` : e.prompt), range: e.range ?? 2.2 },
+      interact: { prompt: () => (used && e.once !== false ? null : e.requires && !game.inventory.has(e.requires) ? `${e.prompt} (requires: ${game.data.items.items[e.requires]?.label ?? e.requires})` : e.prompt), range: e.range ?? 2.2 },
       use() {
         if (used && e.once !== false) return;
         if (e.requires && !game.inventory.has(e.requires)) { game.audio?.play('dry_fire'); return; }
@@ -277,7 +277,7 @@ registerEntityType('interactable', {
 
 registerEntityType('destructible', {
   label: 'Destructible', color: '#e0a040', category: 'Gameplay',
-  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, asset: { type: 'asset', label: 'Asset' }, health: { type: 'number', label: 'Points de vie' }, explosiveOnly: { type: 'bool', label: 'Seulement aux explosifs' }, explode: { type: 'bool', label: 'Explose' } },
+  schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, asset: { type: 'asset', label: 'Asset' }, health: { type: 'number', label: 'Health' }, explosiveOnly: { type: 'bool', label: 'Explosives only' }, explode: { type: 'bool', label: 'Explodes' } },
   defaults: { asset: 'generator', health: 200, explosiveOnly: false, explode: true },
   create(ctx, e) {
     const mesh = assetMesh(ctx, e.asset ?? 'generator', 1);
@@ -304,8 +304,8 @@ registerEntityType('destructible', {
 });
 
 registerEntityType('sound', {
-  label: 'Son d\'ambiance', color: '#a0a0ff', category: 'Ambiance',
-  schema: { ...COMMON_SCHEMA, sound: { type: 'sound', label: 'Son' }, volume: { type: 'number', label: 'Volume' }, radius: { type: 'number', label: 'Rayon d\'activation' } },
+  label: 'Ambient sound', color: '#a0a0ff', category: 'Ambience',
+  schema: { ...COMMON_SCHEMA, sound: { type: 'sound', label: 'Sound' }, volume: { type: 'number', label: 'Volume' }, radius: { type: 'number', label: 'Activation radius' } },
   defaults: { sound: 'radio_static', volume: 0.6, radius: 40 },
   create(ctx, e) {
     const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.4), new THREE.MeshBasicMaterial({ color: 0xa0a0ff, wireframe: true }));
@@ -326,11 +326,11 @@ registerEntityType('sound', {
   },
 });
 
-// drivable kinds (driving specs in game/vehicles/Vehicles.js); the editor's Véhicules tab lists them
-export const VEHICLE_KINDS = { jeep: { label: 'Jeep', asset: 'jeep_body' }, boat: { label: 'Bateau', asset: 'boat_patrol' } };
+// drivable kinds (driving specs in game/vehicles/Vehicles.js); the editor's vehicles tab lists them
+export const VEHICLE_KINDS = { jeep: { label: 'Jeep', asset: 'jeep_body' }, boat: { label: 'Boat', asset: 'boat_patrol' } };
 
 registerEntityType('vehicle', {
-  label: 'Véhicule', color: '#ff9020', category: 'Gameplay', cullDistance: 400,
+  label: 'Vehicle', color: '#ff9020', category: 'Gameplay', cullDistance: 400,
   schema: { ...COMMON_SCHEMA, rot: { type: 'vec3', label: 'Rotation (°)' }, vehicle: { type: 'enum', label: 'Type', options: Object.keys(VEHICLE_KINDS) } },
   defaults: { vehicle: 'jeep' },
   create(ctx, e) {

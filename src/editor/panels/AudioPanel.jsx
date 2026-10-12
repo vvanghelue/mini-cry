@@ -47,7 +47,7 @@ export function AudioPanel({ ed }) {
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl+Z / Ctrl+S... go to the editor
-    e.stopPropagation(); // world shortcuts (Suppr, F, W, G...) must not act from the audio panel
+    e.stopPropagation(); // world shortcuts (Del, F, W, G...) must not act from the audio panel
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) actions.current.toggle?.(); }
     else if (e.code === 'ArrowDown' || e.code === 'ArrowUp') { e.preventDefault(); actions.current.step?.(e.code === 'ArrowDown' ? 1 : -1); }
     else if (e.code === 'Escape') stopPreview();
@@ -59,10 +59,10 @@ export function AudioPanel({ ed }) {
   return (
     <div class="panel au" ref={root} tabIndex={0} onKeyDown={onKey} onKeyUp={onKeyUp}>
       {!doc
-        ? <div class="au-main"><p class={status === 'error' ? 'err' : 'hint'}>{status === 'error' ? `Impossible de lire ${FILE} : ${A.error.value}` : 'Chargement des sons…'}</p></div>
+        ? <div class="au-main"><p class={status === 'error' ? 'err' : 'hint'}>{status === 'error' ? `Could not read ${FILE}: ${A.error.value}` : 'Loading sounds…'}</p></div>
         : <>
           <Sidebar ed={ed} actions={actions} />
-          {A.view.value === 'mix' ? <MixView ed={ed} actions={actions} /> : A.sel.value && doc.sounds[A.sel.value] ? <SoundView ed={ed} actions={actions} /> : <div class="au-main"><p class="hint">Aucun son sélectionné.</p></div>}
+          {A.view.value === 'mix' ? <MixView ed={ed} actions={actions} /> : A.sel.value && doc.sounds[A.sel.value] ? <SoundView ed={ed} actions={actions} /> : <div class="au-main"><p class="hint">No sound selected.</p></div>}
         </>}
     </div>
   );
@@ -109,46 +109,46 @@ function Sidebar({ ed, actions }) {
   const askName = (msg, def) => {
     const n = prompt(msg, def)?.trim();
     if (!n) return null;
-    if (!validName(n)) { alert('Nom invalide : lettres, chiffres et _ uniquement.'); return null; }
-    if (sounds[n]) { alert(`Le son « ${n} » existe déjà.`); return null; }
+    if (!validName(n)) { alert('Invalid name: letters, digits and _ only.'); return null; }
+    if (sounds[n]) { alert(`The sound "${n}" already exists.`); return null; }
     return n;
   };
   const create = (tpl) => {
     setMenu(false);
-    const n = askName('Nom du nouveau son :', uniqueName(tpl === 'empty' ? 'new_sound' : tpl, sounds));
+    const n = askName('Name of the new sound:', uniqueName(tpl === 'empty' ? 'new_sound' : tpl, sounds));
     if (!n) return;
-    setDoc(ed, { ...doc, sounds: insertAfter(sounds, sel, n, structuredClone(TEMPLATES[tpl].recipe)) }, `Nouveau son ${n}`);
+    setDoc(ed, { ...doc, sounds: insertAfter(sounds, sel, n, structuredClone(TEMPLATES[tpl].recipe)) }, `New sound ${n}`);
     select(n);
-    log(`Son ${n} créé (modèle : ${TEMPLATES[tpl].label})`);
+    log(`Sound ${n} created (template: ${TEMPLATES[tpl].label})`);
   };
   const duplicate = () => {
     if (!sel) return;
-    const n = askName('Nom de la copie :', uniqueName(`${sel}_2`, sounds));
+    const n = askName('Name of the copy:', uniqueName(`${sel}_2`, sounds));
     if (!n) return;
-    setDoc(ed, { ...doc, sounds: insertAfter(sounds, sel, n, structuredClone(sounds[sel])) }, `Dupliquer ${sel}`);
+    setDoc(ed, { ...doc, sounds: insertAfter(sounds, sel, n, structuredClone(sounds[sel])) }, `Duplicate ${sel}`);
     select(n);
   };
   actions.current.duplicate = duplicate;
   const rename = () => {
     if (!sel) return;
-    const n = askName(`Renommer « ${sel} » en :\n(les références dans le code du jeu, les armes ou les missions ne sont pas mises à jour)`, sel);
+    const n = askName(`Rename "${sel}" to:\n(references in the game code, weapons or missions are not updated)`, sel);
     if (!n || n === sel) return;
     let next = { ...doc, sounds: renameKey(sounds, sel, n) };
     const am = doc.ambient?.sounds;
     if (am && Object.values(am).includes(sel)) {
       next = { ...next, ambient: { ...doc.ambient, sounds: Object.fromEntries(Object.entries(am).map(([k, v]) => [k, v === sel ? n : v])) } };
     }
-    setDoc(ed, next, `Renommer ${sel}`);
+    setDoc(ed, next, `Rename ${sel}`);
     A.sel.value = n;
-    if (/^music_|^(ocean_waves|wind|cicadas|frogs|crickets|underwater|bird_chirp|parrot_call|gull_call|owl_hoot)$/.test(sel)) log(`« ${sel} » est utilisé par la musique / l'ambiance par son nom : vérifiez les références`, 'warn');
-    else log(`Son renommé : ${sel} → ${n} (pensez aux références dans le jeu)`, 'warn');
+    if (/^music_|^(ocean_waves|wind|cicadas|frogs|crickets|underwater|bird_chirp|parrot_call|gull_call|owl_hoot)$/.test(sel)) log(`"${sel}" is used by name by the music / ambience: check the references`, 'warn');
+    else log(`Sound renamed: ${sel} → ${n} (remember to update the references in the game)`, 'warn');
   };
   const remove = () => {
-    if (!sel || !confirm(`Supprimer le son « ${sel} » ?`)) return;
+    if (!sel || !confirm(`Delete the sound "${sel}"?`)) return;
     const i = flat.indexOf(sel);
     const s = { ...sounds };
     delete s[sel];
-    setDoc(ed, { ...doc, sounds: s }, `Supprimer ${sel}`);
+    setDoc(ed, { ...doc, sounds: s }, `Delete ${sel}`);
     const rest = flat.filter((x) => x !== sel);
     A.sel.value = rest[Math.min(Math.max(0, i), rest.length - 1)] ?? Object.keys(s)[0] ?? null;
     A.layer.value = 0;
@@ -157,12 +157,12 @@ function Sidebar({ ed, actions }) {
   return (
     <div class="au-side">
       <div class="au-tabs">
-        <button class={A.view.value === 'sound' ? 'on' : ''} onClick={() => (A.view.value = 'sound')}>🔊 Sons <small>{Object.keys(sounds).length}</small></button>
-        <button class={A.view.value === 'mix' ? 'on' : ''} onClick={() => (A.view.value = 'mix')}>🎵 Musique & ambiance</button>
+        <button class={A.view.value === 'sound' ? 'on' : ''} onClick={() => (A.view.value = 'sound')}>🔊 Sounds <small>{Object.keys(sounds).length}</small></button>
+        <button class={A.view.value === 'mix' ? 'on' : ''} onClick={() => (A.view.value = 'mix')}>🎵 Music & ambience</button>
       </div>
       <div class="au-filter-bar">
-        <input type="text" class="au-search" placeholder="Rechercher…" value={A.search.value} onInput={(e) => (A.search.value = e.target.value)} />
-        <select value={A.group.value} title="Regrouper par" onChange={(e) => (A.group.value = e.target.value)}>
+        <input type="text" class="au-search" placeholder="Search…" value={A.search.value} onInput={(e) => (A.search.value = e.target.value)} />
+        <select value={A.group.value} title="Group by" onChange={(e) => (A.group.value = e.target.value)}>
           {Object.entries(GROUPINGS).map(([k, g]) => <option value={k}>{g.label}</option>)}
         </select>
       </div>
@@ -175,7 +175,7 @@ function Sidebar({ ed, actions }) {
               {open && groups.get(k).map((n) => {
                 const r = sounds[n] ?? {};
                 return (
-                  <div class={'au-it' + (n === sel ? ' sel' : '')} data-name={n} onClick={() => select(n)} onDblClick={rename} title={`${n} · bus ${r.bus ?? 'sfx'}${r.loop ? ' · boucle' : ''} · ${(r.layers ?? []).length} couche(s)`}>
+                  <div class={'au-it' + (n === sel ? ' sel' : '')} data-name={n} onClick={() => select(n)} onDblClick={rename} title={`${n} · bus ${r.bus ?? 'sfx'}${r.loop ? ' · loop' : ''} · ${(r.layers ?? []).length} layer(s)`}>
                     <span class="au-nm">{n}</span>
                     {r.loop && <span class="au-badge loop">↻</span>}
                     <span class={'au-badge b-' + (r.bus ?? 'sfx')}>{r.bus ?? 'sfx'}</span>
@@ -185,20 +185,20 @@ function Sidebar({ ed, actions }) {
             </div>
           );
         })}
-        {!names.length && <p class="hint" style={{ padding: '6px 8px' }}>Aucun son ne correspond.</p>}
+        {!names.length && <p class="hint" style={{ padding: '6px 8px' }}>No matching sound.</p>}
       </div>
       <div class="au-actions">
         <div class="au-menuwrap">
-          <button onClick={() => setMenu(!menu)} title="Nouveau son à partir d'un modèle">+ Nouveau ▾</button>
+          <button onClick={() => setMenu(!menu)} title="New sound from a template">+ New ▾</button>
           {menu && (
             <div class="au-menu" onMouseLeave={() => setMenu(false)}>
               {Object.entries(TEMPLATES).map(([k, t]) => <button onClick={() => create(k)}>{t.label}</button>)}
             </div>
           )}
         </div>
-        <button onClick={duplicate} disabled={!sel} title="Dupliquer le son sélectionné (Ctrl+D)">⧉ Dupliquer</button>
-        <button onClick={rename} disabled={!sel} title="Renommer (double-clic dans la liste)">✎ Renommer</button>
-        <button class="danger" onClick={remove} disabled={!sel} title="Supprimer le son">✕</button>
+        <button onClick={duplicate} disabled={!sel} title="Duplicate the selected sound (Ctrl+D)">⧉ Duplicate</button>
+        <button onClick={rename} disabled={!sel} title="Rename (double-click in the list)">✎ Rename</button>
+        <button class="danger" onClick={remove} disabled={!sel} title="Delete the sound">✕</button>
       </div>
     </div>
   );
@@ -258,7 +258,7 @@ function SoundView({ ed, actions }) {
   const dirty = !!S.dirty.value[FILE];
 
   const set = (nr, label) => setRecipe(ed, name, nr, label, editKey());
-  const setLayers = (a, label) => setRecipe(ed, name, { ...r, layers: a }, label ?? `Couches de ${name}`);
+  const setLayers = (a, label) => setRecipe(ed, name, { ...r, layers: a }, label ?? `Layers of ${name}`);
 
   const play = () => {
     if (variation === 0 || !res.samples || res.name !== name) playRecipe(doc, name, eff, { loop: !!r.loop && A.loopPreview.value, dur: tl.dry });
@@ -280,12 +280,12 @@ function SoundView({ ed, actions }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${name}${nVar > 1 ? `_v${variation + 1}` : ''}${solo != null ? `_couche${solo + 1}` : ''}.wav`;
+    a.download = `${name}${nVar > 1 ? `_v${variation + 1}` : ''}${solo != null ? `_layer${solo + 1}` : ''}.wav`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    log(`${a.download} exporté (${(res.samples.length / 44100).toFixed(2)} s)`);
+    log(`${a.download} exported (${(res.samples.length / 44100).toFixed(2)} s)`);
   };
 
   // stop a preview of another sound when the selection changes
@@ -307,70 +307,70 @@ function SoundView({ ed, actions }) {
   useEffect(() => () => clearTimeout(replay.current), []);
 
   const st = res.stats;
-  const warn = st && (st.nonFinite ? `${st.nonFinite} échantillons NaN !` : st.peak < 0.01 ? 'silencieux' : null);
+  const warn = st && (st.nonFinite ? `${st.nonFinite} NaN samples!` : st.peak < 0.01 ? 'silent' : null);
   return (
     <div class="au-main">
       {A.conflict.value && (
-        <div class="au-conflict">{FILE} a été modifié sur le disque pendant l'édition.
-          <button onClick={() => load(ed, { force: true })}>Recharger (perdre mes modifications)</button>
-          <button onClick={() => (A.conflict.value = false)}>Garder ma version</button>
+        <div class="au-conflict">{FILE} was modified on disk while you were editing it.
+          <button onClick={() => load(ed, { force: true })}>Reload (lose my changes)</button>
+          <button onClick={() => (A.conflict.value = false)}>Keep my version</button>
         </div>
       )}
       <div class="au-head">
-        <h3 title="Double-clic dans la liste pour renommer">{name}</h3>
+        <h3 title="Double-click in the list to rename">{name}</h3>
         <span class={'au-badge b-' + (r.bus ?? 'sfx')}>{r.bus ?? 'sfx'}</span>
-        {r.loop && <span class="au-badge loop">↻ boucle</span>}
+        {r.loop && <span class="au-badge loop">↻ loop</span>}
         <span class="au-sep" />
-        <button class={'au-play' + (isPlaying ? ' on' : '')} onClick={toggle} title="Lire (Espace)">{isPlaying && p.loop ? '⏹ Stop' : '▶ Lire'}</button>
-        <button onClick={stopPreview} disabled={!isPlaying} title="Arrêter (Échap)">⏹</button>
-        {nVar > 1 && <button onClick={random} title="Joue une variation au hasard, avec la hauteur et le gain aléatoires, comme en jeu">🎲 Variation aléatoire</button>}
-        {r.loop && <label class="tg"><input type="checkbox" checked={A.loopPreview.value} onChange={(e) => (A.loopPreview.value = e.target.checked)} /> en boucle</label>}
-        {!r.loop && <label class="tg" title="Rejoue le son après chaque modification"><input type="checkbox" checked={A.autoPlay.value} onChange={(e) => (A.autoPlay.value = e.target.checked)} /> lecture auto</label>}
+        <button class={'au-play' + (isPlaying ? ' on' : '')} onClick={toggle} title="Play (Space)">{isPlaying && p.loop ? '⏹ Stop' : '▶ Play'}</button>
+        <button onClick={stopPreview} disabled={!isPlaying} title="Stop (Esc)">⏹</button>
+        {nVar > 1 && <button onClick={random} title="Plays a random variation, with random pitch and gain, like in the game">🎲 Random variation</button>}
+        {r.loop && <label class="tg"><input type="checkbox" checked={A.loopPreview.value} onChange={(e) => (A.loopPreview.value = e.target.checked)} /> looped</label>}
+        {!r.loop && <label class="tg" title="Replays the sound after each change"><input type="checkbox" checked={A.autoPlay.value} onChange={(e) => (A.autoPlay.value = e.target.checked)} /> auto-play</label>}
         <span class="grow" />
-        {test.on.value && <button class="on" title="Le test musique & ambiance tourne (onglet Musique & ambiance)" onClick={stopTest}>🎧 test ⏹</button>}
-        <button class={A.json.value ? 'on' : ''} onClick={() => (A.json.value = !A.json.value)} title="Éditer la recette en JSON brut">{'{ }'} JSON brut</button>
-        <button onClick={download} disabled={!res.samples} title="Exporte la variation affichée en WAV 16 bits mono 44,1 kHz">⬇ Télécharger .wav</button>
-        <button class={'au-save' + (dirty ? ' dirty' : '')} onClick={() => ed.saveAll()} title={dirty ? `${FILE} modifié : enregistrer (Ctrl+S)` : 'Tout est enregistré'}>💾 Enregistrer{dirty ? ' •' : ''}</button>
+        {test.on.value && <button class="on" title="The music & ambience test is running (Music & ambience tab)" onClick={stopTest}>🎧 test ⏹</button>}
+        <button class={A.json.value ? 'on' : ''} onClick={() => (A.json.value = !A.json.value)} title="Edit the recipe as raw JSON">{'{ }'} Raw JSON</button>
+        <button onClick={download} disabled={!res.samples} title="Exports the displayed variation as a 16-bit mono 44.1 kHz WAV">⬇ Download .wav</button>
+        <button class={'au-save' + (dirty ? ' dirty' : '')} onClick={() => ed.saveAll()} title={dirty ? `${FILE} modified: save (Ctrl+S)` : 'Everything is saved'}>💾 Save{dirty ? ' •' : ''}</button>
       </div>
       <div class="au-wavebox">
         <Waveform key={name} samples={res.name === name ? res.samples : null} timeline={tl} sel={li} onSelect={(i) => (A.layer.value = i)} loop={!!r.loop} playhead={playheadTime} />
         <div class="au-stats-row">
           {nVar > 1 && (
             <span class="au-vars">variation
-              {Array.from({ length: nVar }, (_, i) => <button class={'au-mini' + (i === variation ? ' on' : '')} onClick={() => (A.variation.value = i)} title={`Afficher / lire la variation ${i + 1} (graine ${i + 1})`}>{i + 1}</button>)}
+              {Array.from({ length: nVar }, (_, i) => <button class={'au-mini' + (i === variation ? ' on' : '')} onClick={() => (A.variation.value = i)} title={`Show / play variation ${i + 1} (seed ${i + 1})`}>{i + 1}</button>)}
             </span>
           )}
           {st && res.name === name && <>
-            <span><small>durée</small> {st.seconds.toFixed(3)} s</span>
-            <span><small>sèche</small> {tl.dry.toFixed(3)} s</span>
-            <span><small>crête</small> {st.peak.toFixed(3)} ({db(st.peak)})</span>
+            <span><small>duration</small> {st.seconds.toFixed(3)} s</span>
+            <span><small>dry</small> {tl.dry.toFixed(3)} s</span>
+            <span><small>peak</small> {st.peak.toFixed(3)} ({db(st.peak)})</span>
             <span><small>RMS</small> {st.rms.toFixed(3)} ({db(st.rms)})</span>
-            <span><small>rendu</small> {res.ms.toFixed(0)} ms</span>
+            <span><small>render</small> {res.ms.toFixed(0)} ms</span>
           </>}
-          {solo != null && <span class="au-solo">solo : couche {solo + 1} <button class="au-mini" onClick={() => (A.solo.value = null)}>×</button></span>}
+          {solo != null && <span class="au-solo">solo: layer {solo + 1} <button class="au-mini" onClick={() => (A.solo.value = null)}>×</button></span>}
           {warn && <span class="err">⚠ {warn}</span>}
           {res.err && <span class="err" title={res.err}>⚠ {res.err}</span>}
           <span class="grow" />
-          <span class="hint au-keys">Espace : lire · ↑↓ : son suivant · Échap : stop · molette : zoom</span>
+          <span class="hint au-keys">Space: play · ↑↓: next sound · Esc: stop · wheel: zoom</span>
         </div>
       </div>
       {A.json.value
         ? (
           <div class="au-body au-json">
-            <p class="hint">Recette complète en JSON, une couche par ligne (format : docs/AUDIO.md). Appliquée quand le champ perd le focus ou avec Ctrl+Entrée, si le JSON est valide.</p>
-            <CodeJson value={r} rows={26} format={(v) => formatRecipe(v, 0)} onChange={(v) => { if (v && typeof v === 'object' && !Array.isArray(v)) set(v, `JSON de ${name}`); else log('La recette doit être un objet JSON', 'warn'); }} />
+            <p class="hint">Full recipe as JSON, one layer per line (format: docs/AUDIO.md). Applied when the field loses focus or with Ctrl+Enter, if the JSON is valid.</p>
+            <CodeJson value={r} rows={26} format={(v) => formatRecipe(v, 0)} onChange={(v) => { if (v && typeof v === 'object' && !Array.isArray(v)) set(v, `JSON of ${name}`); else log('The recipe must be a JSON object', 'warn'); }} />
           </div>
         )
         : (
           <div class="au-body">
             <div class="au-col au-scol"><SoundForm r={r} onChange={set} dry={tl.dry} /></div>
             <div class="au-col au-lcol">
-              <h4>Couches <small>({layers.length})</small></h4>
+              <h4>Layers <small>({layers.length})</small></h4>
               <LayerStack layers={layers} sel={li} onSelect={(i) => (A.layer.value = i)} onChange={(a) => setLayers(a)}
                 solo={solo} onSolo={(i) => (A.solo.value = i == null ? null : { sound: name, layer: i })} />
               {layers[li] !== undefined && (
                 <LayerForm key={`${name}#${li}`} L={layers[li]} lenHint={tl.rows[li] ? tl.rows[li].spans[0][1] - tl.rows[li].spans[0][0] : undefined}
-                  onChange={(nl) => { const a = [...layers]; a[li] = nl; setRecipe(ed, name, { ...r, layers: a }, `Couche ${li + 1} de ${name}`, editKey()); }} />
+                  onChange={(nl) => { const a = [...layers]; a[li] = nl; setRecipe(ed, name, { ...r, layers: a }, `Layer ${li + 1} of ${name}`, editKey()); }} />
               )}
             </div>
           </div>

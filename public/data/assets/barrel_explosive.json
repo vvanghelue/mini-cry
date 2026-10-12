@@ -1,7 +1,7 @@
 {
   "name": "barrel_explosive",
   "category": "prop",
-  "label": "Fût explosif",
+  "label": "Explosive barrel",
   "material": "metal",
   "tags": ["explosive","industrial"],
   "parts": [

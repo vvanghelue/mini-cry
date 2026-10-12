@@ -1,7 +1,7 @@
 {
   "name": "barrel",
   "category": "prop",
-  "label": "Fût",
+  "label": "Barrel",
   "material": "metal",
   "tags": ["cover","industrial","camp"],
   "parts": [

@@ -39,7 +39,7 @@ async function playAudio(src, radio, delay = 0) {
     node.connect(radio ? radioFilter(audioCtx, audioCtx.destination) : audioCtx.destination);
     node.start(audioCtx.currentTime + delay);
     clipSrc = node;
-  } catch (e) { log(`Lecture impossible : ${e.message}`, 'warn'); }
+  } catch (e) { log(`Cannot play: ${e.message}`, 'warn'); }
 }
 
 /** Record the missing voices of these dialogues (all when empty) through the dev API. */
@@ -51,9 +51,9 @@ async function generateVoices(ed, dialogues) {
     const rep = await r.json();
     if (rep.error) throw new Error(rep.error);
     const n = rep.generated.length + rep.adopted.length;
-    log(`Voix : ${n} réplique${n > 1 ? 's' : ''} enregistrée${n > 1 ? 's' : ''} (${rep.chars} car., ${rep.estimatedCost})${rep.failed.length ? ` — ${rep.failed.length} échec(s) : ${rep.failed[0].error}` : ''}`, rep.failed.length ? 'warn' : undefined);
+    log(`Voices: ${n} line${n > 1 ? 's' : ''} recorded (${rep.chars} chars, ${rep.estimatedCost})${rep.failed.length ? ` — ${rep.failed.length} failed: ${rep.failed[0].error}` : ''}`, rep.failed.length ? 'warn' : undefined);
     await loadVoices();
-  } catch (e) { log(`Échec de la génération des voix : ${e.message}`, 'error'); }
+  } catch (e) { log(`Voice generation failed: ${e.message}`, 'error'); }
   finally { generating.value = false; }
 }
 
@@ -64,7 +64,7 @@ async function auditionVoice(speakerId, sp, text) {
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? 'HTTP ' + r.status);
     playAudio(await r.blob(), sp.radio !== false, sp.radio !== false ? RADIO_DELAY : 0);
     if (sp.radio !== false) beep();
-  } catch (e) { log(`Audition impossible : ${e.message}`, 'warn'); }
+  } catch (e) { log(`Cannot audition the voice: ${e.message}`, 'warn'); }
 }
 
 const frVoices = () => (typeof speechSynthesis === 'undefined' ? [] : speechSynthesis.getVoices().filter((v) => v.lang?.toLowerCase().startsWith('fr')));
@@ -147,7 +147,7 @@ export function DialoguePanel({ ed }) {
   const usage = useMemo(() => {
     const u = dialogueUsage(mdoc);
     // NPCs the player can talk to (world entity field "dialogue")
-    for (const e of ed.world.entities.list) if (e.dialogue && typeof e.dialogue === 'string') (u[e.dialogue] ??= []).push({ entity: e.id, label: `PNJ ${e.name ?? e.id} (parler)` });
+    for (const e of ed.world.entities.list) if (e.dialogue && typeof e.dialogue === 'string') (u[e.dialogue] ??= []).push({ entity: e.id, label: `NPC ${e.name ?? e.id} (talk)` });
     return u;
   }, [mdoc, ver]);
 
@@ -155,13 +155,13 @@ export function DialoguePanel({ ed }) {
     return (
       <div class="panel"><div class="main">
         <h2>💬 Dialogues</h2>
-        <p class="err">{DD.file} : {DD.error.value}</p>
-        <p class="hint">Le fichier n'a pas été modifié. Corrigez-le (ou attendez la fin de son écriture), puis rechargez.</p>
-        <button onClick={() => DD.load({ force: true })}>Recharger</button>
+        <p class="err">{DD.file}: {DD.error.value}</p>
+        <p class="hint">The file was not modified. Fix it (or wait until it has been fully written), then reload.</p>
+        <button onClick={() => DD.load({ force: true })}>Reload</button>
       </div></div>
     );
   }
-  if (!doc) return <div class="panel"><p class="hint">Chargement des dialogues…</p></div>;
+  if (!doc) return <div class="panel"><p class="hint">Loading dialogues…</p></div>;
 
   const update = (next, label, key) => DD.set(ed, next, label, key);
   const speakers = doc.speakers;
@@ -171,7 +171,7 @@ export function DialoguePanel({ ed }) {
   const cur = dids.includes(selDialogue.value) ? selDialogue.value : dids[0] ?? null;
   const curSp = sids.includes(selSpeaker.value) ? selSpeaker.value : sids[0] ?? null;
   const lines = cur ? dialogues[cur] ?? [] : [];
-  const setLines = (ls, label = 'Modifier les répliques', key) => update({ ...doc, dialogues: { ...dialogues, [cur]: ls } }, label, key);
+  const setLines = (ls, label = 'Edit lines', key) => update({ ...doc, dialogues: { ...dialogues, [cur]: ls } }, label, key);
   const dirty = !!S.dirty.value[DD.file];
 
   // keeps the key order of an object while renaming / inserting
@@ -186,73 +186,73 @@ export function DialoguePanel({ ed }) {
   const renameInMissions = (kind, from, to) => {
     if (!mdoc) return 0;
     const r = renameRefs(mdoc, kind, from, to);
-    if (r.n) MD.set(ed, r.doc, `Renommer ${kind}`);
+    if (r.n) MD.set(ed, r.doc, `Rename ${kind}`);
     return r.n;
   };
 
   // --- dialogues ---
   const addDialogue = () => {
-    const base = cur?.match(/^(m\d+)_/)?.[1] ? `${cur.match(/^(m\d+)_/)[1]}_nouveau` : 'nouveau_dialogue';
+    const base = cur?.match(/^(m\d+)_/)?.[1] ? `${cur.match(/^(m\d+)_/)[1]}_new` : 'new_dialogue';
     const id = uniqueId(base, dids);
-    update({ ...doc, dialogues: insertAfter(dialogues, cur, id, [{ speaker: curSp ?? '', text: '' }]) }, 'Ajouter un dialogue');
+    update({ ...doc, dialogues: insertAfter(dialogues, cur, id, [{ speaker: curSp ?? '', text: '' }]) }, 'Add dialogue');
     selDialogue.value = id;
   };
   const dupDialogue = () => {
     if (!cur) return;
-    const id = uniqueId(cur + '_copie', dids);
-    update({ ...doc, dialogues: insertAfter(dialogues, cur, id, structuredClone(lines)) }, 'Dupliquer le dialogue');
+    const id = uniqueId(cur + '_copy', dids);
+    update({ ...doc, dialogues: insertAfter(dialogues, cur, id, structuredClone(lines)) }, 'Duplicate dialogue');
     selDialogue.value = id;
   };
   const delDialogue = () => {
     if (!cur) return;
     const u = usage[cur]?.length ?? 0;
-    if (!confirm(`Supprimer le dialogue « ${cur} » ?${u ? `\nIl est utilisé ${u} fois dans les missions.` : ''}`)) return;
+    if (!confirm(`Delete dialogue "${cur}"?${u ? `\nIt is used ${u} time${u > 1 ? 's' : ''} (missions / NPCs).` : ''}`)) return;
     const d = { ...dialogues };
     delete d[cur];
-    update({ ...doc, dialogues: d }, 'Supprimer le dialogue');
+    update({ ...doc, dialogues: d }, 'Delete dialogue');
     const i = dids.indexOf(cur);
     selDialogue.value = dids[i + 1] ?? dids[i - 1] ?? null;
   };
   const renameDialogue = (to) => {
     to = to?.trim();
     if (!cur || !to || to === cur) return;
-    if (to in dialogues) { log(`Le dialogue « ${to} » existe déjà`, 'warn'); return; }
-    update({ ...doc, dialogues: renameKey(dialogues, cur, to) }, 'Renommer le dialogue');
+    if (to in dialogues) { log(`Dialogue "${to}" already exists`, 'warn'); return; }
+    update({ ...doc, dialogues: renameKey(dialogues, cur, to) }, 'Rename dialogue');
     selDialogue.value = to;
     let n = renameInMissions('dialogue', cur, to);
     for (const e of ed.world.entities.list.filter((x) => x.dialogue === cur)) { ed.updateEntity(e.id, { ...e, dialogue: to }); n++; }
-    if (n) log(`Dialogue ${cur} → ${to} : ${n} référence${n > 1 ? 's' : ''} mise${n > 1 ? 's' : ''} à jour (missions / PNJ)`);
+    if (n) log(`Dialogue ${cur} → ${to}: ${n} reference${n > 1 ? 's' : ''} updated (missions / NPCs)`);
   };
 
   // --- speakers ---
   const addSpeaker = () => {
-    const id = uniqueId('personnage', sids);
-    update({ ...doc, speakers: { ...speakers, [id]: { name: 'Nouveau personnage', radio: true, pitch: 1, rate: 1.05, voiceIndex: 0 } } }, 'Ajouter un personnage');
+    const id = uniqueId('speaker', sids);
+    update({ ...doc, speakers: { ...speakers, [id]: { name: 'Nouveau personnage', radio: true, pitch: 1, rate: 1.05, voiceIndex: 0 } } }, 'Add speaker');
     selSpeaker.value = id;
   };
   const delSpeaker = () => {
     if (!curSp) return;
     const used = Object.values(dialogues).reduce((s, ls) => s + ls.filter((l) => l.speaker === curSp).length, 0);
-    if (!confirm(`Supprimer le personnage « ${speakers[curSp]?.name ?? curSp} » ?${used ? `\n${used} réplique(s) l'utilisent encore.` : ''}`)) return;
+    if (!confirm(`Delete speaker "${speakers[curSp]?.name ?? curSp}"?${used ? `\n${used} line${used > 1 ? 's' : ''} still use${used > 1 ? '' : 's'} it.` : ''}`)) return;
     const sp = { ...speakers };
     delete sp[curSp];
-    update({ ...doc, speakers: sp }, 'Supprimer le personnage');
+    update({ ...doc, speakers: sp }, 'Delete speaker');
     selSpeaker.value = null;
   };
   const renameSpeaker = (to) => {
     to = to?.trim();
     if (!curSp || !to || to === curSp) return;
-    if (to in speakers) { log(`Le personnage « ${to} » existe déjà`, 'warn'); return; }
+    if (to in speakers) { log(`Speaker "${to}" already exists`, 'warn'); return; }
     const dl = Object.fromEntries(Object.entries(dialogues).map(([k, ls]) => [k, ls.map((l) => (l.speaker === curSp ? { ...l, speaker: to } : l))]));
-    update({ ...doc, speakers: renameKey(speakers, curSp, to), dialogues: dl }, 'Renommer le personnage');
+    update({ ...doc, speakers: renameKey(speakers, curSp, to), dialogues: dl }, 'Rename speaker');
     selSpeaker.value = to;
     const n = renameInMissions('speaker', curSp, to);
-    if (n) log(`Personnage ${curSp} → ${to} : ${n} réplique${n > 1 ? 's' : ''} « say » mise${n > 1 ? 's' : ''} à jour dans les missions`);
+    if (n) log(`Speaker ${curSp} → ${to}: ${n} "say" line${n > 1 ? 's' : ''} updated in the missions`);
   };
   const putSpeaker = (k, v) => {
     const sp = { ...speakers[curSp], [k]: v };
     if (v === undefined) delete sp[k];
-    update({ ...doc, speakers: { ...speakers, [curSp]: sp } }, 'Modifier le personnage', `sp.${curSp}.${k}`);
+    update({ ...doc, speakers: { ...speakers, [curSp]: sp } }, 'Edit speaker', `sp.${curSp}.${k}`);
   };
 
   const f = filter.trim().toLowerCase();
@@ -278,46 +278,46 @@ export function DialoguePanel({ ed }) {
         <div class="mtitle">
           <h2>💬 Dialogues</h2>
           <span class="grow" />
-          <button class={'mini' + (dirty ? ' dirty' : '')} title="Enregistrer tous les fichiers modifiés (Ctrl+S)" onClick={() => ed.saveAll()}>💾 Enregistrer</button>
+          <button class={'mini' + (dirty ? ' dirty' : '')} title="Save all modified files (Ctrl+S)" onClick={() => ed.saveAll()}>💾 Save</button>
         </div>
-        <p class="hint file">{DD.file}{DD.status.value === 'missing' && !dirty ? ' — absent, sera créé au premier enregistrement' : ''}{dirty ? ' — modifié, non enregistré' : ''}</p>
-        <h4>Personnages <small>({sids.length})</small></h4>
+        <p class="hint file">{DD.file}{DD.status.value === 'missing' && !dirty ? ' — missing, will be created on first save' : ''}{dirty ? ' — modified, not saved' : ''}</p>
+        <h4>Speakers <small>({sids.length})</small></h4>
         <div class="list mlist">
           {sids.map((id) => (
             <div class={'it' + (id === curSp ? ' sel' : '')} onClick={() => (selSpeaker.value = id)}>
               <span class="nm">{speakers[id].radio !== false ? '📻 ' : '🗣 '}{speakers[id].name ?? id}</span><small>{id}</small>
             </div>
           ))}
-          {!sids.length && <p class="hint pad">Aucun personnage.</p>}
+          {!sids.length && <p class="hint pad">No speakers.</p>}
         </div>
         <div class="btns tight">
-          <button onClick={addSpeaker}>+ Personnage</button>
-          <button class="danger" disabled={!curSp} onClick={delSpeaker}>✕ Supprimer</button>
+          <button onClick={addSpeaker}>+ Speaker</button>
+          <button class="danger" disabled={!curSp} onClick={delSpeaker}>✕ Delete</button>
         </div>
         {sp && (
           <div class="mcard">
-            <Row label="Identifiant" title="Utilisé par les répliques (renommer met à jour les références)"><Txt value={curSp} onChange={renameSpeaker} /></Row>
-            <Row label="Nom affiché"><Txt value={sp.name} onChange={(v) => putSpeaker('name', v)} /></Row>
-            <Row label="Description" title="Le personnage et sa voix (casting, aide pour la direction d'acteur ; pas envoyé au modèle de voix)"><Area value={sp.desc} rows={2} placeholder="Âge, caractère, façon de parler…" onChange={(v) => putSpeaker('desc', v || undefined)} /></Row>
-            <Row label="Radio" title="Bip radio avant chaque réplique"><input type="checkbox" checked={sp.radio !== false} onChange={(e) => putSpeaker('radio', e.target.checked)} /><small>bip + voix radio</small></Row>
-            <Row label="Voix IA" title="Voix enregistrée (ElevenLabs via OpenRouter). Changer de voix rend les répliques de ce personnage à régénérer.">
+            <Row label="ID" title="Used by the lines (renaming updates the references)"><Txt value={curSp} onChange={renameSpeaker} /></Row>
+            <Row label="Display name"><Txt value={sp.name} onChange={(v) => putSpeaker('name', v)} /></Row>
+            <Row label="Description" title="The character and their voice (casting, a guide for directing the acting; not sent to the voice model)"><Area value={sp.desc} rows={2} placeholder="Age, personality, way of speaking…" onChange={(v) => putSpeaker('desc', v || undefined)} /></Row>
+            <Row label="Radio" title="Radio beep before each line"><input type="checkbox" checked={sp.radio !== false} onChange={(e) => putSpeaker('radio', e.target.checked)} /><small>beep + radio voice</small></Row>
+            <Row label="AI voice" title="Recorded voice (ElevenLabs via OpenRouter). Changing the voice means this speaker's lines must be generated again.">
               <select value={sp.tts?.voice ?? ''} onChange={(e) => putSpeaker('tts', e.target.value ? { ...sp.tts, voice: e.target.value } : undefined)}>
-                <option value="">— aucune (voix du navigateur) —</option>
+                <option value="">— none (browser voice) —</option>
                 {sp.tts?.voice && !(sp.tts.voice in ELEVEN_VOICES) && <option value={sp.tts.voice}>{sp.tts.voice}</option>}
                 {Object.entries(ELEVEN_VOICES).map(([id, hint]) => <option value={id}>{id} · {hint}</option>)}
               </select>
             </Row>
-            {sp.tts?.voice && <div class="btns"><button onClick={() => auditionVoice(curSp, sp, `Ici ${sp.name?.replace(/\s*\(.*\)/, '') ?? curSp}. Tu me reçois ?`)}>▶ Auditionner la voix IA</button></div>}
+            {sp.tts?.voice && <div class="btns"><button onClick={() => auditionVoice(curSp, sp, `Ici ${sp.name?.replace(/\s*\(.*\)/, '') ?? curSp}. Tu me reçois ?`)}>▶ Audition the AI voice</button></div>}
             {!sp.tts?.voice && <>
-            <Row label="Hauteur"><input type="range" min="0" max="2" step="0.05" value={sp.pitch ?? 1} onInput={(e) => putSpeaker('pitch', +e.target.value)} /><Num value={sp.pitch} placeholder={1} step={0.05} onChange={(v) => putSpeaker('pitch', v)} /></Row>
-            <Row label="Débit"><input type="range" min="0.5" max="2" step="0.05" value={sp.rate ?? 1.05} onInput={(e) => putSpeaker('rate', +e.target.value)} /><Num value={sp.rate} placeholder={1.05} step={0.05} onChange={(v) => putSpeaker('rate', v)} /></Row>
-            <Row label="Voix" title="Index dans les voix françaises du navigateur (modulo leur nombre)">
+            <Row label="Pitch"><input type="range" min="0" max="2" step="0.05" value={sp.pitch ?? 1} onInput={(e) => putSpeaker('pitch', +e.target.value)} /><Num value={sp.pitch} placeholder={1} step={0.05} onChange={(v) => putSpeaker('pitch', v)} /></Row>
+            <Row label="Rate"><input type="range" min="0.5" max="2" step="0.05" value={sp.rate ?? 1.05} onInput={(e) => putSpeaker('rate', +e.target.value)} /><Num value={sp.rate} placeholder={1.05} step={0.05} onChange={(v) => putSpeaker('rate', v)} /></Row>
+            <Row label="Voice" title="Index into the browser's French voices (modulo their count)">
               {voices.length
                 ? <select value={(sp.voiceIndex ?? 0) % voices.length} onChange={(e) => putSpeaker('voiceIndex', +e.target.value)}>{voices.map((v, i) => <option value={i}>{i} · {v.name}</option>)}</select>
                 : <Num value={sp.voiceIndex} placeholder={0} int onChange={(v) => putSpeaker('voiceIndex', v)} />}
             </Row>
-            {!voices.length && <p class="hint">Aucune voix française dans ce navigateur : l'aperçu utilise la voix par défaut.</p>}
-            <div class="btns"><button onClick={() => playLines(doc, [{ speaker: curSp, text: `Ici ${sp.name ?? curSp}. Tu me reçois ?` }], null, 0, true)}>▶ Tester la voix</button></div>
+            {!voices.length && <p class="hint">No French voice in this browser: the preview uses the default voice.</p>}
+            <div class="btns"><button onClick={() => playLines(doc, [{ speaker: curSp, text: `Ici ${sp.name ?? curSp}. Tu me reçois ?` }], null, 0, true)}>▶ Test the voice</button></div>
             </>}
           </div>
         )}
@@ -325,50 +325,50 @@ export function DialoguePanel({ ed }) {
 
       <div class="side dlist">
         <h4>Dialogues <small>({dids.length})</small></h4>
-        <input type="search" class="filter" placeholder="Filtrer (id ou texte)…" value={filter} onInput={(e) => setFilter(e.target.value)} />
+        <input type="search" class="filter" placeholder="Filter (id or text)…" value={filter} onInput={(e) => setFilter(e.target.value)} />
         <div class="list mlist grow">
           {shown.map((id) => {
             const n = usage[id]?.length ?? 0;
             return (
               <div class={'it' + (id === cur ? ' sel' : '')} onClick={() => (selDialogue.value = id)} title={(dialogues[id][0]?.text ?? '')}>
                 <span class="nm">{id}</span>
-                <small>{dialogues[id].length} · {n ? <span class="used">×{n}</span> : <span class="unused">inutilisé</span>}</small>
+                <small>{dialogues[id].length} · {n ? <span class="used">×{n}</span> : <span class="unused">unused</span>}</small>
               </div>
             );
           })}
-          {!shown.length && <p class="hint pad">{dids.length ? 'Aucun résultat.' : 'Aucun dialogue.'}</p>}
+          {!shown.length && <p class="hint pad">{dids.length ? 'No results.' : 'No dialogues.'}</p>}
         </div>
         <div class="btns tight">
           <button onClick={addDialogue}>+ Dialogue</button>
-          <button disabled={!cur} title="Dupliquer" onClick={dupDialogue}>⧉</button>
-          <button disabled={!cur} class="danger" title="Supprimer" onClick={delDialogue}>✕</button>
+          <button disabled={!cur} title="Duplicate" onClick={dupDialogue}>⧉</button>
+          <button disabled={!cur} class="danger" title="Delete" onClick={delDialogue}>✕</button>
         </div>
       </div>
 
       <div class="mcol dmain">
         {DD.conflict.value && (
           <div class="conflict">
-            ⚠ {DD.file} a été modifié sur le disque par un autre outil pendant vos modifications.
-            <button onClick={() => DD.load({ force: true })}>Recharger depuis le disque</button>
-            <button onClick={() => (DD.conflict.value = false)}>Garder ma version</button>
+            ⚠ {DD.file} was modified on disk by another tool while you were editing it.
+            <button onClick={() => DD.load({ force: true })}>Reload from disk</button>
+            <button onClick={() => (DD.conflict.value = false)}>Keep my version</button>
           </div>
         )}
         {cur ? (
           <>
             <div class="mhead">
               <h3>💬</h3>
-              <span class="idf"><Txt value={cur} onChange={renameDialogue} title="Identifiant (renommer met à jour les missions)" /></span>
-              <small>{lines.length} réplique{lines.length > 1 ? 's' : ''} · {total.toFixed(1)} s</small>
+              <span class="idf"><Txt value={cur} onChange={renameDialogue} title="ID (renaming updates the missions)" /></span>
+              <small>{lines.length} line{lines.length > 1 ? 's' : ''} · {total.toFixed(1)} s</small>
               <span class="grow" />
-              {missingHere > 0 && <button disabled={generating.value} title="Enregistrer les voix IA manquantes de ce dialogue (OpenRouter, clé dans .env)" onClick={() => generateVoices(ed, [cur])}>{generating.value ? '🎙 Génération…' : `🎙 Générer les voix (${missingHere})`}</button>}
+              {missingHere > 0 && <button disabled={generating.value} title="Record the missing AI voices of this dialogue (OpenRouter, key in .env)" onClick={() => generateVoices(ed, [cur])}>{generating.value ? '🎙 Generating…' : `🎙 Generate voices (${missingHere})`}</button>}
               {pv?.dialogue === cur
-                ? <button onClick={stopPreview}>■ Arrêter</button>
-                : <button class="play" disabled={!lines.length} onClick={() => playLines(doc, lines, cur)}>▶ Écouter</button>}
+                ? <button onClick={stopPreview}>■ Stop</button>
+                : <button class="play" disabled={!lines.length} onClick={() => playLines(doc, lines, cur)}>▶ Play</button>}
             </div>
             <div class="usage">
               {usage[cur]?.length
-                ? <>Utilisé par : {usage[cur].map((u) => <button class="mini link" title={u.entity ? 'Voir le PNJ dans le monde 3D' : 'Ouvrir dans l\'éditeur de missions'} onClick={() => goUse(u)}>{u.label}</button>)}</>
-                : <span class="hint">Aucune mission, aucun déclencheur ni PNJ ne lance ce dialogue (action « dialogue » avec id = {cur}, ou champ « dialogue » d'un PNJ).</span>}
+                ? <>Used by: {usage[cur].map((u) => <button class="mini link" title={u.entity ? 'Show the NPC in the 3D world' : 'Open in the missions editor'} onClick={() => goUse(u)}>{u.label}</button>)}</>
+                : <span class="hint">No mission, trigger or NPC starts this dialogue ("dialogue" action with id = {cur}, or the "dialogue" field of an NPC).</span>}
             </div>
             <Subtitle pv={pv} />
             <div class="lines">
@@ -377,52 +377,52 @@ export function DialoguePanel({ ed }) {
                 const playing = pv?.dialogue === cur && pv.index === i;
                 const clip = clipOf(l);
                 const wantsVoice = !clip && !!voiceRequest(doc, l);
-                const put = (k, v) => { const ls = [...lines]; ls[i] = { ...l, [k]: v }; if (v === undefined) delete ls[i][k]; setLines(ls, 'Modifier la réplique', `${cur}.${i}.${k}`); };
+                const put = (k, v) => { const ls = [...lines]; ls[i] = { ...l, [k]: v }; if (v === undefined) delete ls[i][k]; setLines(ls, 'Edit line', `${cur}.${i}.${k}`); };
                 return (
                   <div class={'line' + (playing ? ' playing' : '')}>
                     <span class="n">{i + 1}</span>
                     <div class="lc">
                       <div class="lh">
                         <select class={unknown || !l.speaker ? 'warn' : ''} value={l.speaker ?? ''} onChange={(e) => put('speaker', e.target.value)}>
-                          {(!l.speaker || unknown) && <option value={l.speaker ?? ''}>{l.speaker ? `⚠ ${l.speaker} (inconnu)` : '— personnage —'}</option>}
+                          {(!l.speaker || unknown) && <option value={l.speaker ?? ''}>{l.speaker ? `⚠ ${l.speaker} (unknown)` : '— speaker —'}</option>}
                           {sids.map((id) => <option value={id}>{speakers[id].name ?? id}</option>)}
                         </select>
-                        <label class="dur" title="Durée d'affichage en secondes (vide = automatique selon la longueur)">durée <Num value={l.duration} step={0.1} placeholder={'auto ' + dialogueDuration({ text: l.text }, clip, isRadio(l)).toFixed(1)} onChange={(v) => put('duration', v)} /></label>
-                        <small>{(l.text ?? '').length} car.</small>
-                        {clip && <small class="voice ok" title={`Voix enregistrée : ${clip.file}`}>🎙 {clip.duration.toFixed(1)} s</small>}
-                        {wantsVoice && <small class="voice warn" title="Le texte, le jeu ou la voix ont changé : cliquez sur « Générer les voix » (sinon, voix du navigateur en jeu)">⚠ voix à générer</small>}
+                        <label class="dur" title="Display time in seconds (empty = automatic, from the length)">duration <Num value={l.duration} step={0.1} placeholder={'auto ' + dialogueDuration({ text: l.text }, clip, isRadio(l)).toFixed(1)} onChange={(v) => put('duration', v)} /></label>
+                        <small>{(l.text ?? '').length} chars</small>
+                        {clip && <small class="voice ok" title={`Recorded voice: ${clip.file}`}>🎙 {clip.duration.toFixed(1)} s</small>}
+                        {wantsVoice && <small class="voice warn" title='The text, acting or voice changed: click "Generate voices" (until then the game uses the browser voice)'>⚠ voice to generate</small>}
                         <span class="grow" />
-                        <button class="mini" title="Écouter cette réplique" onClick={() => playLines(doc, lines, cur, i, true)}>▶</button>
-                        <button class="mini" title="Écouter à partir d'ici" onClick={() => playLines(doc, lines, cur, i)}>▶▶</button>
-                        <button class="mini" title="Monter" disabled={i === 0} onClick={() => { const ls = [...lines]; [ls[i - 1], ls[i]] = [ls[i], ls[i - 1]]; setLines(ls, 'Déplacer la réplique'); }}>↑</button>
-                        <button class="mini" title="Descendre" disabled={i === lines.length - 1} onClick={() => { const ls = [...lines]; [ls[i + 1], ls[i]] = [ls[i], ls[i + 1]]; setLines(ls, 'Déplacer la réplique'); }}>↓</button>
-                        <button class="mini" title="Dupliquer" onClick={() => setLines([...lines.slice(0, i + 1), structuredClone(l), ...lines.slice(i + 1)], 'Dupliquer la réplique')}>⧉</button>
-                        <button class="mini danger" title="Supprimer" onClick={() => setLines(lines.filter((_, j) => j !== i), 'Supprimer la réplique')}>✕</button>
+                        <button class="mini" title="Play this line" onClick={() => playLines(doc, lines, cur, i, true)}>▶</button>
+                        <button class="mini" title="Play from here" onClick={() => playLines(doc, lines, cur, i)}>▶▶</button>
+                        <button class="mini" title="Move up" disabled={i === 0} onClick={() => { const ls = [...lines]; [ls[i - 1], ls[i]] = [ls[i], ls[i - 1]]; setLines(ls, 'Move line'); }}>↑</button>
+                        <button class="mini" title="Move down" disabled={i === lines.length - 1} onClick={() => { const ls = [...lines]; [ls[i + 1], ls[i]] = [ls[i], ls[i + 1]]; setLines(ls, 'Move line'); }}>↓</button>
+                        <button class="mini" title="Duplicate" onClick={() => setLines([...lines.slice(0, i + 1), structuredClone(l), ...lines.slice(i + 1)], 'Duplicate line')}>⧉</button>
+                        <button class="mini danger" title="Delete" onClick={() => setLines(lines.filter((_, j) => j !== i), 'Delete line')}>✕</button>
                       </div>
-                      <Area value={l.text} rows={2} placeholder="Texte de la réplique (sous-titre et voix)" onChange={(v) => put('text', v ?? '')} />
-                      {speakers[l.speaker]?.tts?.voice && <Area value={l.spoken} rows={2} placeholder={`Jeu d'acteur (voix IA) : le texte prononcé avec des balises d'émotion, ex. [sighs] Rien… [shouts] VAL ! — vide = texte ci-dessus`} onChange={(v) => put('spoken', v || undefined)} />}
+                      <Area value={l.text} rows={2} placeholder="Line text (subtitle and voice)" onChange={(v) => put('text', v ?? '')} />
+                      {speakers[l.speaker]?.tts?.voice && <Area value={l.spoken} rows={2} placeholder={`Acting (AI voice): the spoken text with emotion tags, e.g. [sighs] Rien… [shouts] VAL ! — empty = text above`} onChange={(v) => put('spoken', v || undefined)} />}
                     </div>
                   </div>
                 );
               })}
             </div>
             <div class="btns">
-              <button onClick={() => setLines([...lines, { speaker: lines[lines.length - 1]?.speaker ?? curSp ?? '', text: '' }], 'Ajouter une réplique')}>+ Réplique</button>
+              <button onClick={() => setLines([...lines, { speaker: lines[lines.length - 1]?.speaker ?? curSp ?? '', text: '' }], 'Add line')}>+ Line</button>
             </div>
-            <p class="hint">Durée par défaut : celle de la voix enregistrée, sinon 65 ms par caractère (minimum 2,2 s). Balises de jeu utiles : {AUDIO_TAGS.join(' ')}. Une réplique sans voix enregistrée à jour utilise la voix du navigateur en jeu.</p>
-            {missingAll > missingHere && <p class="hint">{missingAll} réplique{missingAll > 1 ? 's' : ''} sans voix à jour dans tout le fichier. <button class="mini" disabled={generating.value} onClick={() => generateVoices(ed, [])}>🎙 Tout générer</button></p>}
+            <p class="hint">Default duration: the recorded voice's, otherwise 65 ms per character (minimum 2.2 s). Useful acting tags: {AUDIO_TAGS.join(' ')}. In game, a line without an up-to-date recorded voice uses the browser voice.</p>
+            {missingAll > missingHere && <p class="hint">{missingAll} line{missingAll > 1 ? 's' : ''} without an up-to-date voice in the whole file. <button class="mini" disabled={generating.value} onClick={() => generateVoices(ed, [])}>🎙 Generate all</button></p>}
           </>
-        ) : <p class="hint">Aucun dialogue. Créez-en un avec « + Dialogue ».</p>}
+        ) : <p class="hint">No dialogues. Create one with "+ Dialogue".</p>}
       </div>
     </div>
   );
 }
 
 function Subtitle({ pv }) {
-  if (!pv) return <div class="subtitle idle"><span class="hint">L'aperçu du sous-titre s'affiche ici pendant l'écoute.</span></div>;
+  if (!pv) return <div class="subtitle idle"><span class="hint">The subtitle preview shows here during playback.</span></div>;
   return (
     <div class="subtitle">
-      <div><b>{pv.radio ? '📻 ' : ''}{pv.name}</b> : {pv.text}</div>
+      <div><b>{pv.radio ? '📻 ' : ''}{pv.name}</b>: {pv.text}</div>
       <div class="bar" key={pv.t0} style={{ animationDuration: `${pv.dur}s` }} />
       <small>{pv.dialogue ? `${pv.index + 1}/${pv.n} · ` : ''}{pv.dur.toFixed(1)} s</small>
     </div>

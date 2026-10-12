@@ -1,7 +1,7 @@
 {
   "name": "relic",
   "category": "pickup",
-  "label": "Idole en or",
+  "label": "Golden idol",
   "material": "metal",
   "tags": ["pickup","relic","objective","collectible"],
   "parts": [

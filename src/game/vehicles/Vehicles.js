@@ -5,7 +5,7 @@ import * as THREE from 'three';
 const _v = new THREE.Vector3(), _f = new THREE.Vector3(), _r = new THREE.Vector3();
 const SPEC = {
   jeep: { label: 'Jeep', latAccel: 9, accel: 9, maxSpeed: 26, reverse: 8, brake: 16, drag: 0.35, grip: 4.5, steer: 0.55, wheelbase: 2.5, halfW: 0.9, halfL: 1.9, seat: [0, 1.0, 0.1], hp: 500, sound: 'jeep_engine' },
-  boat: { label: 'Bateau', latAccel: 6, accel: 7, maxSpeed: 20, reverse: 5, brake: 6, drag: 0.5, grip: 1.6, steer: 0.9, wheelbase: 3, halfW: 1.2, halfL: 2.8, seat: [0, 0.8, 1.2], hp: 400, sound: 'boat_engine' },
+  boat: { label: 'Boat', latAccel: 6, accel: 7, maxSpeed: 20, reverse: 5, brake: 6, drag: 0.5, grip: 1.6, steer: 0.9, wheelbase: 3, halfW: 1.2, halfL: 2.8, seat: [0, 0.8, 1.2], hp: 400, sound: 'boat_engine' },
 };
 
 export class Vehicles {

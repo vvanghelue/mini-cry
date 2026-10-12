@@ -122,7 +122,7 @@ export function CharactersPanel({ ed }) {
     // same tree as below so the preview canvas element is kept when the data arrives
     return (
       <div class="panel chars">
-        <div class="side narrow"><h2>Personnages</h2><p class="hint">Chargement des personnages et retargeting des animations…</p></div>
+        <div class="side narrow"><h2>Characters</h2><p class="hint">Loading characters and retargeting animations…</p></div>
         <div class="main charmain"><canvas ref={cv} class="charcv" /><div class="charbar" /></div>
         <div class="side" />
       </div>
@@ -141,30 +141,30 @@ export function CharactersPanel({ ed }) {
   return (
     <div class="panel chars">
       <div class="side narrow">
-        <h2>Personnages</h2>
+        <h2>Characters</h2>
         <div class="list tall">{Object.entries(arch.archetypes).map(([k, x]) => <div class={'it' + (k === sel ? ' sel' : '')} onClick={() => setSel(k)}>{x.label}<small>{k}</small></div>)}</div>
-        <p class="hint">Statistiques (vie, précision, vision…) : onglet 📊 Gameplay → Ennemis & PNJ.</p>
+        <p class="hint">Stats (health, accuracy, vision…): 📊 Gameplay tab → Enemies & NPCs.</p>
       </div>
       <div class="main charmain">
         <canvas ref={cv} class="charcv" />
         <div class="charbar">
-          <span>{a.label} — modèle <b>{a.model}</b>{a.weapon ? <> · arme <b>{a.weapon}</b></> : null} · animation <b>{cur ?? '—'}</b></span>
-          <Row label="Vitesse"><input type="range" min="0" max="2" step="0.05" value={pv.current?.speed ?? 1} onInput={(e) => { pv.current.speed = +e.target.value; force((x) => x + 1); }} /></Row>
-          <Row label="Visée haut/bas"><input type="range" min="-1" max="1" step="0.05" value={pv.current?.pitch ?? 0} onInput={(e) => { pv.current.pitch = +e.target.value; force((x) => x + 1); }} /></Row>
+          <span>{a.label} — model <b>{a.model}</b>{a.weapon ? <> · weapon <b>{a.weapon}</b></> : null} · animation <b>{cur ?? '—'}</b></span>
+          <Row label="Speed"><input type="range" min="0" max="2" step="0.05" value={pv.current?.speed ?? 1} onInput={(e) => { pv.current.speed = +e.target.value; force((x) => x + 1); }} /></Row>
+          <Row label="Aim up/down"><input type="range" min="-1" max="1" step="0.05" value={pv.current?.pitch ?? 0} onInput={(e) => { pv.current.pitch = +e.target.value; force((x) => x + 1); }} /></Row>
         </div>
       </div>
       <div class="side">
-        <h4>Palette {palName ? `« ${palName} »` : '(aucune)'}</h4>
+        <h4>Palette {palName ? `"${palName}"` : '(none)'}</h4>
         {palette ? pv.current.slots(a.model).map((slot) => (
           <Row label={slot}><ColorField value={palette[slot] ?? '#888888'} onChange={(v) => setPalette(slot, v)} /></Row>
-        )) : <p class="hint">Cet archétype garde les couleurs d'origine du modèle. Ajoutez une palette dans 📊 Gameplay.</p>}
-        {palette && <button onClick={() => setClips(pv.current.show(arch, sel, arch.palettes[palName]))}>Appliquer à l'aperçu</button>}
+        )) : <p class="hint">This archetype keeps the model's original colours. Add a palette in 📊 Gameplay.</p>}
+        {palette && <button onClick={() => setClips(pv.current.show(arch, sel, arch.palettes[palName]))}>Apply to preview</button>}
         <h4>Animations ({clips.length})</h4>
-        <input class="search" placeholder="Filtrer…" value={q} onInput={(e) => setQ(e.target.value)} />
+        <input class="search" placeholder="Filter…" value={q} onInput={(e) => setQ(e.target.value)} />
         <div class="list">
           {clips.filter((c) => !q || c.toLowerCase().includes(q.toLowerCase())).map((c) => <div class={'it' + (c === cur ? ' sel' : '')} onClick={() => { pv.current.play(c); setCur(c); }}>{c}</div>)}
         </div>
-        <p class="hint">Les animations « _Loop », Pistol_*, Crouch_*, Swim_*, Driving_Loop… viennent de la Universal Animation Library, retargetées au chargement ; *_Aim et Aim_*_Add sont dérivées.</p>
+        <p class="hint">The "_Loop", Pistol_*, Crouch_*, Swim_*, Driving_Loop… animations come from the Universal Animation Library, retargeted on load; *_Aim and Aim_*_Add are derived.</p>
       </div>
     </div>
   );

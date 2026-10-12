@@ -1,7 +1,7 @@
 {
   "name": "crate",
   "category": "prop",
-  "label": "Caisse en bois",
+  "label": "Wooden crate",
   "material": "wood",
   "tags": ["cover","camp","storage"],
   "parts": [

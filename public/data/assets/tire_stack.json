@@ -1,7 +1,7 @@
 {
   "name": "tire_stack",
   "category": "prop",
-  "label": "Pile de pneus",
+  "label": "Tire stack",
   "material": "cloth",
   "tags": ["cover","industrial","garage"],
   "parts": [

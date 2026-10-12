@@ -1,7 +1,7 @@
 {
   "name": "lighthouse",
   "category": "building",
-  "label": "Phare",
+  "label": "Lighthouse",
   "material": "stone",
   "tags": ["coast", "landmark"],
   "lods": [{"distance": 220, "quality": 1},{"distance": 1500, "quality": 0.5}],

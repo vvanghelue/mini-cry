@@ -1,7 +1,7 @@
 {
   "name": "generator",
   "category": "prop",
-  "label": "Groupe électrogène",
+  "label": "Generator",
   "material": "metal",
   "tags": ["cover","industrial","camp"],
   "parts": [

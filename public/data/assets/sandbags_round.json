@@ -1,7 +1,7 @@
 {
   "name": "sandbags_round",
   "category": "prop",
-  "label": "Emplacement en sacs de sable",
+  "label": "Sandbag emplacement",
   "material": "sand",
   "tags": ["cover","military"],
   "parts": [

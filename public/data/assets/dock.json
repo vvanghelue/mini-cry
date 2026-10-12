@@ -1,7 +1,7 @@
 {
   "name": "dock",
   "category": "building",
-  "label": "Ponton",
+  "label": "Dock",
   "material": "wood",
   "tags": ["coast", "village", "dock", "modular"],
   "parts": [

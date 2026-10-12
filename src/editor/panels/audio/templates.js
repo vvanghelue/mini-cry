@@ -3,7 +3,7 @@
 
 export const TEMPLATES = {
   gunshot: {
-    label: 'Coup de feu',
+    label: 'Gunshot',
     recipe: {
       bus: 'sfx', refDistance: 10, maxDistance: 500, priority: 5, maxInstances: 6, gain: 0.9,
       reverb: 0.22, reverbSize: 0.45, distortion: 0.15,
@@ -29,7 +29,7 @@ export const TEMPLATES = {
     },
   },
   ui_blip: {
-    label: 'Blip d\'interface',
+    label: 'UI blip',
     recipe: {
       bus: 'ui', gain: 0.5, variations: { count: 1 },
       layers: [
@@ -39,7 +39,7 @@ export const TEMPLATES = {
     },
   },
   ambient_loop: {
-    label: 'Boucle d\'ambiance',
+    label: 'Ambient loop',
     recipe: {
       bus: 'ambient', loop: true, duration: 6, loopFade: 0.5, gain: 0.6,
       layers: [
@@ -49,7 +49,7 @@ export const TEMPLATES = {
     },
   },
   tone: {
-    label: 'Note / tonalité',
+    label: 'Note / tone',
     recipe: {
       bus: 'sfx', gain: 0.6, variations: { count: 1 },
       layers: [
@@ -58,12 +58,12 @@ export const TEMPLATES = {
     },
   },
   empty: {
-    label: 'Vide',
+    label: 'Empty',
     recipe: { bus: 'sfx', gain: 0.8, layers: [{ type: 'sine', freq: 440, env: { decay: 0.3 } }] },
   },
 };
 
-/** New layers added with "+ Couche". */
+/** New layers added with "+ Layer". */
 export const LAYER_PRESETS = {
   sine: { type: 'sine', gain: 1, freq: 440, env: { attack: 0.002, decay: 0.2, curve: 4 } },
   noise: { type: 'noise', gain: 1, env: { attack: 0.001, decay: 0.15, curve: 4 }, filter: { type: 'lowpass', freq: 3000 } },
@@ -97,18 +97,18 @@ export const LAYER_COLORS = ['#4fb3ff', '#ffb04d', '#7bd88f', '#ff7a9c', '#c39bf
 
 // List grouping
 const CATS = [
-  ['Musique', (n, r) => r.bus === 'music'],
-  ['Ambiance', (n, r) => r.bus === 'ambient'],
-  ['Interface', (n, r) => r.bus === 'ui'],
-  ['Armes', (n) => /shot|rpg|reload|dry_fire|pump|grenade|machete|weapon|explosion|launch/.test(n)],
+  ['Music', (n, r) => r.bus === 'music'],
+  ['Ambience', (n, r) => r.bus === 'ambient'],
+  ['UI', (n, r) => r.bus === 'ui'],
+  ['Weapons', (n) => /shot|rpg|reload|dry_fire|pump|grenade|machete|weapon|explosion|launch/.test(n)],
   ['Impacts', (n) => /impact|whizz|hit|glass|body_fall/.test(n)],
-  ['Pas & joueur', (n) => /footstep|jump|land|swim|splash|hurt|heart|health|pickup|binoculars/.test(n)],
-  ['Véhicules', (n) => /engine|jeep|boat|heli|truck|car_/.test(n)],
+  ['Footsteps & player', (n) => /footstep|jump|land|swim|splash|hurt|heart|health|pickup|binoculars/.test(n)],
+  ['Vehicles', (n) => /engine|jeep|boat|heli|truck|car_/.test(n)],
 ];
 export const GROUPINGS = {
-  cat: { label: 'Catégorie', key: (n, r) => (CATS.find(([, f]) => f(n, r ?? {}))?.[0] ?? 'Divers') },
+  cat: { label: 'Category', key: (n, r) => (CATS.find(([, f]) => f(n, r ?? {}))?.[0] ?? 'Misc') },
   bus: { label: 'Bus', key: (n, r) => r?.bus ?? 'sfx' },
-  prefix: { label: 'Préfixe', key: (n) => (n.includes('_') ? n.slice(0, n.indexOf('_')) : n) },
-  none: { label: 'Aucun', key: () => '' },
+  prefix: { label: 'Prefix', key: (n) => (n.includes('_') ? n.slice(0, n.indexOf('_')) : n) },
+  none: { label: 'None', key: () => '' },
 };
-export const CAT_ORDER = ['Armes', 'Impacts', 'Pas & joueur', 'Véhicules', 'Divers', 'Interface', 'Ambiance', 'Musique'];
+export const CAT_ORDER = ['Weapons', 'Impacts', 'Footsteps & player', 'Vehicles', 'Misc', 'UI', 'Ambience', 'Music'];

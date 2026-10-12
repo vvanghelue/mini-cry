@@ -1,7 +1,7 @@
 {
   "name": "sandbags",
   "category": "prop",
-  "label": "Mur de sacs de sable",
+  "label": "Sandbag wall",
   "material": "sand",
   "tags": ["cover","military"],
   "parts": [

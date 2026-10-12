@@ -1,7 +1,9 @@
 # Working on Mini Cry (guide for AI agents)
 
 Low-poly open-world FPS (Far Cry 1 style) + engine + editor, Three.js r186 + Vite, plain JS ES
-modules (editor UI: Preact + @preact/signals, `.jsx`). UI text is French; code and comments English.
+modules (editor UI: Preact + @preact/signals, `.jsx`). Everything is in English (code, comments, game
+and editor UI, docs) except the story content in `public/data/`: missions, dialogue, voices, place and
+character names stay French.
 
 ## Ground rules
 - **Data first.** Game content lives in `public/data/` (JSON / small binaries). Prefer editing data
@@ -46,7 +48,7 @@ modules (editor UI: Preact + @preact/signals, `.jsx`). UI text is French; code a
 ## Data files
 | file | content | edit with |
 |---|---|---|
-| `terrain/layout.json` | islands, mountains, plateaus, lagoons, rivers, roads, flat sites | `mc data set`, editor ⛰ Île, then `mc terrain generate` |
+| `terrain/layout.json` | islands, mountains, plateaus, lagoons, rivers, roads, flat sites | `mc data set`, editor ⛰ Island, then `mc terrain generate` |
 | `terrain/height.bin, material.bin, terrain.json` | heightfield (u16) + painted materials | `mc terrain sculpt`, editor brushes |
 | `vegetation.json` / `vegetation.bin` | species rules / placed instances (the .bin has hand edits: add a species with `mc vegetation generate --species <id>`, which keeps every other instance) | `mc vegetation generate|clear`, editor 🌴 brush |
 | `assets/*.json` (+ `index.json`) | low-poly models (docs/ASSETS.md) | write JSON, `mc asset validate|shot|reindex|bake` |

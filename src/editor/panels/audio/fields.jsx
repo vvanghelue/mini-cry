@@ -73,7 +73,7 @@ export function Scrub({ value, onChange, def, step = 0.01, min, max, log, int, t
     addEventListener('pointerup', up);
   };
   return (
-    <input class={'num au-num' + (wide ? ' wide' : '')} type="text" value={txt} placeholder={def === undefined ? '' : show(def)} title={title ?? (log ? 'Glisser pour régler (échelle log, Maj = fin)' : 'Glisser pour régler (Maj = fin), vide = valeur par défaut')}
+    <input class={'num au-num' + (wide ? ' wide' : '')} type="text" value={txt} placeholder={def === undefined ? '' : show(def)} title={title ?? (log ? 'Drag to adjust (log scale, Shift = fine)' : 'Drag to adjust (Shift = fine), empty = default value')}
       onPointerDown={onDown} onFocus={() => setFocus(true)}
       onInput={(e) => setTxt(e.target.value)}
       onBlur={(e) => { setFocus(false); commit(e.target.value); }}
@@ -91,7 +91,7 @@ export function Scrub({ value, onChange, def, step = 0.01, min, max, log, int, t
 }
 
 /**
- * JSON text editor (applied on blur or Ctrl+Entrée when valid). `format` lays the value out
+ * JSON text editor (applied on blur or Ctrl+Enter when valid). `format` lays the value out
  * (e.g. the compact sounds.json style); outside edits refresh it unless the text is being edited.
  */
 export function CodeJson({ value, onChange, format, rows = 20 }) {
@@ -116,7 +116,7 @@ export function CodeJson({ value, onChange, format, rows = 20 }) {
         onInput={(e) => { setTxt(e.target.value); setEdited(true); try { JSON.parse(e.target.value); setErr(null); } catch (x) { setErr(x.message); } }}
         onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.stopPropagation(); apply(); } else if (e.key === 'Escape') { setEdited(false); setTxt(fmt(value)); setErr(null); } }} />
       <div class="au-codebar">
-        {err ? <small class="err">{err}</small> : <small>{edited ? 'Modifié : appliqué en quittant le champ (Ctrl+Entrée), Échap pour annuler' : 'JSON valide'}</small>}
+        {err ? <small class="err">{err}</small> : <small>{edited ? 'Modified: applied when leaving the field (Ctrl+Enter), Esc to cancel' : 'Valid JSON'}</small>}
       </div>
     </div>
   );
@@ -130,7 +130,7 @@ export function P({ value, onChange, def, range = true, ...o }) {
         <Scrub {...o} value={value[0]} onChange={(v) => onChange([v ?? value[1], value[1]])} title="minimum" />
         <span class="au-tilde">~</span>
         <Scrub {...o} value={value[1]} onChange={(v) => onChange([value[0], v ?? value[0]])} title="maximum" />
-        <button class="au-mini" title="Valeur fixe (garder le minimum)" onClick={(e) => { e.preventDefault(); onChange(value[0]); }}>×</button>
+        <button class="au-mini" title="Fixed value (keep the minimum)" onClick={(e) => { e.preventDefault(); onChange(value[0]); }}>×</button>
       </span>
     );
   }
@@ -138,7 +138,7 @@ export function P({ value, onChange, def, range = true, ...o }) {
     <span class="au-p">
       <Scrub {...o} value={value} def={def} onChange={onChange} />
       {range && (
-        <button class="au-mini au-torange" title="Plage aléatoire [min, max] : une valeur tirée par variation"
+        <button class="au-mini au-torange" title="Random range [min, max]: one value drawn per variation"
           onClick={(e) => { e.preventDefault(); const v = Number.isFinite(+value) ? +value : +def || 0; onChange([v, v === 0 ? 1 : tidy(v * 1.2, o.step ?? 0.01, o.log)]); }}>~</button>
       )}
     </span>
@@ -165,16 +165,16 @@ export function Sect({ title, on, onToggle, children, extra, cls = '' }) {
 /** Bind a key of an object: { value, onChange } (undefined deletes the key). */
 export const bind = (obj, set, k) => ({ value: obj?.[k], onChange: (v) => set(setKey(obj, k, v)) });
 
-export function LfoEdit({ value, onChange, depthLabel = 'profondeur', depthDef = DEF.lfo.depth, depthStep = 0.01 }) {
+export function LfoEdit({ value, onChange, depthLabel = 'depth', depthDef = DEF.lfo.depth, depthStep = 0.01 }) {
   const o = value ?? {};
   const b = (k) => bind(o, onChange, k);
   return (
     <div class="au-lfo">
-      <R label="forme"><EnumField value={o.shape} options={LFO_SHAPES} allowEmpty onChange={(v) => onChange(setKey(o, 'shape', v))} /></R>
-      <R label="vitesse (Hz)"><P {...b('rate')} def={DEF.lfo.rate} log step={0.01} min={0} /></R>
+      <R label="shape"><EnumField value={o.shape} options={LFO_SHAPES} allowEmpty onChange={(v) => onChange(setKey(o, 'shape', v))} /></R>
+      <R label="rate (Hz)"><P {...b('rate')} def={DEF.lfo.rate} log step={0.01} min={0} /></R>
       <R label={depthLabel}><P {...b('depth')} def={depthDef} step={depthStep} /></R>
       <R label="phase"><P {...b('phase')} def={0} step={0.01} min={0} max={1} /></R>
-      {o.shape === 'square' && <R label="rapport cyclique"><P {...b('duty')} def={0.5} step={0.01} min={0.01} max={0.99} /></R>}
+      {o.shape === 'square' && <R label="duty cycle"><P {...b('duty')} def={0.5} step={0.01} min={0.01} max={0.99} /></R>}
     </div>
   );
 }
@@ -197,22 +197,22 @@ export function FilterList({ value, onChange }) {
             <div class="au-fhead">
               <EnumField value={type} options={FILTER_TYPES} onChange={(v) => put(i, { ...f, type: v ?? 'lowpass' })} />
               <span class="grow" />
-              {i > 0 && <button class="au-mini" title="Monter (les filtres s'appliquent en série)" onClick={() => { const a = [...list]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; onChange(fromList(a)); }}>↑</button>}
-              <button class="au-mini danger" title="Supprimer ce filtre" onClick={() => put(i, undefined)}>✕</button>
+              {i > 0 && <button class="au-mini" title="Move up (filters apply in series)" onClick={() => { const a = [...list]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; onChange(fromList(a)); }}>↑</button>}
+              <button class="au-mini danger" title="Delete this filter" onClick={() => put(i, undefined)}>✕</button>
             </div>
-            <R label="fréquence (Hz)"><P {...b('freq')} def={DEF.filter.freq} log step={1} min={10} max={20000} /></R>
-            <R label="→ fin (Hz)" title="Balayage vers cette fréquence"><P {...b('freqEnd')} def={undefined} log step={1} min={10} max={20000} /></R>
-            <R label="Q (résonance)"><P {...b('q')} def={type === 'bandpass' ? 1 : DEF.filter.q} log step={0.01} min={0.05} max={40} /></R>
-            {f.freqEnd != null && <R label="balayage (s)" title="Durée du balayage (défaut : toute la couche)"><P {...b('sweep')} def={undefined} step={0.005} min={0} /></R>}
-            {f.freqEnd != null && <R label="courbe" title="< 1 : rapide au début ; > 1 : lent au début"><P {...b('curve')} def={1} log step={0.01} min={0.05} max={20} /></R>}
+            <R label="frequency (Hz)"><P {...b('freq')} def={DEF.filter.freq} log step={1} min={10} max={20000} /></R>
+            <R label="→ end (Hz)" title="Sweep toward this frequency"><P {...b('freqEnd')} def={undefined} log step={1} min={10} max={20000} /></R>
+            <R label="Q (resonance)"><P {...b('q')} def={type === 'bandpass' ? 1 : DEF.filter.q} log step={0.01} min={0.05} max={40} /></R>
+            {f.freqEnd != null && <R label="sweep (s)" title="Sweep duration (default: the whole layer)"><P {...b('sweep')} def={undefined} step={0.005} min={0} /></R>}
+            {f.freqEnd != null && <R label="curve" title="< 1: fast at first; > 1: slow at first"><P {...b('curve')} def={1} log step={0.01} min={0.05} max={20} /></R>}
             <div class="au-sub">
-              <label><input type="checkbox" checked={!!f.lfo} onChange={(e) => put(i, setKey(f, 'lfo', e.target.checked ? { rate: 2, depth: 1 } : undefined))} /> LFO de coupure</label>
-              {f.lfo && <LfoEdit value={f.lfo} onChange={(l) => put(i, { ...f, lfo: l })} depthLabel="prof. (octaves)" depthDef={0.5} />}
+              <label><input type="checkbox" checked={!!f.lfo} onChange={(e) => put(i, setKey(f, 'lfo', e.target.checked ? { rate: 2, depth: 1 } : undefined))} /> Cutoff LFO</label>
+              {f.lfo && <LfoEdit value={f.lfo} onChange={(l) => put(i, { ...f, lfo: l })} depthLabel="depth (octaves)" depthDef={0.5} />}
             </div>
           </div>
         );
       })}
-      <button class="small" onClick={() => onChange(fromList([...list, { type: 'lowpass', freq: 2000 }]))}>+ Filtre</button>
+      <button class="small" onClick={() => onChange(fromList([...list, { type: 'lowpass', freq: 2000 }]))}>+ Filter</button>
     </div>
   );
 }
@@ -225,7 +225,7 @@ export function LfoList({ value, onChange, add = { rate: 4, depth: 0.5 }, depthL
     <div class="au-filters">
       {list.map((l, i) => (
         <div class="au-filter">
-          <div class="au-fhead"><small>LFO {i + 1}</small><span class="grow" /><button class="au-mini danger" title="Supprimer" onClick={() => put(i, undefined)}>✕</button></div>
+          <div class="au-fhead"><small>LFO {i + 1}</small><span class="grow" /><button class="au-mini danger" title="Delete" onClick={() => put(i, undefined)}>✕</button></div>
           <LfoEdit value={l} onChange={(nl) => put(i, nl)} depthLabel={depthLabel} />
         </div>
       ))}

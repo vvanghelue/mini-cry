@@ -1,7 +1,7 @@
 {
   "name": "container",
   "category": "prop",
-  "label": "Conteneur",
+  "label": "Shipping container",
   "material": "metal",
   "tags": ["port", "cover", "industrial"],
   "parts": [

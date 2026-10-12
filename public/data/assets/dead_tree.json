@@ -1,1 +1,1 @@
-{ "name": "dead_tree", "category": "vegetation", "label": "Arbre mort", "generator": { "type": "deadTree", "params": {} } }
+{ "name": "dead_tree", "category": "vegetation", "label": "Dead tree", "generator": { "type": "deadTree", "params": {} } }

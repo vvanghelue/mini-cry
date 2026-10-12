@@ -1,7 +1,7 @@
 {
   "name": "radio_tower",
   "category": "building",
-  "label": "Antenne radio",
+  "label": "Radio tower",
   "material": "metal",
   "tags": ["radio", "military", "objective", "landmark"],
   "lods": [{"distance": 200, "quality": 1},{"distance": 1200, "quality": 0.5}],

@@ -1,5 +1,5 @@
 // Voice line generation (text-to-speech through OpenRouter's /audio/speech, key OPENROUTER_API_KEY
-// in .env). Used by `mc voice ...` and by the dev API (editor 💬 "Générer les voix"). Clips go to
+// in .env). Used by `mc voice ...` and by the dev API (editor 💬 "Generate voices"). Clips go to
 // public/data/voice/<key>.mp3 (or .wav for PCM-only models) and are listed in voice/manifest.json
 // with their duration; the key comes from src/game/missions/voice.js. A clip file already on disk
 // is adopted instead of regenerated (an interrupted run costs nothing); replaced or orphaned clips

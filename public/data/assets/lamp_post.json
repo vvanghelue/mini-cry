@@ -1,7 +1,7 @@
 {
   "name": "lamp_post",
   "category": "prop",
-  "label": "Lampadaire en bois",
+  "label": "Wooden lamp post",
   "material": "wood",
   "tags": ["light","village","camp"],
   "parts": [

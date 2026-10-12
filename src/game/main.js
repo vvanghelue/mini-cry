@@ -17,9 +17,9 @@ const app = { engine, input, THREE, mode, params, ready: false };
 // loading screen
 const loading = document.createElement('div');
 loading.id = 'loading';
-loading.innerHTML = '<div class="logo">MINI <span>CRY</span></div><div class="bar"><i></i></div><div class="lbl">Chargement…</div>';
+loading.innerHTML = '<div class="logo">MINI <span>CRY</span></div><div class="bar"><i></i></div><div class="lbl">Loading…</div>';
 if (mode !== 'asset' && params.get('nohud') !== '1') document.body.appendChild(loading);
-const LABELS = { terrain: 'Terrain', 'terrain mesh': 'Maillage du terrain', assets: 'Modèles low-poly', vegetation: 'Végétation', physics: 'Collisions', entities: 'Entités', shaders: 'Préparation des shaders', ready: 'Prêt' };
+const LABELS = { terrain: 'Terrain', 'terrain mesh': 'Terrain mesh', assets: 'Low-poly models', vegetation: 'Vegetation', physics: 'Collisions', entities: 'Entities', shaders: 'Compiling shaders', ready: 'Ready' };
 app.onLoadProgress = (p, label) => {
   loading.querySelector('i').style.width = `${Math.round(p * 80)}%`;
   loading.querySelector('.lbl').textContent = `${LABELS[label] ?? label}…`;

@@ -1,7 +1,7 @@
 {
   "name": "chair",
   "category": "prop",
-  "label": "Chaise en bois",
+  "label": "Wooden chair",
   "material": "wood",
   "tags": ["village","camp","furniture","interior"],
   "parts": [

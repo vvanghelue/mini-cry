@@ -1,7 +1,7 @@
 {
   "name": "bridge_wood",
   "category": "building",
-  "label": "Pont de corde",
+  "label": "Rope bridge",
   "material": "wood",
   "tags": ["jungle", "bridge"],
   "parts": [

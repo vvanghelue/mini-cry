@@ -7,15 +7,15 @@ import { Row, NumberField, TextField, BoolField, ColorField, JsonField, Vec3Fiel
 import { log } from '../core.js';
 
 const FILES = [
-  { file: 'game/weapons.json', path: 'weapons', label: 'Armes' },
-  { file: 'game/weapons.json', path: 'ammoTypes', label: 'Munitions' },
+  { file: 'game/weapons.json', path: 'weapons', label: 'Weapons' },
+  { file: 'game/weapons.json', path: 'ammoTypes', label: 'Ammo' },
   { file: 'game/weapons.json', path: 'grenade', label: 'Grenade', single: true },
-  { file: 'game/archetypes.json', path: 'archetypes', label: 'Ennemis & PNJ' },
-  { file: 'game/archetypes.json', path: 'palettes', label: 'Palettes de couleurs' },
-  { file: 'game/player.json', path: '', label: 'Joueur', single: true },
-  { file: 'game/items.json', path: 'items', label: 'Objets' },
-  { file: 'vegetation.json', path: 'species', label: 'Espèces végétales', array: true },
-  { file: 'vegetation.json', path: 'grass', label: 'Herbe', single: true },
+  { file: 'game/archetypes.json', path: 'archetypes', label: 'Enemies & NPCs' },
+  { file: 'game/archetypes.json', path: 'palettes', label: 'Colour palettes' },
+  { file: 'game/player.json', path: '', label: 'Player', single: true },
+  { file: 'game/items.json', path: 'items', label: 'Items' },
+  { file: 'vegetation.json', path: 'species', label: 'Plant species', array: true },
+  { file: 'vegetation.json', path: 'grass', label: 'Grass', single: true },
 ];
 
 const get = (o, path) => (path ? path.split('.').reduce((a, k) => a?.[k], o) : o);
@@ -39,7 +39,7 @@ export function DataPanel({ ed }) {
     Data.json(S.file, { fresh: true }).then((d) => setDocs((x) => ({ ...x, [S.file]: d })));
   }, [sec]);
   const doc = docs[S.file];
-  if (!doc) return <div class="panel">Chargement…</div>;
+  if (!doc) return <div class="panel">Loading…</div>;
   const coll = get(doc, S.path);
   const update = (newColl) => {
     const nd = set(doc, S.path, newColl);
@@ -59,29 +59,29 @@ export function DataPanel({ ed }) {
       <div class="side narrow">
         <h2>Gameplay</h2>
         {FILES.map((f, i) => <button class={'navbtn' + (i === sec ? ' on' : '')} onClick={() => { setSec(i); setKey(null); }}>{f.label}</button>)}
-        <p class="hint">Les modifications sont appliquées en jeu au prochain lancement (▶ Jouer ici). Fichier : {S.file}</p>
+        <p class="hint">Changes apply in game on the next launch (▶ Play here). File: {S.file}</p>
       </div>
       {!S.single && (
         <div class="side list">
           {keys.map((k) => <div class={'it' + (k === curKey ? ' sel' : '')} onClick={() => setKey(k)}>{S.array ? coll[k].id : k}<small>{(S.array ? coll[k] : coll[k])?.label ?? ''}</small></div>)}
           <div class="btns">
             <button onClick={() => {
-              const name = S.array ? null : prompt('Identifiant du nouvel élément ?');
+              const name = S.array ? null : prompt('Id of the new entry?');
               if (S.array) update([...coll, structuredClone(coll[curKey] ?? {})]);
               else if (name && !coll[name]) { update({ ...coll, [name]: structuredClone(coll[curKey] ?? {}) }); setKey(name); }
-            }}>+ Dupliquer</button>
+            }}>+ Duplicate</button>
             <button class="danger" onClick={() => {
-              if (!confirm('Supprimer ' + curKey + ' ?')) return;
+              if (!confirm('Delete ' + curKey + '?')) return;
               if (S.array) update(coll.filter((_, i) => i !== curKey));
               else { const c = { ...coll }; delete c[curKey]; update(c); }
               setKey(null);
-            }}>Supprimer</button>
+            }}>Delete</button>
           </div>
         </div>
       )}
       <div class="main form">
-        {rec ? <RecordForm rec={rec} onChange={setRec} /> : <p>Rien à éditer.</p>}
-        <div class="btns"><button onClick={() => ed.saveAll().then(() => log(`${S.file} enregistré`))}>Enregistrer</button></div>
+        {rec ? <RecordForm rec={rec} onChange={setRec} /> : <p>Nothing to edit.</p>}
+        <div class="btns"><button onClick={() => ed.saveAll().then(() => log(`${S.file} saved`))}>Save</button></div>
       </div>
     </div>
   );
@@ -104,7 +104,7 @@ export function RecordForm({ rec, onChange, depth = 0 }) {
         else field = <JsonField value={v} onChange={put} rows={Math.min(8, JSON.stringify(v, null, 2).split('\n').length)} />;
         return <Row label={k}>{field}</Row>;
       })}
-      <button class="small" onClick={() => { const k = prompt('Nouvelle propriété ?'); if (k) onChange({ ...rec, [k]: 0 }); }}>+ propriété</button>
+      <button class="small" onClick={() => { const k = prompt('New property?'); if (k) onChange({ ...rec, [k]: 0 }); }}>+ property</button>
     </div>
   );
 }

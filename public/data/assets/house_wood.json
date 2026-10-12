@@ -1,7 +1,7 @@
 {
   "name": "house_wood",
   "category": "building",
-  "label": "Maison en bois",
+  "label": "Wooden house",
   "material": "wood",
   "tags": ["village", "house", "enterable"],
   "parts": [

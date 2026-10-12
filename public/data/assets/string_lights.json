@@ -1,7 +1,7 @@
 {
   "name": "string_lights",
   "category": "prop",
-  "label": "Guirlande lumineuse",
+  "label": "String lights",
   "material": "wood",
   "tags": ["light","village","party"],
   "parts": [

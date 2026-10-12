@@ -1,7 +1,7 @@
 {
   "name": "plane_wreck",
   "category": "prop",
-  "label": "Épave d'avion",
+  "label": "Plane wreck",
   "material": "metal",
   "tags": ["wreck", "jungle", "cover", "landmark"],
   "parts": [

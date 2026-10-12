@@ -1,7 +1,7 @@
 {
   "name": "key_card",
   "category": "pickup",
-  "label": "Carte d'accès",
+  "label": "Key card",
   "material": "cloth",
   "tags": ["pickup","key","objective"],
   "parts": [

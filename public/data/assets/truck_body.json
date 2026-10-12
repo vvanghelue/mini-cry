@@ -1,7 +1,7 @@
 {
   "name": "truck_body",
   "category": "vehicle",
-  "label": "Camion militaire (carrosserie)",
+  "label": "Military truck (body)",
   "material": "metal",
   "tags": ["vehicle","military"],
   "wheels": [[-1,0.5,-2],[1,0.5,-2],[-1,0.5,1.4],[1,0.5,1.4],[-1,0.5,2.6],[1,0.5,2.6]],

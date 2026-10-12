@@ -6,7 +6,8 @@ A **low-poly** open-world FPS in the spirit of *Far Cry 1*: a 2 × 2 km tropical
 lagoon, volcano, river, islets), mercenary outposts to liberate, a scripted story of 7 missions +
 side missions — with its own **engine**, **editor** and **tools for AI agents**. Three.js + Vite,
 with no binary art files apart from the rigged Quaternius characters: everything else (models,
-sounds, terrain) is described in JSON and generated. The game and editor UI are in French.
+sounds, terrain) is described in JSON and generated. The UI is in English; the story content
+(missions, dialogue, voices) is in French.
 
 **Demo**: https://vvanghelue.github.io/mini-cry/ (game) · https://vvanghelue.github.io/mini-cry/editor.html
 (editor, read-only: saving needs the dev server).
@@ -37,9 +38,9 @@ npm run dev          # http://localhost:5190  (game)   ·   /editor.html  (edito
 - **100 % procedural audio**: 74 synthesized sounds (weapons, impacts, footsteps, UI, day / night /
   underwater ambiences, music that builds up with combat).
 
-**Controls**: WASD/ZQSD · mouse · click fire · right click aim · R reload · E use / drive ·
+**Controls**: WASD/ZQSD · mouse · click / T fire · right click aim · R reload · E use / drive ·
 G grenade · V machete · Shift sprint · Ctrl crouch · Space jump / swim · B binoculars · M map ·
-1–5 weapons · Esc pause · F3 stats (FPS / CPU / GPU / draw calls / memory) · F2 debug panel
+1–5 / Q (A on AZERTY) / wheel weapons · Esc pause · F3 stats (FPS / CPU / GPU / draw calls / memory) · F2 debug panel
 (cheats, missions, time of day, graphics). Both are shown by default (`?stats=0` / `?debug=0`
 hide them).
 
@@ -47,13 +48,14 @@ hide them).
 
 | Tab | Purpose |
 |---|---|
-| 🗺 Monde | 3D level: selection, gizmo (W/E/R), placement from the content browser (buildings, props, vegetation, vehicles, weapons, characters, logic), outliner, inspector generated from the schemas, terrain sculpting / painting, vegetation brush, path editing, undo/redo, ▶ play from the camera |
-| ⛰ Île | Island layout (islands, mountains, plateaus, lagoons, rivers, roads, sites) and terrain + vegetation regeneration |
-| ☀ Ambiance | Time of day, sun, moon, sky, fog, clouds, wind, ocean colours — live |
+| 🗺 World | 3D level: selection, gizmo (W/E/R), placement from the content browser (buildings, props, vegetation, vehicles, weapons, characters, logic), outliner, inspector generated from the schemas, terrain sculpting / painting, vegetation brush, path editing, undo/redo, ▶ play from the camera |
+| ⛰ Island | Island layout (islands, mountains, plateaus, lagoons, rivers, roads, sites) and terrain + vegetation regeneration |
+| ☀ Environment | Time of day, sun, moon, sky, fog, clouds, wind, ocean colours — live |
 | 🎯 Missions | Missions, objectives, triggers, conditions, actions, reference validation, direct testing |
-| 💬 Dialogues | Radio characters, lines, voice generation and playback |
+| 💬 Dialogue | Radio characters, lines, voice generation and playback |
 | 📊 Gameplay | Weapons, ammo, enemies (archetypes & palettes), player, items, plant species |
 | 🧱 Assets | Low-poly model editor (parts, generators, colliders, LOD) with 3D preview |
+| 🧍 Characters | Archetypes, colour palettes, animations |
 | 🔊 Audio | Procedural sound designer (layers, envelopes, filters) with waveform and playback |
 
 Ctrl+S saves (files go to `public/data/`, a backup copy is kept in `.mc-backup/`).

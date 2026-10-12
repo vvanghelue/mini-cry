@@ -105,14 +105,14 @@ export function layerSummary(L) {
   const f = (v) => (Array.isArray(v) ? `${fmt(v[0])}~${fmt(v[1])}` : fmt(v));
   const parts = [];
   if (L.type === 'noise') parts.push(L.noiseColor ?? 'white');
-  else if (L.type === 'click') parts.push(L.rate ? `${f(L.rate)}/s` : 'impulsion');
+  else if (L.type === 'click') parts.push(L.rate ? `${f(L.rate)}/s` : 'impulse');
   else parts.push(`${f(L.freq ?? 440)}${L.freqEnd != null ? '→' + f(L.freqEnd) : ''} Hz`);
   const fl = L.filter == null ? [] : Array.isArray(L.filter) ? L.filter : [L.filter];
-  for (const F of fl) parts.push(`${{ lowpass: 'PB', highpass: 'PH', bandpass: 'PBande', notch: 'Coupe' }[F?.type ?? 'lowpass'] ?? F?.type} ${f(F?.freq ?? 1000)}${F?.freqEnd != null ? '→' + f(F.freqEnd) : ''}`);
+  for (const F of fl) parts.push(`${{ lowpass: 'LP', highpass: 'HP', bandpass: 'BP', notch: 'Notch' }[F?.type ?? 'lowpass'] ?? F?.type} ${f(F?.freq ?? 1000)}${F?.freqEnd != null ? '→' + f(F.freqEnd) : ''}`);
   if (L.env) parts.push(`env ${f(L.env.attack ?? 0.002)}/${f(L.env.decay ?? 0.1)}`);
   if (L.distortion) parts.push(`dist ${f(L.distortion)}`);
   if (L.repeat) parts.push(`×${f(L.repeat.count ?? 1)}`);
-  if (L.tremolo) parts.push('trém.');
+  if (L.tremolo) parts.push('trem.');
   if (L.vibrato) parts.push('vib.');
   return parts.join(' · ');
 }

@@ -266,7 +266,7 @@ export class AssetPreview {
     const z0 = Math.min(b.min.z, 0) - dim * 0.03;
     const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0.002, z0), len, 0xff6a4d, len * 0.22, len * 0.12);
     this.helpers.add(arrow);
-    const lbl = textSprite('AVANT  −Z', '#ff9a85');
+    const lbl = textSprite('FRONT  −Z', '#ff9a85');
     const h = Math.max(dim * 0.04, 0.02);
     lbl.scale.set(h * lbl.userData.aspect, h, 1);
     lbl.position.set(0, h * 1.2, z0 - len * 0.75);

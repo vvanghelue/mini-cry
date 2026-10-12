@@ -1,7 +1,7 @@
 {
   "name": "barrel_stack",
   "category": "prop",
-  "label": "Fûts sur palette",
+  "label": "Barrels on pallet",
   "material": "metal",
   "tags": ["cover","industrial","camp"],
   "parts": [

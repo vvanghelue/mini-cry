@@ -1,7 +1,7 @@
 {
   "name": "pickup_medkit",
   "category": "pickup",
-  "label": "Trousse de soins",
+  "label": "Medkit",
   "material": "cloth",
   "tags": ["pickup","health"],
   "parts": [

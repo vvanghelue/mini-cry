@@ -1,7 +1,7 @@
 {
   "name": "shack_tin",
   "category": "building",
-  "label": "Cabane en tôle",
+  "label": "Tin shack",
   "material": "metal",
   "tags": ["village", "shack", "enterable"],
   "parts": [

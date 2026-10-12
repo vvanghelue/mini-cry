@@ -1,33 +1,33 @@
 {
   "ammoTypes": {
     "pistol": {
-      "label": "Munitions 9mm",
+      "label": "9mm ammo",
       "max": 120
     },
     "rifle": {
-      "label": "Munitions 7.62",
+      "label": "7.62 ammo",
       "max": 240
     },
     "smg": {
-      "label": "Munitions .45",
+      "label": ".45 ammo",
       "max": 240
     },
     "shells": {
-      "label": "Cartouches",
+      "label": "Shotgun shells",
       "max": 48
     },
     "sniper": {
-      "label": "Munitions .338",
+      "label": ".338 ammo",
       "max": 40
     },
     "rocket": {
-      "label": "Roquettes",
+      "label": "Rockets",
       "max": 6
     }
   },
   "weapons": {
     "machete": {
-      "label": "Machette",
+      "label": "Machete",
       "slot": 1,
       "type": "melee",
       "asset": "machete",
@@ -52,7 +52,7 @@
       }
     },
     "pistol": {
-      "label": "Pistolet",
+      "label": "Pistol",
       "slot": 2,
       "type": "gun",
       "asset": "pistol",
@@ -93,7 +93,7 @@
       }
     },
     "smg": {
-      "label": "Pistolet-mitrailleur",
+      "label": "Submachine gun",
       "slot": 3,
       "type": "gun",
       "asset": "smg",
@@ -134,7 +134,7 @@
       }
     },
     "rifle_ak": {
-      "label": "Fusil d'assaut AK",
+      "label": "AK assault rifle",
       "slot": 3,
       "type": "gun",
       "asset": "rifle_ak",
@@ -175,7 +175,7 @@
       }
     },
     "rifle_m4": {
-      "label": "Carabine M4",
+      "label": "M4 carbine",
       "slot": 3,
       "type": "gun",
       "asset": "rifle_m4",
@@ -216,7 +216,7 @@
       }
     },
     "shotgun": {
-      "label": "Fusil à pompe",
+      "label": "Shotgun",
       "slot": 4,
       "type": "gun",
       "asset": "shotgun",
@@ -260,7 +260,7 @@
       }
     },
     "sniper": {
-      "label": "Fusil de précision",
+      "label": "Sniper rifle",
       "slot": 4,
       "type": "gun",
       "asset": "sniper",
@@ -303,7 +303,7 @@
       }
     },
     "rpg": {
-      "label": "Lance-roquettes",
+      "label": "Rocket launcher",
       "slot": 5,
       "type": "launcher",
       "asset": "rpg",

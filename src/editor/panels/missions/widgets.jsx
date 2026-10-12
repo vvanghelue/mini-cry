@@ -66,21 +66,21 @@ export function Num({ value, onChange, placeholder, int, step = 1, title }) {
   );
 }
 
-/** Reference to an id (entity, actor, group, item, dialogue, mission...): combobox + "Voir". */
+/** Reference to an id (entity, actor, group, item, dialogue, mission...): combobox + "Show". */
 export function RefField({ kind, value, onChange, placeholder, options }) {
   const R = useRefs();
   const id = useUid('mcdl-x');
   const listId = options ? id : 'mcdl-' + kind;
   const st = options ? (value && !options.some((o) => o.value === value) ? 'unknown' : 'ok') : R.check(kind, value);
   const ent = R.isEntityKind(kind) && typeof value === 'string' && R.byId.get(value);
-  const tip = st === 'unknown' ? `${KIND_LABEL[kind] ?? kind} inconnu(e) — sera peut-être créé(e) plus tard`
-    : st === 'type' ? `type inattendu : ${ent?.type}` : ent ? `${ent.type}${ent.name ? ' · ' + ent.name : ''}` : '';
+  const tip = st === 'unknown' ? `unknown ${KIND_LABEL[kind] ?? kind} — may be created later`
+    : st === 'type' ? `unexpected type: ${ent?.type}` : ent ? `${ent.type}${ent.name ? ' · ' + ent.name : ''}` : '';
   return (
     <span class="ref">
       <Txt value={typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value)} onChange={onChange} list={listId}
         placeholder={placeholder ?? KIND_LABEL[kind] ?? ''} cls={st === 'unknown' || st === 'type' ? 'warn' : ''} title={tip} />
       {options && <datalist id={id}>{options.map((o) => <option value={o.value}>{o.label}</option>)}</datalist>}
-      {ent && <button class="mini eye" title="Voir dans le monde 3D" onClick={(e) => { e.preventDefault(); R.show(value); }}>👁</button>}
+      {ent && <button class="mini eye" title="Show in the 3D world" onClick={(e) => { e.preventDefault(); R.show(value); }}>👁</button>}
     </span>
   );
 }
@@ -94,9 +94,9 @@ export function PosField({ value, onChange, placeholder }) {
   const toXyz = () => { const e = typeof value === 'string' && R.byId.get(value); onChange(e?.pos ? e.pos.map((v) => +(+v).toFixed(2)) : camPos(R)); };
   return (
     <span class="pos">
-      {xyz ? <Vec3Field value={value} onChange={onChange} /> : <RefField kind="pos" value={value} onChange={onChange} placeholder={placeholder ?? 'entité, acteur, player'} />}
-      <button class="mini" title={xyz ? 'Utiliser un id d\'entité' : 'Coordonnées x, y, z'} onClick={(e) => { e.preventDefault(); xyz ? onChange(undefined) : toXyz(); }}>{xyz ? 'id' : 'xyz'}</button>
-      {xyz && <button class="mini" title="Position actuelle de la caméra de l'éditeur" onClick={(e) => { e.preventDefault(); onChange(camPos(R)); }}>📷</button>}
+      {xyz ? <Vec3Field value={value} onChange={onChange} /> : <RefField kind="pos" value={value} onChange={onChange} placeholder={placeholder ?? 'entity, actor, player'} />}
+      <button class="mini" title={xyz ? 'Use an entity id' : 'x, y, z coordinates'} onClick={(e) => { e.preventDefault(); xyz ? onChange(undefined) : toXyz(); }}>{xyz ? 'id' : 'xyz'}</button>
+      {xyz && <button class="mini" title="Current position of the editor camera" onClick={(e) => { e.preventDefault(); onChange(camPos(R)); }}>📷</button>}
     </span>
   );
 }
@@ -106,10 +106,10 @@ export function ValueField({ value, onChange }) {
   const t = typeof value === 'number' ? 'num' : typeof value === 'string' ? 'str' : 'bool';
   return (
     <span class="value">
-      <select class="vt" value={t} title="Type de la valeur" onChange={(e) => onChange(e.target.value === 'bool' ? true : e.target.value === 'num' ? 0 : '')}>
-        <option value="bool">bool</option><option value="num">nombre</option><option value="str">texte</option>
+      <select class="vt" value={t} title="Value type" onChange={(e) => onChange(e.target.value === 'bool' ? true : e.target.value === 'num' ? 0 : '')}>
+        <option value="bool">bool</option><option value="num">number</option><option value="str">text</option>
       </select>
-      {t === 'bool' && <select value={String(value !== false)} onChange={(e) => onChange(e.target.value === 'true')}><option value="true">vrai</option><option value="false">faux</option></select>}
+      {t === 'bool' && <select value={String(value !== false)} onChange={(e) => onChange(e.target.value === 'true')}><option value="true">true</option><option value="false">false</option></select>}
       {t === 'num' && <Num value={value} onChange={(v) => onChange(v ?? 0)} />}
       {t === 'str' && <Txt value={value} onChange={(v) => onChange(v ?? '')} keepEmpty />}
     </span>
@@ -132,7 +132,7 @@ function AmmoField({ value, onChange }) {
           <button class="mini danger" onClick={(e) => { e.preventDefault(); emit(ent.filter((_, j) => j !== i)); }}>✕</button>
         </span>
       ))}
-      <button class="mini" title="Ajouter des munitions" onClick={(e) => { e.preventDefault(); const free = R.lists.ammo.map((o) => o.value).find((a) => !(a in (value ?? {}))) ?? 'pistol'; emit([...ent, [free, 30]]); }}>+</button>
+      <button class="mini" title="Add ammo" onClick={(e) => { e.preventDefault(); const free = R.lists.ammo.map((o) => o.value).find((a) => !(a in (value ?? {}))) ?? 'pistol'; emit([...ent, [free, 30]]); }}>+</button>
     </span>
   );
 }
@@ -156,14 +156,14 @@ export function ParamField({ p, value, onChange, ctx = {} }) {
       const mid = ctx.mission;
       const m = (R.mdoc?.missions ?? []).find((x) => x.id === mid);
       const options = (m?.objectives ?? []).filter((o) => o.id).map((o) => ({ value: o.id, label: o.text ?? o.type }));
-      return <RefField kind="objective" value={value} onChange={onChange} options={options} placeholder={mid ? `objectif de ${mid}` : 'objectif (courant)'} />;
+      return <RefField kind="objective" value={value} onChange={onChange} options={options} placeholder={mid ? `objective of ${mid}` : 'objective (current)'} />;
     }
     default: return <RefField kind={p.kind} value={value} onChange={onChange} placeholder={ph ?? p.label} />;
   }
 }
 
 // --- conditions -------------------------------------------------------------------------------
-const OPS = [['', 'est vraie'], ['eq', '='], ['gt', '>'], ['lt', '<'], ['gte', '≥']];
+const OPS = [['', 'is true'], ['eq', '='], ['gt', '>'], ['lt', '<'], ['gte', '≥']];
 
 /** A condition (recursive for not / all / any). `extra` is rendered at the end of its first line. */
 export function CondEditor({ value, onChange, depth = 0, extra }) {
@@ -193,7 +193,7 @@ export function CondEditor({ value, onChange, depth = 0, extra }) {
     </>;
   } else if (k === 'timeBetween') {
     const [a, b] = c.timeBetween ?? [20, 5];
-    body = <><span class="lb">de</span><Num value={a} onChange={(v) => put({ timeBetween: [v ?? 0, b] })} /><span class="lb">h à</span><Num value={b} onChange={(v) => put({ timeBetween: [a, v ?? 0] })} /><span class="lb">h</span></>;
+    body = <><span class="lb">from</span><Num value={a} onChange={(v) => put({ timeBetween: [v ?? 0, b] })} /><span class="lb">h to</span><Num value={b} onChange={(v) => put({ timeBetween: [a, v ?? 0] })} /><span class="lb">h</span></>;
   } else if (k === 'collected') {
     const x = c.collected ?? {};
     body = <><RefField kind="collect" value={x.item} onChange={(v) => put({ collected: { ...x, item: v ?? '' } })} /><span class="lb">≥</span><Num int value={x.count} onChange={(v) => put({ collected: { ...x, count: v ?? 1 } })} /></>;
@@ -201,7 +201,7 @@ export function CondEditor({ value, onChange, depth = 0, extra }) {
     const x = c.objectiveActive ?? {};
     const m = (R.mdoc?.missions ?? []).find((y) => y.id === x.mission);
     const options = (m?.objectives ?? []).filter((o) => o.id).map((o) => ({ value: o.id, label: o.text ?? o.type }));
-    body = <><RefField kind="mission" value={x.mission} onChange={(v) => put({ objectiveActive: { ...x, mission: v ?? '' } })} /><span class="lb">·</span><RefField kind="objective" value={x.id} onChange={(v) => put({ objectiveActive: { ...x, id: v ?? '' } })} options={options} placeholder="objectif" /></>;
+    body = <><RefField kind="mission" value={x.mission} onChange={(v) => put({ objectiveActive: { ...x, mission: v ?? '' } })} /><span class="lb">·</span><RefField kind="objective" value={x.id} onChange={(v) => put({ objectiveActive: { ...x, id: v ?? '' } })} options={options} placeholder="objective" /></>;
   } else if (k === 'not') {
     body = <CondEditor value={c.not} onChange={(v) => put({ not: v })} depth={depth + 1} />;
   } else if (k === 'all' || k === 'any') {
@@ -216,7 +216,7 @@ export function CondEditor({ value, onChange, depth = 0, extra }) {
     <div class={'cond' + (nested ? ' nested' : '')}>
       <div class="cond-h">
         <select class={'ck' + (k === '?' ? ' warn' : '')} value={k} onChange={(e) => setKind(e.target.value)}>
-          {k === '?' && <option value="?">⚠ non reconnue (JSON)</option>}
+          {k === '?' && <option value="?">⚠ unrecognized (JSON)</option>}
           {COND_KINDS.map((x) => <option value={x}>{COND_INFO[x].label}</option>)}
         </select>
         {!nested && body}
@@ -235,8 +235,8 @@ export function CondList({ value, onChange, depth = 0, withReason, addLabel = '+
     <div class="condlist">
       {list.map((c, i) => (
         <CondEditor value={c} depth={depth} onChange={(v) => setAt(i, v)} extra={<>
-          {withReason && <Txt value={c?.reason} placeholder="raison affichée" cls="reason" onChange={(r) => { const n = { ...c, reason: r }; if (r === undefined) delete n.reason; setAt(i, n); }} />}
-          <button class="mini danger" title="Retirer cette condition" onClick={() => onChange(list.filter((_, j) => j !== i))}>✕</button>
+          {withReason && <Txt value={c?.reason} placeholder="displayed reason" cls="reason" onChange={(r) => { const n = { ...c, reason: r }; if (r === undefined) delete n.reason; setAt(i, n); }} />}
+          <button class="mini danger" title="Remove this condition" onClick={() => onChange(list.filter((_, j) => j !== i))}>✕</button>
         </>} />
       ))}
       <button class="mini add" onClick={() => onChange([...list, { var: '' }])}>{addLabel}</button>
@@ -245,9 +245,9 @@ export function CondList({ value, onChange, depth = 0, withReason, addLabel = '+
 }
 
 /** Optional condition (action "if", trigger "if"). */
-export function OptCond({ value, onChange, label = '+ condition (si…)' }) {
+export function OptCond({ value, onChange, label = '+ condition (if…)' }) {
   if (value === undefined) return <button class="mini add" onClick={() => onChange({ var: '' })}>{label}</button>;
-  return <CondEditor value={value} onChange={onChange} extra={<button class="mini danger" title="Retirer la condition" onClick={() => onChange(undefined)}>✕</button>} />;
+  return <CondEditor value={value} onChange={onChange} extra={<button class="mini danger" title="Remove the condition" onClick={() => onChange(undefined)}>✕</button>} />;
 }
 
 // --- actions ----------------------------------------------------------------------------------
@@ -255,10 +255,10 @@ const ACTION_GROUPS = [
   ['Dialogue & HUD', ['dialogue', 'say', 'banner', 'hint']],
   ['Missions', ['startMission', 'completeMission', 'failMission', 'completeObjective', 'checkpoint', 'setMarker', 'endGame']],
   ['Variables', ['setVar', 'incVar']],
-  ['Personnages', ['spawn', 'activateGroup', 'alertGroup', 'removeGroup', 'follow', 'stopFollow']],
-  ['Joueur', ['giveWeapon', 'giveItem', 'heal', 'teleport']],
-  ['Monde', ['enable', 'disable', 'explode', 'setTime', 'setDayLength']],
-  ['Mise en scène', ['cinematic', 'playSound', 'music', 'wait']],
+  ['Characters', ['spawn', 'activateGroup', 'alertGroup', 'removeGroup', 'follow', 'stopFollow']],
+  ['Player', ['giveWeapon', 'giveItem', 'heal', 'teleport']],
+  ['World', ['enable', 'disable', 'explode', 'setTime', 'setDayLength']],
+  ['Staging', ['cinematic', 'playSound', 'music', 'wait']],
 ];
 const grouped = new Set(ACTION_GROUPS.flatMap(([, l]) => l));
 const OTHER = ACTIONS.filter((a) => !grouped.has(a));
@@ -266,7 +266,7 @@ const OTHER = ACTIONS.filter((a) => !grouped.has(a));
 function ActionOptions({ codes }) {
   return <>
     {ACTION_GROUPS.map(([g, l]) => <optgroup label={g}>{l.filter((a) => ACTIONS.includes(a)).map((a) => <option value={a}>{ACTION_INFO[a].label}{codes ? ` · ${a}` : ''}</option>)}</optgroup>)}
-    {OTHER.length > 0 && <optgroup label="Autres">{OTHER.map((a) => <option value={a}>{a}</option>)}</optgroup>}
+    {OTHER.length > 0 && <optgroup label="Other">{OTHER.map((a) => <option value={a}>{a}</option>)}</optgroup>}
   </>;
 }
 
@@ -296,7 +296,7 @@ function ActionRow({ a, i, n, onChange, onMove, onDup, onDel, mission }) {
         </label>
       ))}
       {extra.map((k) => <label class="prm full"><span>{k}</span><JsonField value={a[k]} rows={1} onChange={(v) => put(k, v)} /></label>)}
-      {!params.length && !extra.length && <small class="none">(aucun paramètre)</small>}
+      {!params.length && !extra.length && <small class="none">(no parameters)</small>}
     </div>
   );
   return (
@@ -309,15 +309,15 @@ function ActionRow({ a, i, n, onChange, onMove, onDup, onDel, mission }) {
         </select>
         {inline ? fields : <span class="grow" />}
         <span class="rtools">
-          <button class={'mini' + (a.if !== undefined ? ' on' : '')} title="Exécuter seulement si une condition est vraie" onClick={() => put('if', a.if === undefined ? { var: '' } : undefined)}>si</button>
-          <button class="mini" title="Monter" disabled={i === 0} onClick={() => onMove(-1)}>↑</button>
-          <button class="mini" title="Descendre" disabled={i === n - 1} onClick={() => onMove(1)}>↓</button>
-          <button class="mini" title="Dupliquer" onClick={onDup}>⧉</button>
-          <button class="mini danger" title="Supprimer" onClick={onDel}>✕</button>
+          <button class={'mini' + (a.if !== undefined ? ' on' : '')} title="Run only if a condition is true" onClick={() => put('if', a.if === undefined ? { var: '' } : undefined)}>if</button>
+          <button class="mini" title="Move up" disabled={i === 0} onClick={() => onMove(-1)}>↑</button>
+          <button class="mini" title="Move down" disabled={i === n - 1} onClick={() => onMove(1)}>↓</button>
+          <button class="mini" title="Duplicate" onClick={onDup}>⧉</button>
+          <button class="mini danger" title="Delete" onClick={onDel}>✕</button>
         </span>
       </div>
       {!inline && fields}
-      {a.if !== undefined && <div class="act-if"><span class="si">si</span><CondEditor value={a.if} onChange={(v) => put('if', v)} /></div>}
+      {a.if !== undefined && <div class="act-if"><span class="si">if</span><CondEditor value={a.if} onChange={(v) => put('if', v)} /></div>}
     </div>
   );
 }
@@ -333,9 +333,9 @@ export function ActionList({ value, onChange, title, hint, mission, keepEmpty })
     <div class="acts">
       <div class="acts-h">
         <b>{title}</b>
-        <small>{list.length ? `${list.length} action${list.length > 1 ? 's' : ''}` : 'aucune action'}{hint ? ` · ${hint}` : ''}</small>
+        <small>{list.length ? `${list.length} action${list.length > 1 ? 's' : ''}` : 'no actions'}{hint ? ` · ${hint}` : ''}</small>
         <span class="grow" />
-        <button class={'mini' + (json ? ' on' : '')} title="Éditer la liste en JSON brut" onClick={() => setJson(!json)}>JSON</button>
+        <button class={'mini' + (json ? ' on' : '')} title="Edit the list as raw JSON" onClick={() => setJson(!json)}>JSON</button>
       </div>
       {json
         ? <JsonField value={list} rows={Math.min(18, Math.max(4, JSON.stringify(list, null, 2).split('\n').length))} onChange={(v) => Array.isArray(v) && emit(v)} />
@@ -347,7 +347,7 @@ export function ActionList({ value, onChange, title, hint, mission, keepEmpty })
         ))}
       {!json && (
         <select class="addsel" value="" onChange={(e) => { const d = e.target.value; e.target.value = ''; if (d) emit([...list, newAction(d)]); }}>
-          <option value="">+ ajouter une action…</option>
+          <option value="">+ add an action…</option>
           <ActionOptions codes />
         </select>
       )}

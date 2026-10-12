@@ -1,7 +1,7 @@
 {
   "archetypes": {
     "merc_rifle": {
-      "label": "Mercenaire (fusil)",
+      "label": "Mercenary (rifle)",
       "model": "punk",
       "palette": "merc_green",
       "health": 100,
@@ -42,7 +42,7 @@
       ]
     },
     "merc_smg": {
-      "label": "Mercenaire (PM)",
+      "label": "Mercenary (SMG)",
       "model": "hoodie",
       "palette": "merc_khaki",
       "health": 90,
@@ -83,7 +83,7 @@
       ]
     },
     "merc_shotgun": {
-      "label": "Mercenaire (pompe)",
+      "label": "Mercenary (shotgun)",
       "model": "hoodie",
       "palette": "merc_dark",
       "health": 120,
@@ -120,7 +120,7 @@
       ]
     },
     "merc_sniper": {
-      "label": "Tireur d'élite",
+      "label": "Sniper",
       "model": "punk",
       "palette": "merc_camo",
       "health": 80,
@@ -158,7 +158,7 @@
       ]
     },
     "merc_heavy": {
-      "label": "Mercenaire lourd",
+      "label": "Heavy mercenary",
       "model": "punk",
       "palette": "merc_heavy",
       "scale": 1.12,
@@ -200,7 +200,7 @@
       ]
     },
     "merc_rocket": {
-      "label": "Mercenaire (lance-roquettes)",
+      "label": "Mercenary (rocket launcher)",
       "model": "hoodie",
       "palette": "merc_dark",
       "health": 130,
@@ -276,7 +276,7 @@
       ]
     },
     "villager": {
-      "label": "Villageois",
+      "label": "Villager",
       "model": "adventurer",
       "palette": "villager",
       "civilian": true,
@@ -288,7 +288,7 @@
       "runSpeed": 4.2
     },
     "scientist": {
-      "label": "Scientifique (otage)",
+      "label": "Scientist (hostage)",
       "model": "businessman",
       "palette": "scientist",
       "civilian": true,

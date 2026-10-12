@@ -1,1 +1,1 @@
-{ "name": "rock", "category": "vegetation", "label": "Rocher", "generator": { "type": "rock", "params": {} } }
+{ "name": "rock", "category": "vegetation", "label": "Rock", "generator": { "type": "rock", "params": {} } }

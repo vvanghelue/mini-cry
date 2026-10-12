@@ -1,7 +1,7 @@
 {
   "name": "antenna_small",
   "category": "prop",
-  "label": "Petite antenne radio",
+  "label": "Small radio antenna",
   "material": "metal",
   "tags": ["military","comms"],
   "parts": [

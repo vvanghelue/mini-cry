@@ -1,7 +1,7 @@
 {
   "name": "flagpole",
   "category": "prop",
-  "label": "Mât et drapeau",
+  "label": "Flagpole",
   "material": "metal",
   "tags": ["military","camp","landmark"],
   "parts": [

@@ -1,7 +1,7 @@
 {
   "name": "lab_building",
   "category": "building",
-  "label": "Laboratoire",
+  "label": "Laboratory",
   "material": "concrete",
   "tags": ["lab", "research", "enterable", "objective"],
   "parts": [

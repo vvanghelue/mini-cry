@@ -1,7 +1,7 @@
 {
   "name": "warehouse",
   "category": "building",
-  "label": "Entrepôt",
+  "label": "Warehouse",
   "material": "metal",
   "tags": ["port", "industrial", "enterable"],
   "parts": [

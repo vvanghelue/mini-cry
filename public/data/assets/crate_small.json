@@ -1,7 +1,7 @@
 {
   "name": "crate_small",
   "category": "prop",
-  "label": "Petite caisse",
+  "label": "Small crate",
   "material": "wood",
   "tags": ["cover","camp","storage"],
   "parts": [

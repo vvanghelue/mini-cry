@@ -1,7 +1,7 @@
 {
   "name": "ruin_pillar",
   "category": "building",
-  "label": "Pilier en ruine",
+  "label": "Ruined pillar",
   "material": "stone",
   "tags": ["ruins", "jungle", "temple"],
   "parts": [

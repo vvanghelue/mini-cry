@@ -88,15 +88,15 @@ export class DebugPanel {
   // ---- Cheats / game ---------------------------------------------------------------------
   _game(gui) {
     const g = this.app.game, p = g.player, C = g.cheats;
-    const f = gui.addFolder('Jeu');
+    const f = gui.addFolder('Game');
     p.godInvisible ??= false;
     f.add(p, 'godMode').name('god mode');
-    f.add(p, 'godInvisible').name('invisible (IA)');
+    f.add(p, 'godInvisible').name('invisible (AI)');
     f.add(p, 'noclip');
-    f.add(C, 'infiniteAmmo').name('munitions infinies');
+    f.add(C, 'infiniteAmmo').name('infinite ammo');
     f.add(C, 'oneShot').name('one-shot kills');
-    f.add(C, 'freezeAI').name('geler les IA');
-    f.add(C, 'timeScale', 0.05, 3, 0.05).name('vitesse du jeu').onChange((v) => { if (!g.paused) g.engine.timeScale = v; });
+    f.add(C, 'freezeAI').name('freeze AI');
+    f.add(C, 'timeScale', 0.05, 3, 0.05).name('game speed').onChange((v) => { if (!g.paused) g.engine.timeScale = v; });
 
     const ammoTypes = Object.keys(g.data.weapons.ammoTypes ?? {});
     const act = {
@@ -122,28 +122,28 @@ export class DebugPanel {
       target: '',
       teleport: () => { const pos = g.resolvePos(act.target); if (pos) p.teleport([pos[0], pos[1] + 1, pos[2]]); },
     };
-    f.add(act, 'heal').name('soigner (vie + armure)');
-    f.add(act, 'refill').name('recharger munitions');
-    f.add(act, 'weapon', Object.keys(g.weapons.defs)).name('arme');
-    f.add(act, 'give').name('donner l’arme');
-    f.add(act, 'flashlight').name('lampe torche');
+    f.add(act, 'heal').name('heal (health + armor)');
+    f.add(act, 'refill').name('refill ammo');
+    f.add(act, 'weapon', Object.keys(g.weapons.defs)).name('weapon');
+    f.add(act, 'give').name('give weapon');
+    f.add(act, 'flashlight').name('flashlight');
 
-    const fe = f.addFolder('Ennemis');
-    fe.add(act, 'archetype', Object.keys(g.data.archetypes.archetypes)).name('archétype');
-    fe.add(act, 'count', 1, 10, 1).name('nombre');
-    fe.add(act, 'aggressive').name('attaquent direct');
-    fe.add(act, 'spawn').name('faire apparaître (25 m devant)');
-    fe.add(act, 'killRadius', 10, 2000, 10).name('rayon (m)');
-    fe.add(act, 'kill').name('tuer les ennemis du rayon');
+    const fe = f.addFolder('Enemies');
+    fe.add(act, 'archetype', Object.keys(g.data.archetypes.archetypes)).name('archetype');
+    fe.add(act, 'count', 1, 10, 1).name('count');
+    fe.add(act, 'aggressive').name('attack at once');
+    fe.add(act, 'spawn').name('spawn (25 m ahead)');
+    fe.add(act, 'killRadius', 10, 2000, 10).name('radius (m)');
+    fe.add(act, 'kill').name('kill enemies in radius');
     fe.close();
 
     // teleport targets: markers and outposts (label -> entity id)
     const targets = {};
     for (const e of g.world.entities.list) if (e.type === 'marker' || e.type === 'outpost') targets[`${e.label ?? e.name ?? e.id} (${e.type})`] = e.id;
-    const ft = f.addFolder('Téléporter');
+    const ft = f.addFolder('Teleport');
     act.target = Object.values(targets)[0] ?? '';
-    ft.add(act, 'target', targets).name('vers');
-    ft.add(act, 'teleport').name('téléporter');
+    ft.add(act, 'target', targets).name('to');
+    ft.add(act, 'teleport').name('teleport');
     ft.close();
   }
 
@@ -153,8 +153,8 @@ export class DebugPanel {
     const ms = { id: list[0]?.id ?? '', start: () => { g.missions.start(ms.id); if (g.missions.state[ms.id]) g.missions.focus = ms.id; }, complete: () => g.missions.completeObjective(g.missions.focus) };
     const f = gui.addFolder('Missions');
     f.add(ms, 'id', Object.fromEntries(list.map((m) => [`${m.id} · ${m.title ?? ''}`, m.id]))).name('mission');
-    f.add(ms, 'start').name('démarrer');
-    f.add(ms, 'complete').name('valider l’objectif courant');
+    f.add(ms, 'start').name('start');
+    f.add(ms, 'complete').name('complete current objective');
     f.close();
   }
 
@@ -171,21 +171,21 @@ export class DebugPanel {
       get clouds() { return L.skyU.cloudCoverage.value; }, set clouds(v) { L.env.clouds.coverage = L.skyU.cloudCoverage.value = v; },
       get advance() { return w.advanceDay !== false; }, set advance(v) { w.advanceDay = v; },
     };
-    const f = gui.addFolder('Heure & météo');
-    f.add(t, 'hour', 0, 24, 0.05).name('heure');
-    f.add(t, 'advance').name('cycle jour / nuit');
-    f.add(t, 'dayLength', 1, 120, 1).name('durée du jour (min)');
-    f.add(t, 'fog', 0, 6, 0.05).name('brouillard (‰)');
-    f.add(t, 'exposure', 0.2, 3, 0.01).name('exposition');
-    f.add(t, 'wind', 0, 2, 0.01).name('vent');
-    f.add(t, 'clouds', 0, 1, 0.01).name('nuages');
+    const f = gui.addFolder('Time & weather');
+    f.add(t, 'hour', 0, 24, 0.05).name('hour');
+    f.add(t, 'advance').name('day / night cycle');
+    f.add(t, 'dayLength', 1, 120, 1).name('day length (min)');
+    f.add(t, 'fog', 0, 6, 0.05).name('fog (‰)');
+    f.add(t, 'exposure', 0.2, 3, 0.01).name('exposure');
+    f.add(t, 'wind', 0, 2, 0.01).name('wind');
+    f.add(t, 'clouds', 0, 1, 0.01).name('clouds');
     f.close();
   }
 
   // ---- Graphics ---------------------------------------------------------------------------
   _graphics(gui) {
     const { engine, world, game } = this.app, L = engine.lighting, cam = engine.camera, overlay = this.overlay;
-    const f = gui.addFolder('Graphismes');
+    const f = gui.addFolder('Graphics');
     const gfx = {
       get quality() { return engine.quality; },
       set quality(v) { if (game) game.saveSettings({ quality: v }); else engine.setQuality(v); },
@@ -200,32 +200,32 @@ export class DebugPanel {
       wireframe: false,
     };
     f.add(gfx, 'stats').name('stats (F3)');
-    f.add(gfx, 'quality', ['low', 'medium', 'high', 'ultra']).name('qualité');
-    f.add(gfx, 'dynRes').name('résolution dynamique');
-    f.add(engine.dynamicResolution, 'targetMs', 3, 16, 0.1).name('cible GPU (ms)');
-    f.add(gfx, 'resScale', 0.3, 1, 0.01).name('échelle de résolution');
-    f.add(gfx, 'shadows').name('ombres du soleil');
+    f.add(gfx, 'quality', ['low', 'medium', 'high', 'ultra']).name('quality');
+    f.add(gfx, 'dynRes').name('dynamic resolution');
+    f.add(engine.dynamicResolution, 'targetMs', 3, 16, 0.1).name('GPU target (ms)');
+    f.add(gfx, 'resScale', 0.3, 1, 0.01).name('resolution scale');
+    f.add(gfx, 'shadows').name('sun shadows');
     const ao = L.ao, aoU = ao.aoMat.uniforms;
     const fa = f.addFolder('SSAO');
-    fa.add(gfx, 'ao').name('activé');
-    fa.add(aoU.intensity, 'value', 0, 8, 0.05).name('intensité');
-    fa.add(aoU.radius, 'value', 0.05, 4, 0.05).name('rayon (m)');
-    fa.add(aoU.maxPx, 'value', 4, 200, 1).name('rayon max (px)');
-    fa.add(aoU.fadeFar, 'value', 10, 300, 1).name('distance max (m)');
-    fa.add(ao.uniforms.aoDirect, 'value', 0, 1, 0.01).name('sur lumière directe');
-    fa.add({ get v() { return ao.uniforms.aoDebug.value > 0.5; }, set v(x) { ao.uniforms.aoDebug.value = x ? 1 : 0; } }, 'v').name('vue AO seule');
+    fa.add(gfx, 'ao').name('enabled');
+    fa.add(aoU.intensity, 'value', 0, 8, 0.05).name('intensity');
+    fa.add(aoU.radius, 'value', 0.05, 4, 0.05).name('radius (m)');
+    fa.add(aoU.maxPx, 'value', 4, 200, 1).name('max radius (px)');
+    fa.add(aoU.fadeFar, 'value', 10, 300, 1).name('max distance (m)');
+    fa.add(ao.uniforms.aoDirect, 'value', 0, 1, 0.01).name('on direct light');
+    fa.add({ get v() { return ao.uniforms.aoDebug.value > 0.5; }, set v(x) { ao.uniforms.aoDebug.value = x ? 1 : 0; } }, 'v').name('AO only view');
     fa.close();
     // sun lens flare + light halos (values live in lighting.env.flare / glows, saved by the editor)
     const fl = f.addFolder('Lens flare & halos');
     const envKey = (group, key) => ({ get v() { return L.env[group][key]; }, set v(x) { L.env[group][key] = x; } });
     fl.add(gfx, 'flare').name('lens flare');
-    fl.add(envKey('flare', 'intensity'), 'v', 0, 3, 0.01).name('intensité');
-    fl.add(envKey('flare', 'glare'), 'v', 0, 3, 0.01).name('voile');
-    fl.add(envKey('flare', 'ghosts'), 'v', 0, 3, 0.01).name('reflets');
-    fl.add(envKey('flare', 'dazzle'), 'v', 0, 0.5, 0.01).name('éblouissement');
-    fl.add({ get v() { return +L.flare.visible.toFixed(2); }, set v(_) {} }, 'v').name('soleil visible').listen().disable();
-    fl.add(envKey('glows', 'intensity'), 'v', 0, 3, 0.01).name('halos des lumières');
-    fl.add(envKey('glows', 'distance'), 'v', 50, 1500, 10).name('halos : distance (m)');
+    fl.add(envKey('flare', 'intensity'), 'v', 0, 3, 0.01).name('intensity');
+    fl.add(envKey('flare', 'glare'), 'v', 0, 3, 0.01).name('glare');
+    fl.add(envKey('flare', 'ghosts'), 'v', 0, 3, 0.01).name('ghosts');
+    fl.add(envKey('flare', 'dazzle'), 'v', 0, 0.5, 0.01).name('dazzle');
+    fl.add({ get v() { return +L.flare.visible.toFixed(2); }, set v(_) {} }, 'v').name('sun visibility').listen().disable();
+    fl.add(envKey('glows', 'intensity'), 'v', 0, 3, 0.01).name('light halos');
+    fl.add(envKey('glows', 'distance'), 'v', 50, 1500, 10).name('halos: distance (m)');
     fl.close();
     // probe GI + auto exposure (values live in lighting.env.gi / autoExposure, saved by the editor)
     const gi = L.gi, relight = () => L.setTimeOfDay(L.timeOfDay);
@@ -242,12 +242,12 @@ export class DebugPanel {
       get exposure() { return +gi.exposure.toFixed(2); }, set exposure(_) {},
       get open() { return +gi.openness.toFixed(2); }, set open(_) {},
     };
-    if (!gi.loaded) fg.add({ info: 'non calculée : npm run mc -- gi bake' }, 'info').name('GI').disable();
-    fg.add(g, 'on').name('activée');
-    fg.add(g, 'intensity', 0, 3, 0.01).name('intensité');
-    fg.add(g, 'floor', 0, 1, 0.01).name('plancher ambiante');
-    fg.add(g, 'bias', 0, 3, 0.05).name('décalage normale (m)');
-    fg.add(g, 'debug').name('vue irradiance seule');
+    if (!gi.loaded) fg.add({ info: 'not baked: npm run mc -- gi bake' }, 'info').name('GI').disable();
+    fg.add(g, 'on').name('enabled');
+    fg.add(g, 'intensity', 0, 3, 0.01).name('intensity');
+    fg.add(g, 'floor', 0, 1, 0.01).name('ambient floor');
+    fg.add(g, 'bias', 0, 3, 0.05).name('normal bias (m)');
+    fg.add(g, 'debug').name('irradiance only view');
     // probe spheres around the camera (an engine system only while shown)
     const pv = (this.probeView ??= new GIProbeView(gi, engine.scene, world ? (x, z) => world.heightAt(x, z) : null));
     const probes = {
@@ -255,15 +255,15 @@ export class DebugPanel {
       set on(v) { pv.setVisible(v); engine.removeSystem(pv); if (v) engine.addSystem(pv); },
       get layer() { return pv.layer; }, set layer(v) { pv.layer = +v; },
     };
-    fg.add(probes, 'on').name('voir les probes');
-    fg.add(pv, 'radius', 8, 128, 8).name('rayon probes (m)');
-    fg.add(pv, 'size', 0.1, 2, 0.05).name('taille probes (m)');
-    fg.add(probes, 'layer', { toutes: -1, '1.5 m': 0, '3.75 m': 1, '9.4 m': 2, '23.4 m': 3 }).name('couche probes');
-    fg.add(g, 'ae').name('exposition auto');
-    fg.add(g, 'strength', 0, 1, 0.01).name('force expo auto');
-    fg.add(g, 'max', 1, 4, 0.05).name('expo auto max');
-    fg.add(g, 'exposure').name('expo auto actuelle').listen().disable();
-    fg.add(g, 'open').name('ciel visible (caméra)').listen().disable();
+    fg.add(probes, 'on').name('show probes');
+    fg.add(pv, 'radius', 8, 128, 8).name('probe radius (m)');
+    fg.add(pv, 'size', 0.1, 2, 0.05).name('probe size (m)');
+    fg.add(probes, 'layer', { all: -1, '1.5 m': 0, '3.75 m': 1, '9.4 m': 2, '23.4 m': 3 }).name('probe layer');
+    fg.add(g, 'ae').name('auto exposure');
+    fg.add(g, 'strength', 0, 1, 0.01).name('auto exposure strength');
+    fg.add(g, 'max', 1, 4, 0.05).name('auto exposure max');
+    fg.add(g, 'exposure').name('current auto exposure').listen().disable();
+    fg.add(g, 'open').name('sky openness (camera)').listen().disable();
     fg.close();
     const wired = new Set();
     f.add(gfx, 'wireframe').onChange((v) => {
@@ -275,27 +275,27 @@ export class DebugPanel {
     });
 
     // what gets drawn (to isolate the cost of each part of the frame)
-    const fv = f.addFolder('Affichage');
+    const fv = f.addFolder('Display');
     const vis = (label, getObj) => {
       if (!getObj()) return;
       const o = { get v() { return getObj()?.visible ?? false; }, set v(x) { const obj = getObj(); if (obj) obj.visible = x; } };
       fv.add(o, 'v').name(label);
     };
-    vis('ciel', () => L.sky);
+    vis('sky', () => L.sky);
     if (world) {
       vis('terrain', () => world.terrainRenderer?.group);
-      vis('eau', () => world.water?.group);
-      vis('végétation', () => world.vegetation?.group);
-      vis('herbe', () => world.grass?.group);
+      vis('water', () => world.water?.group);
+      vis('vegetation', () => world.vegetation?.group);
+      vis('grass', () => world.grass?.group);
       vis('props (batch)', () => world.entities?.props?.group);
     }
     const layer = (label, l) => {
       const o = { get v() { return cam.layers.isEnabled(l); }, set v(x) { if (x) cam.layers.enable(l); else cam.layers.disable(l); } };
       fv.add(o, 'v').name(label);
     };
-    layer('dynamique (persos, véhicules)', LAYERS.DYNAMIC);
-    layer('effets (FX)', LAYERS.FX);
-    if (game) fv.add({ get v() { return engine.overlay?.visible !== false; }, set v(x) { if (engine.overlay) engine.overlay.visible = x; } }, 'v').name('arme (vue FPS)');
+    layer('dynamic (characters, vehicles)', LAYERS.DYNAMIC);
+    layer('effects (FX)', LAYERS.FX);
+    if (game) fv.add({ get v() { return engine.overlay?.visible !== false; }, set v(x) { if (engine.overlay) engine.overlay.visible = x; } }, 'v').name('weapon (FPS view)');
     fv.close();
     f.close();
   }

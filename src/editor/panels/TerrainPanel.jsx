@@ -8,7 +8,8 @@ import { smoothPath } from '../../engine/world/TerrainGen.js';
 import { RecordForm } from './DataPanel.jsx';
 import { log, S } from '../core.js';
 
-const SECTIONS = [['islands', 'Îles'], ['mountains', 'Montagnes'], ['plateaus', 'Plateaux'], ['lagoons', 'Lagons'], ['rivers', 'Rivières'], ['roads', 'Routes'], ['flats', 'Sites aplanis']];
+const SECTIONS = [['islands', 'Islands'], ['mountains', 'Mountains'], ['plateaus', 'Plateaus'], ['lagoons', 'Lagoons'], ['rivers', 'Rivers'], ['roads', 'Roads'], ['flats', 'Flat sites']];
+// default names of new layout items are written into terrain/layout.json (content: kept in French)
 const TEMPLATES = {
   islands: { name: 'Île', x: 0, z: 0, rx: 150, rz: 120, rot: 0, height: 20 },
   mountains: { name: 'Montagne', x: 0, z: 0, r: 150, height: 80, ridged: 0.4 },
@@ -25,12 +26,12 @@ export function TerrainPanel({ ed }) {
   const [idx, setIdx] = useState(0);
   const [busy, setBusy] = useState('');
   useEffect(() => { Data.json('terrain/layout.json', { fresh: true }).then(setLayout); }, []);
-  if (!layout) return <div class="panel">Chargement…</div>;
+  if (!layout) return <div class="panel">Loading…</div>;
   const list = layout[sec] ?? [];
   const put = (l) => { setLayout(l); ed.stageFile('terrain/layout.json', l); };
   const regenerate = async (veg) => {
-    if (!confirm('Régénérer le terrain écrase la sculpture manuelle (une sauvegarde est gardée dans .mc-backup). Continuer ?')) return;
-    setBusy('Génération du terrain…');
+    if (!confirm('Regenerating the terrain overwrites manual sculpting (a backup is kept in .mc-backup). Continue?')) return;
+    setBusy('Generating terrain…');
     await new Promise((r) => setTimeout(r, 30));
     const w = ed.world;
     const t = generateTerrain(layout);
@@ -43,40 +44,40 @@ export function TerrainPanel({ ed }) {
     w.water.buildRivers();
     ed.markDirty('terrain');
     if (veg) {
-      setBusy('Répartition de la végétation…');
+      setBusy('Scattering vegetation…');
       await new Promise((r) => setTimeout(r, 30));
       const circles = (layout.flats ?? []).map((f) => ({ x: f.x, z: f.z, r: f.r + 4 }));
       for (const e of w.entities.list) if (e.clearRadius && e.pos) circles.push({ x: e.pos[0], z: e.pos[2], r: e.clearRadius });
       const r = scatterVegetation(w.terrain, w.vegetation.def, { circles, paths: (layout.roads ?? []).map((rd) => ({ points: smoothPath(rd.points, 6), width: rd.width })) });
       w.vegetation.rebuild(r.bytes);
       ed.markDirty('vegetation.bin');
-      log(`Végétation : ${r.count} instances`);
+      log(`Vegetation: ${r.count} instances`);
     }
     ed._terrainChanged();
     setBusy('');
-    log('Terrain régénéré (pensez à enregistrer)');
+    log('Terrain regenerated (remember to save)');
     S.version.value++;
   };
   return (
     <div class="panel split">
       <div class="side">
-        <h2>Île</h2>
-        <Row2 label="Graine"><input type="number" value={layout.seed} onChange={(e) => put({ ...layout, seed: +e.target.value })} /></Row2>
+        <h2>Island</h2>
+        <Row2 label="Seed"><input type="number" value={layout.seed} onChange={(e) => put({ ...layout, seed: +e.target.value })} /></Row2>
         <div class="tabs v">{SECTIONS.map(([k, l]) => <button class={sec === k ? 'on' : ''} onClick={() => { setSec(k); setIdx(0); }}>{l} <small>{(layout[k] ?? []).length}</small></button>)}</div>
         <div class="list">
           {list.map((it, i) => <div class={'it' + (i === idx ? ' sel' : '')} onClick={() => setIdx(i)} onDblClick={() => focus(ed, it)}>{it.name ?? `${sec} ${i}`}</div>)}
         </div>
         <div class="btns">
-          <button onClick={() => { const c = ed.engine.camera.position; const t = { ...structuredClone(TEMPLATES[sec]) }; if ('x' in t) { t.x = Math.round(c.x); t.z = Math.round(c.z); } if (t.points) t.points = t.points.map((p) => [p[0] + Math.round(c.x), p[1] + Math.round(c.z)]); put({ ...layout, [sec]: [...list, t] }); setIdx(list.length); }}>+ Ajouter (à la caméra)</button>
-          <button class="danger" onClick={() => { put({ ...layout, [sec]: list.filter((_, i) => i !== idx) }); setIdx(0); }}>Supprimer</button>
+          <button onClick={() => { const c = ed.engine.camera.position; const t = { ...structuredClone(TEMPLATES[sec]) }; if ('x' in t) { t.x = Math.round(c.x); t.z = Math.round(c.z); } if (t.points) t.points = t.points.map((p) => [p[0] + Math.round(c.x), p[1] + Math.round(c.z)]); put({ ...layout, [sec]: [...list, t] }); setIdx(list.length); }}>+ Add (at camera)</button>
+          <button class="danger" onClick={() => { put({ ...layout, [sec]: list.filter((_, i) => i !== idx) }); setIdx(0); }}>Delete</button>
         </div>
         {list[idx] && <RecordForm rec={list[idx]} onChange={(r) => { const l = [...list]; l[idx] = r; put({ ...layout, [sec]: l }); }} />}
         <div class="btns">
-          <button disabled={!!busy} onClick={() => regenerate(false)}>⟳ Régénérer le terrain</button>
-          <button disabled={!!busy} onClick={() => regenerate(true)}>⟳ Terrain + végétation</button>
+          <button disabled={!!busy} onClick={() => regenerate(false)}>⟳ Regenerate terrain</button>
+          <button disabled={!!busy} onClick={() => regenerate(true)}>⟳ Terrain + vegetation</button>
         </div>
         {busy && <p class="hint">{busy}</p>}
-        <p class="hint">Double-clic sur un élément pour y placer la caméra. Les sites aplanis (« flats ») et les routes sont gardés libres de végétation.</p>
+        <p class="hint">Double-click an item to move the camera there. Flat sites ("flats") and roads are kept clear of vegetation.</p>
       </div>
     </div>
   );

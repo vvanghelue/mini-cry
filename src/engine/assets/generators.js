@@ -369,7 +369,7 @@ function buildPandanus(p, R, q) {
 
 export const GENERATORS = {
   palm: {
-    label: 'Palmier',
+    label: 'Palm',
     defaults: {
       height: 9, lean: 12, curve: 0.3, trunkRadius: 0.2, flare: 1.7, segments: 9, fronds: 15, frondLength: 3.9, frondWidth: 0.8, droop: 1.7, leaflets: 11, fold: 0.5, leafletBase: 0.9,
       coconuts: 4, dead: 2, crownshaft: '', trunkColor: '#8b7c66', ringColor: '#6f624f', frondColors: ['#4d7f24', '#5a8c2b', '#43741f'], youngColor: '#7ea83c', oldColor: '#9c8a3e', deadColor: '#8a6b3c',
@@ -380,14 +380,14 @@ export const GENERATORS = {
   },
 
   tree: {
-    label: 'Arbre (générique)',
+    label: 'Tree (generic)',
     defaults: TREE_DEFAULTS,
     build: buildTree,
     collider: treeCollider,
   },
 
   jungleTree: {
-    label: 'Arbre géant de jungle',
+    label: 'Giant jungle tree',
     defaults: {
       ...TREE_DEFAULTS, height: 21, trunkRadius: 0.7, flare: 1.6, lean: 3, bend: 0.8, trunkTop: 0.68, crownBase: 0.6, crownRadius: 6.5, elevMin: -5, elevMax: 50, crownShell: 0.75,
       branches: 5, forks: 2, clumps: 14, clumpRadius: 2.2, clumpSquash: 0.6, midClumps: 9, farClumps: 4, midBranches: 5, farBranches: 3, buttress: 5, lianas: 5, moss: 1,
@@ -398,7 +398,7 @@ export const GENERATORS = {
   },
 
   broadleaf: {
-    label: 'Feuillu',
+    label: 'Broadleaf tree',
     defaults: { ...TREE_DEFAULTS },
     build: buildTree,
     collider: treeCollider,
@@ -415,7 +415,7 @@ export const GENERATORS = {
   },
 
   bush: {
-    label: 'Buisson',
+    label: 'Bush',
     defaults: { radius: 1.1, blobs: 3, leaves: 9, leafColors: ['#3f8a22', '#4d9a2a', '#357a1c'], colors: ['#2f6a1c', '#3a7a22', '#285c17'], berries: 0, berryColor: '#c8302a' },
     build(p, rng, q = 1) {
       // a leafy core (a few faceted blobs) wrapped in arching broad leaves
@@ -443,7 +443,7 @@ export const GENERATORS = {
   },
 
   fern: {
-    label: 'Fougère',
+    label: 'Fern',
     defaults: { fronds: 8, length: 1.3, width: 0.2, droop: 0.65, colors: ['#3d8a24', '#2e7419'] },
     build(p, rng, q = 1) {
       const parts = [];
@@ -456,7 +456,7 @@ export const GENERATORS = {
   },
 
   banana: {
-    label: 'Bananier',
+    label: 'Banana plant',
     defaults: { height: 2.4, leaves: 6, leafLength: 2.3, leafWidth: 0.55, stemColor: '#6b8a3a', leafColors: ['#4d9a2a', '#5aa834', '#3f8722'] },
     build(p, rng, q = 1) {
       const h = vary(rng, p.height, 0.2);
@@ -470,7 +470,7 @@ export const GENERATORS = {
   },
 
   grass: {
-    label: 'Touffe d\'herbe',
+    label: 'Grass tuft',
     defaults: { blades: 5, height: 0.55, width: 0.08, spread: 0.18, colors: ['#5d9a2c', '#6aa834', '#4f8a24'] },
     build(p, rng) {
       const pos = [];
@@ -487,7 +487,7 @@ export const GENERATORS = {
   },
 
   flowers: {
-    label: 'Fleurs',
+    label: 'Flowers',
     defaults: { count: 5, height: 0.45, colors: ['#e8473c', '#f2c53d', '#e86fb3', '#ffffff'], stemColor: '#4f8a24' },
     build(p, rng) {
       const parts = [];
@@ -502,7 +502,7 @@ export const GENERATORS = {
   },
 
   rock: {
-    label: 'Rocher',
+    label: 'Rock',
     defaults: { radius: 1.4, detail: 1, noise: 0.28, squash: [1.1, 0.65, 1], colors: ['#7a756c', '#6b665e', '#86807a'], moss: 0.0, mossColor: '#4d6b25' },
     build(p, rng) {
       const parts = [{ shape: 'lump', radius: vary(rng, p.radius, 0.25), detail: p.detail, noise: p.noise, seed: Math.floor(rng() * 9999), scale: p.squash, pos: [0, p.radius * p.squash[1] * 0.45, 0], color: pick(rng, p.colors), jitter: 0.12 }];
@@ -513,7 +513,7 @@ export const GENERATORS = {
   },
 
   bamboo: {
-    label: 'Bambous',
+    label: 'Bamboo',
     defaults: { stalks: 7, height: 7, radius: 0.07, spread: 0.7, color: '#7d9a3a', nodeColor: '#5d7a2a', leafColor: '#4f9128' },
     build(p, rng) {
       const parts = [];
@@ -531,7 +531,7 @@ export const GENERATORS = {
   },
 
   deadTree: {
-    label: 'Arbre mort',
+    label: 'Dead tree',
     defaults: { height: 6, trunkRadius: 0.25, branches: 4, color: '#7b6a58' },
     build(p, rng) {
       const h = vary(rng, p.height, 0.2);

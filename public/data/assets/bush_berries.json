@@ -1,1 +1,1 @@
-{ "name": "bush_berries", "category": "vegetation", "label": "Buisson à baies", "generator": { "type": "bush", "params": { "radius": 0.8, "blobs": 3, "berries": 8 } } }
+{ "name": "bush_berries", "category": "vegetation", "label": "Berry bush", "generator": { "type": "bush", "params": { "radius": 0.8, "blobs": 3, "berries": 8 } } }

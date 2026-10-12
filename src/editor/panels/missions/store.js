@@ -19,7 +19,7 @@ async function readJson(path) {
     if (r.status === 404) return { missing: true };
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const txt = await r.text();
-    try { return { data: JSON.parse(txt) }; } catch (e) { return { error: `JSON invalide : ${e.message}` }; }
+    try { return { data: JSON.parse(txt) }; } catch (e) { return { error: `Invalid JSON: ${e.message}` }; }
   } catch {
     try { return { data: await Data.json(path, { fresh: true }) }; } catch { return { missing: true }; }
   }
@@ -58,7 +58,7 @@ function makeDoc(file, empty, normalize) {
       return D._loading;
     },
     /** Replace the document (undoable, staged for saving). `key` merges rapid edits of one field. */
-    set(ed, next, label = 'Modifier', key = null) {
+    set(ed, next, label = 'Edit', key = null) {
       const before = D.doc.value;
       if (before === next) return;
       D._apply(ed, next);
@@ -109,8 +109,8 @@ import.meta.hot?.on('mc:data-changed', async (d) => {
     if (!r.data) continue;
     const disk = D.normalize(r.data);
     if (JSON.stringify(disk) === JSON.stringify(D.doc.value)) continue; // our own save
-    if (D.dirty) { D.conflict.value = true; log(`${D.file} modifié sur le disque pendant l'édition`, 'warn'); }
-    else { D.doc.value = disk; D.status.value = 'ready'; log(`${D.file} rechargé (modifié sur le disque)`); }
+    if (D.dirty) { D.conflict.value = true; log(`${D.file} modified on disk while you were editing it`, 'warn'); }
+    else { D.doc.value = disk; D.status.value = 'ready'; log(`${D.file} reloaded (modified on disk)`); }
   }
 });
 

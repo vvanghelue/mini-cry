@@ -1,7 +1,7 @@
 {
   "name": "intel",
   "category": "pickup",
-  "label": "Documents secrets",
+  "label": "Secret documents",
   "material": "cloth",
   "tags": ["pickup","intel","objective"],
   "parts": [

@@ -1,7 +1,7 @@
 {
   "name": "fence_wood",
   "category": "prop",
-  "label": "Clôture en bois",
+  "label": "Wooden fence",
   "material": "wood",
   "tags": ["fence","village"],
   "parts": [

@@ -1,7 +1,7 @@
 {
   "name": "satellite_dish",
   "category": "prop",
-  "label": "Antenne parabolique",
+  "label": "Satellite dish",
   "material": "metal",
   "tags": ["military","industrial","comms"],
   "parts": [

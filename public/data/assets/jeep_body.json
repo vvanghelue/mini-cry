@@ -1,7 +1,7 @@
 {
   "name": "jeep_body",
   "category": "vehicle",
-  "label": "Jeep (carrosserie)",
+  "label": "Jeep (body)",
   "material": "metal",
   "tags": ["vehicle","military"],
   "wheels": [[-0.72,0.38,-1.1],[0.72,0.38,-1.1],[-0.72,0.38,1.1],[0.72,0.38,1.1]],

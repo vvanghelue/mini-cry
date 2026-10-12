@@ -24,7 +24,7 @@ No textures: colour comes from the parts, the faceted look from flat shading.
 {
   "name": "crate",               // = file name
   "category": "prop",            // prop | building | vegetation | vehicle | weapon | pickup | fx
-  "label": "Caisse en bois",     // French display name (editor)
+  "label": "Wooden crate",       // display name (editor)
   "material": "wood",            // impact / footstep material: wood | metal | stone | concrete | sand | foliage | cloth | water
   "tags": ["cover", "camp"],     // free tags (editor filters)
   "parts": [ ... ],

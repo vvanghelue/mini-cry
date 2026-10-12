@@ -1,5 +1,5 @@
-# Pause menu → "Carte" → Escape must come back to the pause menu (not a frozen, menu-less game),
-# then "Reprendre" must give the control back. (?bot forces the pointer lock, so the Escape that
+# Pause menu → "Map" → Escape must come back to the pause menu (not a frozen, menu-less game),
+# then "Resume" must give the control back. (?bot forces the pointer lock, so the Escape that
 # releases it is simulated with game.pause().)
 wait 1
 eval game.pause()

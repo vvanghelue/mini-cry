@@ -1,7 +1,7 @@
 {
   "name": "helipad",
   "category": "building",
-  "label": "Héliport",
+  "label": "Helipad",
   "material": "concrete",
   "tags": ["military", "airfield", "helipad"],
   "parts": [

@@ -1,7 +1,7 @@
 {
   "name": "broadleaf",
   "category": "vegetation",
-  "label": "Feuillu",
+  "label": "Broadleaf tree",
   "generator": {
     "type": "broadleaf",
     "params": {

@@ -1,4 +1,4 @@
-// Debug view of the baked GI probes (F2 > Graphismes > GI (probes) > voir les probes): a small
+// Debug view of the baked GI probes (F2 > Graphics > GI (probes) > show probes): a small
 // sphere at each probe around the camera, shaded by the probe's relit irradiance alone (what a
 // white diffuse ball would look like there, like "vue irradiance seule"). One instanced draw on
 // the FX layer (no shadow, no SSAO), refilled only when the camera changes cell, the light changes

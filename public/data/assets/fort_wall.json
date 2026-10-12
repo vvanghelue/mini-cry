@@ -1,7 +1,7 @@
 {
   "name": "fort_wall",
   "category": "building",
-  "label": "Mur de forteresse",
+  "label": "Fort wall",
   "material": "stone",
   "tags": ["fortress", "wall", "modular"],
   "parts": [

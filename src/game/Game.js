@@ -74,7 +74,7 @@ export class Game {
     this.data = { player, weapons, archetypes, items, missions, dialogue, sounds };
     // characters (all archetype models)
     const models = [...new Set(Object.values(archetypes.archetypes).map((a) => a.model))];
-    this.app.onLoadProgress?.(0.85, 'Personnages et animations');
+    this.app.onLoadProgress?.(0.85, 'Characters and animations');
     this.characters = await new CharacterLibrary(this.engine.lighting).load(models);
     this.app.onLoadProgress?.(0.95, 'Audio');
     // audio (optional module)
@@ -124,7 +124,7 @@ export class Game {
       const sp = this.params.get('spawn');
       if (sp) { const [x, y, z, yaw] = sp.split(',').map(Number); this.player.teleport([x, y, z], yaw ?? 0); }
       this.newGame({ skipIntro: this.params.has('nointro'), fromCheckpoint: false, keepPosition: !!sp });
-      const mid = this.params.get('mission'); // editor "Tester": start this mission and focus it
+      const mid = this.params.get('mission'); // editor mission test button: start this mission and focus it
       if (mid) { this.missions.start(mid); if (this.missions.state[mid]) this.missions.focus = mid; }
     } else this.menus.showMain();
   }
@@ -146,7 +146,7 @@ export class Game {
     this.hud.setVisible(true);
     this.menus.hideAll();
     if (fromCheckpoint && this.restore(loadJSON(SAVE_KEY))) {
-      this.hud.notify('Partie chargée');
+      this.hud.notify('Game loaded');
     } else {
       if (!keepPosition) { const w = this.world.data.player ?? {}; this.player.teleport(w.pos ?? [0, 20, 0], w.yaw ?? 0); }
       // nointro (tools, editor "play here"): free roam, no story start (a ?mission= can still start one)
@@ -178,7 +178,7 @@ export class Game {
 
   onPlayerDeath() {
     this.stats.deaths++;
-    this.hud.showBanner('Vous êtes mort', '', 3000, 'fail');
+    this.hud.showBanner('You died', '', 3000, 'fail');
     setTimeout(() => { this.input.unlock(); this.menus.showDeath(); }, 2200);
   }
 
@@ -261,7 +261,7 @@ export class Game {
       if (score < bd) { bd = score; best = h; }
     }
     const vehicle = !best && !p.inVehicle ? this.vehicles.nearby(p) : null;
-    const text = best ? best.interact.prompt?.() : vehicle ? `Conduire (${vehicle.label})` : p.inVehicle ? 'Sortir du véhicule' : null;
+    const text = best ? best.interact.prompt?.() : vehicle ? `Drive (${vehicle.label})` : p.inVehicle ? 'Exit vehicle' : null;
     this.hud.setPrompt(text ? `<kbd>E</kbd>${text}` : null);
     if (inp.hit('use')) {
       if (p.inVehicle) this.vehicles.exit();
@@ -290,7 +290,7 @@ export class Game {
     if (it.grenades) w.grenades = Math.min(p.cfg.maxGrenades, w.grenades + it.grenades);
     if (it.collectible) { this.collected[it.collectible] = (this.collected[it.collectible] ?? 0) + 1; this.hud.notify(`${it.label} (${this.collected[it.collectible]})`); }
     if (it.key || it.tool) this.inventory.add(itemId);
-    if (it.tool === 'binoculars') this.hud.notify('Jumelles : touche B pour observer et marquer les ennemis', 6000);
+    if (it.tool === 'binoculars') this.hud.notify('Binoculars: press B to scout and tag enemies', 6000);
     this.hud.notify(`+ ${it.label}`, 2000);
     this.audio?.play(it.sound ?? 'pickup_item', { volume: 0.6 });
     this.hud.refreshWeapon();
@@ -313,7 +313,7 @@ export class Game {
       if (info.part === 'head') this.stats.headshots++;
     }
     this.missions.emit('kill', { actor: actor.id, group: actor.group });
-    if (actor.team === 'civilian' && info.attacker === 'player') this.hud.notify('Ne tuez pas les civils !');
+    if (actor.team === 'civilian' && info.attacker === 'player') this.hud.notify('Don\'t kill civilians!');
   }
 
   onShapeHit(shape, dmg, point, attacker) {
@@ -341,7 +341,7 @@ export class Game {
     const runner = this.actors.aliveInGroup(actor.group).filter((a) => a.weapon).sort((a, b) => a.pos.distanceTo(alarm.object.position) - b.pos.distanceTo(alarm.object.position))[0];
     if (!runner || runner.pos.distanceTo(alarm.object.position) > 60) return;
     this._alarmRunner = runner;
-    this.hud.notify('Un ennemi court vers l\'alarme !', 3500);
+    this.hud.notify('An enemy is running for the alarm!', 3500);
     const t0 = this.time;
     const tick = () => {
       if (!runner.alive || alarm.disabled || this.liberated.has(outpost.id) || this.time - t0 > 25) { this._alarmRunner = null; return; }
@@ -367,7 +367,7 @@ export class Game {
   }
 
   raiseAlarm(outpost) {
-    this.hud.showBanner('Alarme !', 'Des renforts arrivent', 3000, 'fail');
+    this.hud.showBanner('Alarm!', 'Reinforcements incoming', 3000, 'fail');
     const n = (outpost.reinforcements ?? []).reduce((s, r) => s + (r.count ?? 1), 0);
     this.reinforcements.set(outpost.group, { outpost, left: n, t: 8 });
     this.missions.emit('alarm', { outpost: outpost.id });
@@ -399,10 +399,10 @@ export class Game {
     this.liberated.add(outpost.id);
     const alarm = outpost.alarm && this.world.entities.handle(outpost.alarm);
     alarm?.stop?.();
-    this.hud.showBanner('Avant-poste libéré', outpost.name ?? '', 5000);
+    this.hud.showBanner('Outpost liberated', outpost.name ?? '', 5000);
     this.audio?.play('mission_complete', { volume: 0.8 });
     for (const it of outpost.reward ?? []) this.giveItem(it);
-    if (outpost.fastTravel !== false) this.hud.notify('Voyage rapide débloqué (carte : M)', 5000);
+    if (outpost.fastTravel !== false) this.hud.notify('Fast travel unlocked (map: M)', 5000);
     this.missions.emit('liberate', { outpost: outpost.id });
     this.saveCheckpoint();
   }
@@ -487,7 +487,7 @@ export class Game {
       target.tagged = true;
       b.aimT = 0;
       this.audio?.play('tag_enemy', { volume: 0.5 });
-      this.hud.notify(`Marqué : ${target.arch.label}`, 1500);
+      this.hud.notify(`Tagged: ${target.arch.label}`, 1500);
     }
     const info = this.hud.binoEl.querySelector('.bino-info');
     const hit = this.world.physics.raycast(ray.origin, ray.direction, 1500);
@@ -498,7 +498,7 @@ export class Game {
     // a cheap "torch": brighter ambient around the player at night, visible to the AI
     this.flashlight ??= { on: false };
     this.flashlight.on = !this.flashlight.on;
-    this.hud.notify(this.flashlight.on ? 'Lampe allumée' : 'Lampe éteinte', 1200);
+    this.hud.notify(this.flashlight.on ? 'Flashlight on' : 'Flashlight off', 1200);
     const L = this.engine.lighting;
     L.env.ambient = this.flashlight.on ? (this._ambBase = L.env.ambient) * 1.8 : this._ambBase ?? L.env.ambient;
     L.setTimeOfDay(L.timeOfDay);
@@ -541,7 +541,7 @@ export class Game {
   saveCheckpoint() {
     if (!this.player.alive) return;
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.snapshot())); } catch { /* storage unavailable */ }
-    this.hud.notify('Point de contrôle', 1800);
+    this.hud.notify('Checkpoint', 1800);
     this.audio?.play('checkpoint', { volume: 0.4 });
   }
 
@@ -586,7 +586,7 @@ export class Game {
     const ang = Math.random() * Math.PI * 2;
     this.player.teleport([o.pos[0] + Math.cos(ang) * 6, o.pos[1] + 1, o.pos[2] + Math.sin(ang) * 6]);
     this.engine.lighting.setTimeOfDay(this.engine.lighting.timeOfDay + 1);
-    this.hud.notify(`Voyage rapide : ${o.name ?? outpostId}`);
+    this.hud.notify(`Fast travel: ${o.name ?? outpostId}`);
   }
 
   endGame(a) {

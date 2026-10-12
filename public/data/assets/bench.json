@@ -1,7 +1,7 @@
 {
   "name": "bench",
   "category": "prop",
-  "label": "Banc en bois",
+  "label": "Wooden bench",
   "material": "wood",
   "tags": ["village","camp","furniture"],
   "parts": [

@@ -17,7 +17,7 @@ eval (game.pickupItem('key_card','pk_keycard'), 1)
 wait 1
 eval (game.world.entities.handle('lab_door').use(), 1)
 wait 1
-expect game.world.entities.handle('npc_val').interact.prompt() === 'Parler à Valérie'
+expect game.world.entities.handle('npc_val').interact.prompt() === 'Talk to Valérie'
 eval (game.world.entities.handle('npc_val').use(), 1)
 wait 2
 live killAll {"radius": 2000}
