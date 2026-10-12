@@ -3,7 +3,10 @@
 Every 3D model of the game (except the rigged characters, which are Quaternius GLBs in
 `public/models/`) is a JSON file in `public/data/assets/<name>.json`, built at load time by
 `src/engine/assets/ModelBuilder.js` into one merged, flat-shaded, vertex-coloured geometry.
-No textures: colour comes from the parts, the faceted look from flat shading.
+No textures: colour comes from the parts, the faceted look from flat shading. Flat-coloured
+GLB models (e.g. the CC0 Quaternius guns) are converted to this format by `mc asset import`:
+one `tris` part per material colour, plus a `source` block (URL, author, licence, import
+parameters) so the import can be redone.
 
 ## Conventions
 
@@ -12,7 +15,8 @@ No textures: colour comes from the parts, the faceted look from flat shading.
 - The **front** of an asset faces **-Z** (three.js forward). Doors, ladders, gun barrels point to -Z.
 - Rotations in parts are in **degrees** (`rot: [x, y, z]`, applied Y then X then Z).
 - Weapons: origin at the **grip** (where the right hand holds it), barrel along **-Z**, sights
-  along +Y. Real-world size (a pistol is ~0.2 m long, a rifle ~0.9 m).
+  along +Y. Real-world size (a pistol is ~0.2 m long, a rifle ~0.9 m). See *Weapons* below for
+  `muzzle`, `sight`, `magazine` and the first-person `hands`.
 - Keep triangle counts low: props 20–400 tris, buildings 100–1500 tris. Cylinders 5–8 segments.
 - Palette: saturated but slightly dusty tropical colours, sRGB hex strings (`"#8a6a3a"`).
   Avoid pure black/white; vary tones between parts (planks alternate 2–3 browns). `jitter`
@@ -100,6 +104,26 @@ and legs narrower than the shoulder, and give the wings intermediate vertices (e
 bend. Wings are flat `tris`: two single-sided layers for different colours above and below
 (the gull), or `doubleSided`.
 
+## Weapons
+
+Weapon assets (category `weapon`, used by `game/weapons.json`) carry points in asset space:
+`muzzle` (flash, tracers, NPC shots), `sight` (aiming down sights puts it on the eye line;
+`weapons.json` `view.adsDist` = its distance, default 0.32 m) and `magazine`. `hands` places the
+first-person arms (`src/game/player/ViewArms.js`: the arms of a Quaternius character, two-bone
+IK, config in `game/player.json` `arms`):
+```json
+"hands": {
+  "right": { "pos": [0.03, 0.064, 0.1],        // wrist
+             "fingers": [0, -0.53, -0.85],     // direction of the straight fingers
+             "thumb": [0, 0.85, -0.53],        // direction of the thumb
+             "curl": [[25, 40, 30], 65, 70, 75],  // index, middle, ring, pinky: deg per joint
+             "thumbCurl": [10, 20, 20], "thumbFold": 30 },
+  "left": { ... }                              // no left grip: that arm hangs out of view
+}
+```
+The palm faces away from the thumb side (right hand: palm toward -X when the thumb is up and the
+fingers forward). Check with a first-person shot of the weapon (hip and aiming).
+
 ## Vehicles
 
 Vehicle bodies (category `vehicle`, listed in `VEHICLE_KINDS` of `src/game/entities/index.js`;
@@ -136,5 +160,8 @@ npm run mc -- asset validate [name]            # builds, reports errors
 npm run mc -- asset shot <name> [--yaw 35] [--variant 0] [--quality 1]   # PNG in shots/ to look at it
 npm run mc -- asset shot <name> --lineup [variants]  # every variant x LOD quality side by side
 npm run mc -- asset bake <name> --as <new>     # generator -> editable parts
+npm run mc -- asset import model.glb --as <name> --rot 0,90,0 --length 0.88 --origin 0,0.125,0.165
+                                               # flat-coloured GLB -> asset (rotate so the front is -Z,
+                                               # scale to --length along Z, --origin becomes the origin)
 npm run mc -- asset reindex                    # refresh assets/index.json (run after adding files)
 ```

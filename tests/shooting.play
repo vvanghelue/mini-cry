@@ -11,3 +11,5 @@ shot shooting
 expect !game.actors.byGroup('target')[0].alive && game.stats.kills === 1
 # the gunshot / reload sounds play recorded WAVs (public/data/sfx): the audio worker must have rendered them
 expect !game.audio?.enabled || ['rifle_shot', 'reload_mag_out', 'reload_mag_in', 'dry_fire'].every((n) => { const e = game.audio._entry(n); return e && !e.failed && e.ready > 0; })
+# first-person arms (a Quaternius character's, two-bone IK): shown, wrists on the weapon's grips
+expect (() => { const w = game.weapons, A = w.arms, V = app.THREE.Vector3; if (!A?.visible || !w.vmInfo?.hands) return false; return ['right', 'left'].filter((k) => k === 'right' || w.state !== 'reloading').every((k) => { const t = new V(...w.vmInfo.hands[k].pos).applyMatrix4(w.vmGroup.matrixWorld); return A.sides[k[0].toUpperCase()].wrist.getWorldPosition(new V()).distanceTo(t) < 0.01; }); })()

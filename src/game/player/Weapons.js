@@ -3,8 +3,11 @@
 // (stealth takedowns), grenades and rockets (simulated projectiles), explosions.
 import * as THREE from 'three';
 import { LAYERS } from '../../engine/render/layers.js';
+import { ViewArms } from './ViewArms.js';
 
 const D2R = Math.PI / 180;
+// left hand path during reloads (camera space): out of the view for a magazine, under the receiver for a shell
+const RELOAD_MAG = new THREE.Vector3(-0.05, -0.35, 0.15), RELOAD_SHELL = new THREE.Vector3(0.03, -0.12, 0.1);
 const _ray = new THREE.Ray(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _q = new THREE.Quaternion();
 
 export class Weapons {
@@ -91,6 +94,9 @@ export class Weapons {
     this.flash.visible = false;
     this.vmWeapon.add(this.flash);
     this.vm = { scene, camera, visible: true };
+    // real arms (a Quaternius character's, posed by IK on the weapon grips); box arms as fallback
+    try { if (this.game.characters) this.arms = new ViewArms(this.game.characters, this.game.data.player?.arms, camera); } catch (e) { console.warn('view arms unavailable', e); }
+    if (this.arms) this.arms.visible = false;
     this.game.engine.overlay = this.vm;
     this.game.engine.on('resize', ({ w, h }) => { camera.aspect = w / h; camera.updateProjectionMatrix(); });
   }
@@ -131,13 +137,16 @@ export class Weapons {
     } else {
       g.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.4).translate(0, 0.02, -0.15), this.vmMat));
     }
-    // right hand on the grip, forearm going back / down / right (toward the camera's lower right)
-    g.add(this._arm(new THREE.Vector3(0, -0.04, 0.02), new THREE.Vector3(0.25, -0.55, 0.8), 0.4));
-    if (d.type !== 'melee' && d.slot !== 2) {
-      // support hand under the front of the gun, elbow down / left / back
-      g.add(this._arm(info.front.clone().add(new THREE.Vector3(0, -0.02, 0)), new THREE.Vector3(-0.45, -0.6, 0.65), 0.45));
-    } else if (d.slot === 2) {
-      g.add(this._arm(new THREE.Vector3(-0.03, -0.07, 0.01), new THREE.Vector3(-0.4, -0.55, 0.75), 0.4));
+    info.hands = assets.has(d.asset) ? assets.get(d.asset).hands : null;
+    if (!this.arms || !info.hands) {
+      // right hand on the grip, forearm going back / down / right (toward the camera's lower right)
+      g.add(this._arm(new THREE.Vector3(0, -0.04, 0.02), new THREE.Vector3(0.25, -0.55, 0.8), 0.4));
+      if (d.type !== 'melee' && d.slot !== 2) {
+        // support hand under the front of the gun, elbow down / left / back
+        g.add(this._arm(info.front.clone().add(new THREE.Vector3(0, -0.02, 0)), new THREE.Vector3(-0.45, -0.6, 0.65), 0.45));
+      } else if (d.slot === 2) {
+        g.add(this._arm(new THREE.Vector3(-0.03, -0.07, 0.01), new THREE.Vector3(-0.4, -0.55, 0.75), 0.4));
+      }
     }
     g.traverse((o) => o.layers.set(LAYERS.VIEW));
     g.visible = false;
@@ -150,7 +159,9 @@ export class Weapons {
     for (const [k, v] of Object.entries(this.vmMeshes)) v.group.visible = k === id;
     if (id) this._vmFor(id).group.visible = true;
     this.vmInfo = id ? this.vmMeshes[id].info : null;
+    this.vmGroup = id ? this.vmMeshes[id].group : null;
     if (this.vmInfo) this.flash.position.copy(this.vmInfo.muzzle);
+    if (this.arms) this.arms.visible = !!this.vmInfo?.hands;
   }
 
   // --- update ------------------------------------------------------------------------------
@@ -561,7 +572,7 @@ export class Weapons {
     if (!w || !this.vmInfo) return;
     const view = w.view ?? { pos: [0.2, -0.25, -0.5], rot: [0, 0, 0] };
     const hip = _v.set(...view.pos);
-    const ads = _v2.set(-this.vmInfo.sight.x, -this.vmInfo.sight.y, -0.32 - this.vmInfo.sight.z * 0);
+    const ads = _v2.set(-this.vmInfo.sight.x, -this.vmInfo.sight.y, -(view.adsDist ?? 0.32));
     const t = this.adsBlend;
     const target = hip.lerp(ads, t * t * (3 - 2 * t));
     // bob & sway
@@ -574,25 +585,32 @@ export class Weapons {
     if (this.state === 'switching') lower = this.stateT < 0.22 ? this.stateT / 0.22 : 1 - (this.stateT - 0.22) / 0.23;
     if (this.state === 'throwing') lower = Math.sin(Math.min(1, this.stateT / 0.5) * Math.PI) * 0.8;
     target.y -= lower * 0.35;
+    // reload dip / melee swing (part of the target: subtracting them from the eased position every
+    // frame made the weapon sink out of the view at high frame rates)
+    const reloadK = this.state === 'reloading' ? Math.sin(Math.min(1, this.stateT / this.reloadDur) * Math.PI) : 0;
+    const meleeS = this.state === 'melee' ? Math.sin(Math.min(1, this.stateT / (this._meleeDur ?? 0.45)) * Math.PI) : 0;
+    target.y -= reloadK * 0.04;
+    target.x -= meleeS * 0.15;
     this.vmRoot.position.lerp(target, Math.min(1, dt * 18));
     // rotation: reload tilt, melee swing, recoil, sprint
     let rx = (view.rot[0] ?? 0) * D2R + this.kick * 0.12, ry = (view.rot[1] ?? 0) * D2R, rz = (view.rot[2] ?? 0) * D2R;
-    if (this.state === 'reloading') {
-      const k = Math.sin(Math.min(1, this.stateT / this.reloadDur) * Math.PI);
-      rx -= k * 0.5; rz += k * 0.6;
-      this.vmRoot.position.y -= k * 0.08;
-    }
-    if (this.state === 'melee') {
-      const k = Math.min(1, this.stateT / (this._meleeDur ?? 0.45));
-      const s = Math.sin(k * Math.PI);
-      ry += s * 1.1; rx -= s * 0.6; rz -= s * 0.4;
-      this.vmRoot.position.x -= s * 0.15;
-    }
+    rx -= reloadK * 0.22; rz += reloadK * 0.5;
+    ry += meleeS * 1.1; rx -= meleeS * 0.6; rz -= meleeS * 0.4;
     if (p.sprinting) { ry += 0.5; rz += 0.25; rx -= 0.15; }
     ry *= 1 - t; rz *= 1 - t;
     this.vmRoot.rotation.x += (rx - this.vmRoot.rotation.x) * Math.min(1, dt * 16);
     this.vmRoot.rotation.y += (ry - this.vmRoot.rotation.y) * Math.min(1, dt * 16);
     this.vmRoot.rotation.z += (rz - this.vmRoot.rotation.z) * Math.min(1, dt * 16);
+    // hands on the grips; reloads: the left hand leaves the weapon (new magazine / shell) and comes back
+    if (this.arms?.visible && vm.visible) {
+      let leftAway = 0;
+      if (this.state === 'reloading') {
+        const k = Math.min(1, this.stateT / this.reloadDur), ss = THREE.MathUtils.smoothstep;
+        leftAway = w.reloadPerShell ? Math.sin(k * Math.PI) : ss(k, 0.05, 0.3) * (1 - ss(k, 0.65, 0.9));
+      }
+      vm.camera.updateMatrixWorld(true);
+      this.arms.update(this.vmGroup, this.vmInfo.hands, { leftAway, awayOffset: w.reloadPerShell ? RELOAD_SHELL : RELOAD_MAG });
+    }
     // muzzle flash
     this.flashT = Math.max(0, (this.flashT ?? 0) - dt);
     this.flash.visible = this.flashT > 0 && w.type !== 'melee';

@@ -28,11 +28,11 @@ function backup(p) {
   const all = fs.readdirSync(dir).sort();
   for (const f of all.slice(0, Math.max(0, all.length - 200))) fs.rmSync(path.join(dir, f));
 }
-export function writeJSON(rel, obj) {
+export function writeJSON(rel, obj, stringify = (o) => JSON.stringify(o, null, 2) + '\n') {
   const p = dataPath(rel);
   fs.mkdirSync(path.dirname(p), { recursive: true });
   backup(p);
-  fs.writeFileSync(p, JSON.stringify(obj, null, 2) + '\n');
+  fs.writeFileSync(p, stringify(obj));
 }
 export function writeBin(rel, bytes) {
   const p = dataPath(rel);

@@ -227,6 +227,34 @@ export const commands = {
       return { ok: true, name: out.name, parts: parts.length };
     },
   },
+  'asset import': {
+    usage: '<file.glb> --as <name> [--rot x,y,z] [--length m | --scale k] [--origin x,y,z] [--brightness k] [--minLight 0..1] [--jitter j] [--category weapon] [--label ..] [--url ..] [--author ..] [--license ..]',
+    help: 'Convert a flat-coloured GLB (e.g. a CC0 Quaternius model) into an asset: one `tris` part per material colour, rotated (deg, Euler YXZ) so the front faces -Z, scaled to --length (size along Z) and moved so --origin (in the frame centred on X / Z with the bottom at y = 0) becomes the asset origin. Re-importing over an existing asset only replaces its parts and `source` (muzzle, sight, hands, collider... are kept).',
+    async run([file], opts) {
+      const { importGLB, stringifyCompact } = await import('./import-glb.js');
+      if (!file || !opts.as) throw new Error('usage: asset import <file.glb> --as <name>');
+      const vec = (s) => (s === undefined ? undefined : String(s).split(',').map((x) => num(x, 'vector')));
+      const params = {
+        rot: vec(opts.rot), origin: vec(opts.origin),
+        length: opts.length && num(opts.length, 'length'), scale: opts.scale && num(opts.scale, 'scale'),
+        brightness: opts.brightness && num(opts.brightness, 'brightness'), minLight: opts.minLight && num(opts.minLight, 'minLight'),
+        jitter: opts.jitter !== undefined ? num(opts.jitter, 'jitter') : undefined,
+      };
+      const r = await importGLB(path.resolve(file), params);
+      const prev = readJSON(`assets/${opts.as}.json`, {});
+      const out = {
+        name: opts.as, category: opts.category ?? prev.category ?? 'prop', label: opts.label ?? prev.label ?? opts.as,
+        material: prev.material ?? 'metal', tags: prev.tags ?? [],
+        ...prev,
+        source: { url: opts.url ?? prev.source?.url, author: opts.author ?? prev.source?.author, license: opts.license ?? prev.source?.license, file: path.basename(file), ...Object.fromEntries(Object.entries(params).filter(([, x]) => x !== undefined)) },
+        parts: r.parts,
+      };
+      out.name = opts.as;
+      writeJSON(`assets/${opts.as}.json`, out, stringifyCompact);
+      writeAssetIndex();
+      return { ok: true, name: opts.as, tris: r.tris, parts: r.parts.length, colors: r.parts.map((p) => p.color), bounds: r.bounds, scale: +r.scale.toFixed(5) };
+    },
+  },
   'asset validate': {
     usage: '[name]',
     help: 'Build every asset (or one) and report errors / triangle counts / colliders.',

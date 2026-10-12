@@ -136,4 +136,6 @@ machines.
 runtime for the time of day; they replace the hemisphere ambient, and auto exposure meters the
 same probes at the camera. See `docs/GI.md`.
 
-Credits: characters and animations — Quaternius (CC0, *Universal Animation Library*).
+Credits: characters and animations — Quaternius (CC0, *Universal Animation Library*); firearms —
+Quaternius gun models (CC0, via poly.pizza; converted to asset JSON by `mc asset import`, each
+asset's `source` names its model); first-person arms — the Quaternius character arms, posed by IK.

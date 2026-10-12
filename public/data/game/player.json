@@ -42,5 +42,20 @@
   "startWeapons": [],
   "startAmmo": {},
   "startGrenades": 0,
-  "maxGrenades": 4
+  "maxGrenades": 4,
+  "arms": {
+    "model": "adventurer",
+    "shoulder": [
+      0,
+      -0.32,
+      -0.1
+    ],
+    "stretch": 1.8,
+    "handScale": 0.8,
+    "pole": [
+      0.6,
+      -1,
+      0.1
+    ]
+  }
 }
