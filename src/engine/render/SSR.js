@@ -1,4 +1,6 @@
-// Screen-space reflections on the water (ocean + rivers), ultra quality only.
+// Screen-space reflections on the water (ocean + rivers). Their own setting, independent of the
+// quality preset: off (default), low, medium or high (SSR_LEVELS: steps per ray, depth range,
+// longest ray), plus a blur (glossy reflections, wider the farther the hit).
 //
 // Built to cost as little as possible on top of what the frame already does:
 //   - no extra geometry pass: the rays march through the half-res depth pre-pass of SSAO.js
@@ -10,8 +12,9 @@
 //     view with the previous view-projection matrix;
 //   - only water pixels trace: the march lives in the water shader (Water.js), behind a uniform
 //     switch, so the same program serves every quality preset (nothing compiles late) and the
-//     rest of the frame pays nothing. Per pixel: SSR_STEPS depth fetches spread along the ray in
-//     screen space (denser near the start, jittered per pixel), then a short binary refinement.
+//     rest of the frame pays nothing. Per pixel: `steps` depth fetches spread along the ray in
+//     screen space (denser near the start, jittered per pixel), then a short binary refinement;
+//     the level only changes uniforms (the loops break on them), so switching never recompiles.
 // The copied frame is already tone mapped, so the water blends it in after its own tone mapping,
 // in display space, in place of its sky reflection (Fresnel x hit confidence). A ray that leaves
 // the screen, finds nothing within `ray` metres, or points back at the camera fades back to the
@@ -19,17 +22,24 @@
 import * as THREE from 'three';
 
 export const SSR_DEFAULTS = {
-  // screen-space reflections (ultra): strength, depth range of the pre-pass (m), longest ray (m)
-  ssr: { intensity: 1, distance: 280, ray: 300 },
+  // screen-space reflections on the water: strength, blur (0 = mirror .. 1 = very glossy)
+  ssr: { intensity: 1, blur: 0.25 },
 };
 
-const SSR_STEPS = 24;
-const SSR_REFINE = 5;
+// steps / refine: depth fetches per ray; distance: depth range of the pre-pass (m), ray: longest ray (m)
+export const SSR_LEVELS = {
+  low: { steps: 12, refine: 3, distance: 140, ray: 150 },
+  medium: { steps: 20, refine: 4, distance: 220, ray: 230 },
+  high: { steps: 32, refine: 6, distance: 300, ray: 320 },
+};
+
+const MAX_STEPS = 32;
+const MAX_REFINE = 6;
 
 /** Fragment code for the water shader: ssrTrace(view pos, view dir, jitter) -> (display rgb, confidence). */
 export const SSR_GLSL = /* glsl */ `
 uniform sampler2D ssrColor, ssrDepth;
-uniform float ssrOn, ssrIntensity, ssrNear, ssrFar, ssrRay, ssrDebug;
+uniform float ssrOn, ssrIntensity, ssrNear, ssrFar, ssrRay, ssrDebug, ssrSteps, ssrRefine, ssrBlur;
 uniform vec2 ssrProjXY;
 uniform mat4 ssrReproj; // this frame's view space -> previous frame's clip space
 float ssrViewZ(float d) { return (ssrNear * ssrFar) / ((ssrFar - ssrNear) * d - ssrFar); }
@@ -49,8 +59,9 @@ vec4 ssrTrace(vec3 P, vec3 D, float jit) {
   if (ds.x > 1e-5) tEnd = min(tEnd, (1.0 - s0.x) / ds.x); else if (ds.x < -1e-5) tEnd = min(tEnd, -s0.x / ds.x);
   if (ds.y > 1e-5) tEnd = min(tEnd, (1.0 - s0.y) / ds.y); else if (ds.y < -1e-5) tEnd = min(tEnd, -s0.y / ds.y);
   float tPrev = 0.0, zPrev = P.z;
-  for (int i = 1; i <= ${SSR_STEPS}; i++) {
-    float f = (float(i) - jit) / float(${SSR_STEPS});
+  for (int i = 1; i <= ${MAX_STEPS}; i++) {
+    if (float(i) > ssrSteps) break;
+    float f = (float(i) - jit) / ssrSteps;
     float t = tEnd * f * sqrt(f); // denser near the start: the base of what stands on the water
     float rz = -1.0 / mix(k0, k1, t);
     float d = texture2D(ssrDepth, mix(s0, s1, t)).x;
@@ -61,7 +72,8 @@ vec4 ssrTrace(vec3 P, vec3 D, float jit) {
     if (behind > 0.0 && behind < thick) {
       // refine between the last point in front and this one
       float a = tPrev, b = t;
-      for (int j = 0; j < ${SSR_REFINE}; j++) {
+      for (int j = 0; j < ${MAX_REFINE}; j++) {
+        if (float(j) >= ssrRefine) break;
         float m = 0.5 * (a + b);
         float mz = -1.0 / mix(k0, k1, m);
         float md = texture2D(ssrDepth, mix(s0, s1, m)).x;
@@ -74,9 +86,22 @@ vec4 ssrTrace(vec3 P, vec3 D, float jit) {
       if (pc.w <= 0.0 || any(lessThan(puv, vec2(0.0))) || any(greaterThan(puv, vec2(1.0)))) return vec4(0.0);
       vec2 edge = smoothstep(vec2(0.0), vec2(0.07), puv) * smoothstep(vec2(0.0), vec2(0.07), 1.0 - puv);
       float conf = edge.x * edge.y;
-      conf *= 1.0 - smoothstep(0.6, 1.0, len * b * k1 / mix(k0, k1, b) / ssrRay); // long rays fade out
+      float hitDist = len * b * k1 / mix(k0, k1, b);
+      conf *= 1.0 - smoothstep(0.6, 1.0, hitDist / ssrRay); // long rays fade out
       conf *= 1.0 - smoothstep(0.1, 0.6, D.z); // rays toward the camera: little on screen to hit
-      return vec4(texture2D(ssrColor, puv).rgb, conf);
+      vec3 col = texture2D(ssrColor, puv).rgb;
+      if (ssrBlur > 0.0) {
+        // glossy: 4 more taps around the hit (rotated per pixel), wider the farther the hit
+        float rad = ssrBlur * (0.002 + 0.035 * clamp(hitDist / 60.0, 0.0, 1.0));
+        vec2 ax = vec2(rad * ssrProjXY.y / ssrProjXY.x, rad);
+        float a0 = jit * 6.2831853;
+        for (int k = 0; k < 4; k++) {
+          float a = a0 + float(k) * 1.5707963;
+          col += texture2D(ssrColor, clamp(puv + vec2(cos(a), sin(a)) * ax, 0.0, 1.0)).rgb;
+        }
+        col *= 0.2;
+      }
+      return vec4(col, conf);
     }
     tPrev = t; zPrev = rz;
   }
@@ -89,10 +114,8 @@ export class SSR {
   constructor(renderer, ao) {
     this.renderer = renderer;
     this.ao = ao;
-    // user toggle (settings, debug panel, ?ssr=0); the quality preset decides whether it runs at all
-    this.enabled = typeof location === 'undefined' || new URLSearchParams(location.search).get('ssr') !== '0';
-    this.quality = false;
-    this.distance = SSR_DEFAULTS.ssr.distance;
+    this.level = 'off'; // off | low | medium | high (settings, debug panel, ?ssr=<level>)
+    this.distance = 0;
     this.camera = null;
     this.valid = false; // a previous frame exists in colorTex
     this.colorTex = new THREE.FramebufferTexture(1, 1);
@@ -107,23 +130,35 @@ export class SSR {
       ssrIntensity: { value: 1 },
       ssrNear: { value: 0.1 },
       ssrFar: { value: 100 },
-      ssrRay: { value: SSR_DEFAULTS.ssr.ray },
+      ssrRay: { value: 100 },
+      ssrSteps: { value: 1 },
+      ssrRefine: { value: 0 },
+      ssrBlur: { value: SSR_DEFAULTS.ssr.blur },
       ssrDebug: { value: 0 }, // 1: water shows the reflection colour x confidence only
       ssrProjXY: { value: new THREE.Vector2(1, 1) },
       ssrReproj: { value: new THREE.Matrix4() },
     };
   }
 
-  get active() { return this.enabled && this.quality; }
+  get active() { return this.level !== 'off'; }
 
-  setEnabled(on) { this.enabled = on; if (!this.active) this.valid = false; }
+  /** 'off' | 'low' | 'medium' | 'high' (anything else = off; true = medium for old settings). */
+  setLevel(name) {
+    if (name === true) name = 'medium';
+    const L = SSR_LEVELS[name];
+    this.level = L ? name : 'off';
+    if (!L) { this.valid = false; return; }
+    const u = this.uniforms;
+    u.ssrSteps.value = L.steps;
+    u.ssrRefine.value = L.refine;
+    u.ssrRay.value = L.ray;
+    this.distance = L.distance;
+  }
 
-  /** Quality preset switch (only ultra turns it on). */
-  setQuality(on) { this.quality = !!on; if (!this.active) this.valid = false; }
-
-  /** Tuning (environment.json `ssr`): { intensity, distance (m), ray (m) } */
-  set({ intensity, distance, ray } = {}) {
+  /** Tuning (environment.json `ssr`): { intensity, blur (0..1) }; distance / ray (m) override the level's until the next setLevel. */
+  set({ intensity, blur, distance, ray } = {}) {
     if (intensity != null) this.uniforms.ssrIntensity.value = intensity;
+    if (blur != null) this.uniforms.ssrBlur.value = blur;
     if (distance != null) this.distance = distance;
     if (ray != null) this.uniforms.ssrRay.value = ray;
   }

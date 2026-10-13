@@ -1,6 +1,6 @@
 // Lighting & atmosphere: time of day (sun / moon arc), sky dome with clouds, hemisphere ambient
 // (replaced by baked probe GI where gi/probes.* exists, see GI.js), auto exposure, cascaded sun
-// shadows, half-res SSAO, water reflections on ultra (SSR.js), sun lens flare (LensFlare.js), fog,
+// shadows, half-res SSAO, water reflections (SSR.js), sun lens flare (LensFlare.js), fog,
 // wind, and the shared material factory (textured PBR sampling the texture arrays of Surfaces.js,
 // or plain Lambert).
 //
@@ -17,12 +17,12 @@ import { LensFlare, FLARE_DEFAULTS } from './LensFlare.js';
 import { CLOUDS_GLSL } from './clouds.js';
 import { Surfaces } from './Surfaces.js';
 
-// ao: SSAO samples per pixel (0 = off); ssr: screen-space reflections on the water (SSR.js)
+// ao: SSAO samples per pixel (0 = off)
 export const QUALITY = {
   low: { dpr: 0.75, cascades: [{ radius: 22, res: 1024, every: 1 }, { radius: 90, res: 1024, every: 3 }], drawScale: 0.65, grass: 0.5, ao: 6 },
   medium: { dpr: 1, cascades: [{ radius: 22, res: 2048, every: 1 }, { radius: 90, res: 1536, every: 3 }], drawScale: 0.8, grass: 0.8, ao: 8 },
   high: { dpr: 1, cascades: [{ radius: 20, res: 2048, every: 1 }, { radius: 80, res: 2048, every: 2 }, { radius: 260, res: 2048, every: 4 }], drawScale: 1, grass: 1, ao: 12 },
-  ultra: { dpr: 2, cascades: [{ radius: 20, res: 4096, every: 1 }, { radius: 80, res: 4096, every: 1 }, { radius: 300, res: 4096, every: 2 }], drawScale: 1.25, grass: 1.3, ao: 12, ssr: true },
+  ultra: { dpr: 2, cascades: [{ radius: 20, res: 4096, every: 1 }, { radius: 80, res: 4096, every: 1 }, { radius: 300, res: 4096, every: 2 }], drawScale: 1.25, grass: 1.3, ao: 12 },
 };
 
 export const DEFAULT_ENV = {
@@ -92,9 +92,10 @@ export class Lighting {
     this.sunColor = new THREE.Color();
     // half-res SSAO on the ambient light (+ a little of the sun), see SSAO.js
     this.ao = new SSAO(renderer, scene, { samples: this.Q.ao });
-    // screen-space reflections on the water, ultra only (SSR.js; read by Water.js)
+    // screen-space reflections on the water (SSR.js; read by Water.js): their own setting, off
+    // by default, `?ssr=low|medium|high` (the game's settings take over from there)
     this.ssr = new SSR(renderer, this.ao);
-    this.ssr.setQuality(this.Q.ssr);
+    if (typeof location !== 'undefined') this.ssr.setLevel(new URLSearchParams(location.search).get('ssr'));
     // baked probe GI (loaded by World when gi/probes.json exists) + auto exposure
     this.gi = new GI(renderer);
     this.baseExposure = 1;
@@ -121,7 +122,6 @@ export class Lighting {
     this.Q = QUALITY[name];
     this.sun.setCascades(this.Q.cascades);
     this.ao.setSamples(this.Q.ao);
-    this.ssr.setQuality(this.Q.ssr);
   }
 
   setEnvironment(env) {

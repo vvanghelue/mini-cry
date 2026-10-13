@@ -8,7 +8,7 @@
 // Fresnel between the body colour (absorbed with depth, lit by the sun / sky) and the reflected
 // sky (gradient + the cloud layer), a sharp sun glint, light scattered through the wave crests.
 // Rivers: ribbon meshes along the river polylines, ripples scrolling with the flow.
-// Ultra quality: screen-space reflections of the shore, trees, boats... in place of the sky
+// Optional screen-space reflections of the shore, trees, boats... in place of the sky
 // reflection where a ray finds them on screen (render/SSR.js).
 import * as THREE from 'three';
 import { LAYERS } from '../render/layers.js';
