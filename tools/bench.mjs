@@ -47,7 +47,8 @@ let SWITCHES = [
   ['water', 'w.water.group.visible = false', 'w.water.group.visible = true'],
   ['props', 'if (w.entities.props) w.entities.props.group.visible = false', 'if (w.entities.props) w.entities.props.group.visible = true'],
   ['actors', 'for (const a of (g?.actors.list ?? [])) a.root.visible = false', 'for (const a of (g?.actors.list ?? [])) a.root.visible = true'],
-  ['view model', 'if (e.overlay) e.overlay.visible = false', 'if (e.overlay) e.overlay.visible = true'],
+  // (the weapons reset overlay.visible every frame: take the pass away instead)
+  ['view model', 'window.__ov = e.overlay; e.overlay = null', 'e.overlay = window.__ov'],
   ['flare', 'e.lighting.flare.setEnabled(false)', 'e.lighting.flare.setEnabled(true)'],
   ['sky', 'e.lighting.sky.visible = false', 'e.lighting.sky.visible = true'],
 ];
@@ -57,8 +58,8 @@ if (opt.veg) {
   const species = readJSON('vegetation.json').species.map((s) => s.id);
   SWITCHES.push(...[0, 1, 2].map((l) => [`veg lod${l}`, ...hide(`/_lod${l}$/`)]), ...species.map((id) => [id, ...hide(`/_${id}_\\d+_lod\\d$/`)]));
 }
-// --switch "name::off code::on code" (several separated by ||): ad hoc experiments
-if (typeof opt.switch === 'string') SWITCHES.push(...opt.switch.split('||').map((x) => x.split('::')));
+// --switch "name::off code::on code" (several separated by |||): ad hoc experiments
+if (typeof opt.switch === 'string') SWITCHES.push(...opt.switch.split("|||").map((x) => x.split('::')));
 if (list(opt.only)) SWITCHES = SWITCHES.filter(([k]) => list(opt.only).includes(k));
 let views = readJSON('bench.json', null)?.views ?? [
   { name: 'beach', cam: '-170,30,720,0,-0.12' },
