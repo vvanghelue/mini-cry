@@ -4,6 +4,8 @@
 import * as THREE from 'three';
 import { LAYERS } from '../../engine/render/layers.js';
 import { ViewArms } from './ViewArms.js';
+import { ViewLight } from './ViewLight.js';
+import { modelBounds } from './ViewModels.js';
 
 const D2R = Math.PI / 180;
 // left hand path during reloads (camera space): out of the view for a magazine, under the receiver for a shell
@@ -81,21 +83,21 @@ export class Weapons {
     const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.02, 10);
     camera.layers.enableAll();
     scene.add(camera);
-    this.vmHemi = new THREE.HemisphereLight(0xcfe6ff, 0x5a5030, 1.6);
-    this.vmSun = new THREE.DirectionalLight(0xffffff, 2.2);
-    scene.add(this.vmHemi, this.vmSun, this.vmSun.target);
+    // sun + image-based sky light (PBR weapons and arms, ViewLight.js)
+    this.vmLight = new ViewLight(this.game.engine.renderer, scene, this.game.engine.lighting);
     this.vmRoot = new THREE.Group();
     camera.add(this.vmRoot);
     this.vmWeapon = new THREE.Group();
     this.vmRoot.add(this.vmWeapon);
-    this.vmMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    this.vmMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.6, metalness: 0.2 });
     this.vmMeshes = {};
     this.flash = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 0), new THREE.MeshBasicMaterial({ color: 0xffc860, transparent: true, depthWrite: false, toneMapped: false }));
     this.flash.visible = false;
     this.vmWeapon.add(this.flash);
     this.vm = { scene, camera, visible: true };
-    // real arms (a Quaternius character's, posed by IK on the weapon grips); box arms as fallback
-    try { if (this.game.characters) this.arms = new ViewArms(this.game.characters, this.game.data.player?.arms, camera); } catch (e) { console.warn('view arms unavailable', e); }
+    // realistic arms (public/models/fp, posed by IK on the weapon grips); box arms as fallback
+    const armsModel = this.game.viewModels?.arms;
+    try { if (armsModel) this.arms = new ViewArms(armsModel, this.game.data.player?.arms, camera); } catch (e) { console.warn('view arms unavailable', e); }
     if (this.arms) this.arms.visible = false;
     this.game.engine.overlay = this.vm;
     this.game.engine.on('resize', ({ w, h }) => { camera.aspect = w / h; camera.updateProjectionMatrix(); });
@@ -103,8 +105,8 @@ export class Weapons {
 
   /** A low-poly forearm: hand box at `hand`, sleeve running toward `elbowDir` (view space). */
   _arm(hand, elbowDir, len = 0.42) {
-    const sleeve = (this._sleeveMat ??= new THREE.MeshLambertMaterial({ color: 0x5d6a3a, flatShading: true }));
-    const skin = (this._skinMat ??= new THREE.MeshLambertMaterial({ color: 0xc89a74, flatShading: true }));
+    const sleeve = (this._sleeveMat ??= new THREE.MeshStandardMaterial({ color: 0x5d6a3a, flatShading: true, roughness: 0.9 }));
+    const skin = (this._skinMat ??= new THREE.MeshStandardMaterial({ color: 0xc89a74, flatShading: true, roughness: 0.6 }));
     const g = new THREE.Group();
     const s = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, len).translate(0, 0, len / 2 + 0.05), sleeve);
     const cuff = new THREE.Mesh(new THREE.BoxGeometry(0.078, 0.078, 0.04).translate(0, 0, 0.06), sleeve);
@@ -121,12 +123,19 @@ export class Weapons {
     const assets = this.game.world.assets;
     const g = new THREE.Group();
     let info = { muzzle: new THREE.Vector3(0, 0.04, -0.4), sight: new THREE.Vector3(0, 0.08, 0), front: new THREE.Vector3(0, -0.03, -0.25) };
+    const real = this.game.viewModels?.weapons[d.asset];
     if (assets.has(d.asset)) {
-      const b = assets.build(d.asset, { quality: 1 });
-      const mesh = new THREE.Mesh(b.geometry, this.vmMat);
-      g.add(mesh);
+      // the realistic model (public/models/fp, same weapon space as the asset) or the asset itself
+      let bb;
+      if (real) {
+        g.add(real.scene);
+        bb = modelBounds(real.scene);
+      } else {
+        const b = assets.build(d.asset, { quality: 1 });
+        g.add(new THREE.Mesh(b.geometry, this.vmMat));
+        bb = b.bounds;
+      }
       const def = assets.get(d.asset);
-      const bb = b.bounds;
       info = {
         muzzle: new THREE.Vector3(...(def.muzzle ?? [0, (bb.min.y + bb.max.y) / 2 + 0.02, bb.min.z])),
         sight: new THREE.Vector3(...(def.sight ?? [0, bb.max.y, 0])),
@@ -547,21 +556,7 @@ export class Weapons {
     const g = this.game, p = g.player, w = this.current;
     const vm = this.vm;
     // match the world lighting
-    const L = g.engine.lighting;
-    this.vmSun.color.copy(L.sun.uniforms.sunColor.value).multiplyScalar(0.35);
-    this.vmSun.position.copy(L.sunDir).multiplyScalar(5);
-    if (L.gi.active) {
-      // probe light at the eye: sky / bounce from above and below, sun dimmed where the sky is hidden
-      const e = (this._vmE ??= [0, 0, 0]);
-      L.gi.cameraIrradiance(0, 1, 0, e, L.hemi); this.vmHemi.color.setRGB(e[0], e[1], e[2]);
-      L.gi.cameraIrradiance(0, -1, 0, e, L.hemi); this.vmHemi.groundColor.setRGB(e[0], e[1], e[2]);
-      this.vmHemi.intensity = 0.5;
-      this.vmSun.color.multiplyScalar(Math.min(1, Math.max(0.15, L.gi.openness)));
-    } else {
-      this.vmHemi.color.copy(L.hemi.color);
-      this.vmHemi.groundColor.copy(L.hemi.groundColor);
-      this.vmHemi.intensity = L.hemi.intensity * 0.5;
-    }
+    this.vmLight.update();
     const showVM = p.alive && !p.inVehicle && !!w && !(w.scope && this.adsBlend > 0.85) && !g.binoculars?.active;
     vm.visible = showVM;
     // camera fov: ADS zoom, sprint widen

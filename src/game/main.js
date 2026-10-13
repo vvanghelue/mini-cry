@@ -1,10 +1,11 @@
-// Game page entry. Modes (?mode=): play (default), view (free camera), asset (asset turntable).
+// Game page entry. Modes (?mode=): play (default), view (free camera), asset (asset turntable),
+// viewmodel (first-person weapon + arms).
 import * as THREE from 'three';
 import { Engine } from '../engine/core/Engine.js';
 import { Input } from '../engine/core/Input.js';
 import { World } from '../engine/world/World.js';
 import { Live } from '../engine/core/Live.js';
-import { startViewMode, startAssetMode } from './modes/viewer.js';
+import { startViewMode, startAssetMode, startViewModelMode } from './modes/viewer.js';
 import { PerfOverlay } from './ui/PerfOverlay.js';
 import { DebugPanel } from './ui/DebugPanel.js';
 
@@ -35,6 +36,8 @@ if (params.get('nohud') === '1') perf.hide();
 
 if (mode === 'asset') {
   await startAssetMode(app, params);
+} else if (mode === 'viewmodel') {
+  await startViewModelMode(app, params);
 } else {
   const world = new World(engine, { mode: 'game' });
   app.world = world;

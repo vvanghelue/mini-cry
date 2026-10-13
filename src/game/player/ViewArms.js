@@ -1,22 +1,24 @@
-// First-person arms: the arms of a Quaternius character (same rig as the NPCs, real fingers),
-// drawn in the weapon view-model pass. Only the arm triangles of the merged character mesh are
-// kept, the (short, stylised) arms are stretched along their bones at build time, and every frame
-// the wrists are put on the weapon's grips by two-bone IK (elbows toward a pole), the hands turned
-// to the grip frame and the fingers curled around it.
+// First-person arms: a realistic skinned arms model (public/models/fp/arms_*.glb, built by
+// `mc viewmodel build` from a Microsoft Rocketbox avatar: photo textures, 3 joints per finger),
+// drawn in the weapon view-model pass. Every frame the wrists are put on the weapon's grips by
+// two-bone IK (elbows toward a pole), the hands turned to the grip frame and the fingers curled
+// around it. The bind pose can be anything (T- or A-pose): the bone directions, the thumb side of
+// the hands and the palm normals are measured on the skeleton at load.
 //
-// Config (game/player.json `arms`): model, palette (material name -> colour), shoulder (camera
-// space [_, y, z] of the shoulders, centred on x = 0), stretch (arm length factor), handScale,
-// pole (camera space elbow direction of the right arm, mirrored).
+// Config (game/player.json `arms`): model (public/models/fp/<model>.glb), shoulder (camera space
+// [_, y, z] of the shoulders, centred on x = 0), scale, pole (camera space elbow direction of the
+// right arm, mirrored), yaw (deg the torso is turned to the right: left shoulder forward),
+// stretch (arm length factor: view-model weapons are held farther than real arms reach), reach (m a
+// shoulder may move toward a grip the straight arm can't reach, default 0.1), envMap (sky
+// reflection strength of the arms' material).
 // Grips (weapon asset `hands.right` / `hands.left`, weapon space, docs/ASSETS.md): pos (wrist),
-// fingers (direction of the straight fingers), thumb (direction of the thumb), curl ([index,
+// fingers (direction of the straight fingers), thumb (thumb side of the hand), curl ([index,
 // middle, ring, pinky] degrees per joint), thumbCurl (degrees per joint), thumbFold (degrees, across
 // the palm). A missing grip hangs that arm out of view.
 import * as THREE from 'three';
-import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { LAYERS } from '../../engine/render/layers.js';
 
 const D2R = Math.PI / 180;
-const san = THREE.PropertyBinding.sanitizeNodeName;
 const FINGERS = ['Index', 'Middle', 'Ring', 'Pinky'];
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4();
@@ -33,137 +35,126 @@ function frameRotation(a0, b0, a1, b1, out) {
   return out.setFromRotationMatrix(_m2.multiply(_m.transpose()));
 }
 
+/**
+ * Longer arms (first-person view models are held farther than real arms reach): vertices slide
+ * along the upper arm / forearm by (k - 1) x their distance along it, the hands move by the whole
+ * extra length, the elbows and wrists with them, then the skin is re-bound. Model space, bind pose.
+ */
+function stretchArms(mesh, bone, k) {
+  const sk = mesh.skeleton, geo = mesh.geometry;
+  const pos = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+  const wp = (b) => new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+  const main = new Int16Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    let best = -1;
+    for (let j = 0; j < 4; j++) { const w = sw.getComponent(i, j); if (w > best) { best = w; main[i] = si.getComponent(i, j); } }
+  }
+  for (const s of ['R', 'L']) {
+    const upper = bone(`UpperArm.${s}`), lower = bone(`LowerArm.${s}`), wrist = bone(`Wrist.${s}`);
+    const S = wp(upper), E = wp(lower), W = wp(wrist);
+    const du = E.clone().sub(S), lu = du.length(); du.divideScalar(lu);
+    const df = W.clone().sub(E), lf = df.length(); df.divideScalar(lf);
+    const ui = sk.bones.indexOf(upper), li = sk.bones.indexOf(lower);
+    const hand = new Set();
+    wrist.traverse((b) => { if (b.isBone) hand.add(sk.bones.indexOf(b)); });
+    const v = new THREE.Vector3(), c = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      const b = main[i];
+      if (b !== ui && b !== li && !hand.has(b)) continue;
+      v.fromBufferAttribute(pos, i);
+      const alongF = b === li ? THREE.MathUtils.clamp(c.subVectors(v, E).dot(df), 0, lf) : lf;
+      v.addScaledVector(du, (k - 1) * (b === ui ? THREE.MathUtils.clamp(c.subVectors(v, S).dot(du), 0, lu) : lu));
+      if (b !== ui) v.addScaledVector(df, (k - 1) * alongF);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    for (const [b, off] of [[lower, du.clone().multiplyScalar((k - 1) * lu)], [wrist, df.clone().multiplyScalar((k - 1) * lf)]]) {
+      b.position.copy(b.parent.worldToLocal(wp(b).add(off)));
+      b.updateMatrixWorld(true);
+    }
+  }
+  pos.needsUpdate = true;
+  geo.computeBoundingSphere();
+  sk.calculateInverses();
+}
+
 export class ViewArms {
-  constructor(library, cfg = {}, parent) {
-    const name = library.templates[cfg.model] ? cfg.model : Object.keys(library.templates)[0];
-    const t = library.templates[cfg.palette ? library.variant(name, cfg.palette, 'arms') : name];
+  /** gltf: the loaded arms model (one skinned mesh, bones named UpperArm.R, LowerArm.R, Wrist.R, Index1.R...). */
+  constructor(gltf, cfg = {}, parent) {
     this.root = new THREE.Group();
     this.root.name = 'ViewArms';
-    const model = SkeletonUtils.clone(t.scene);
+    const model = gltf.scene;
     let mesh = null;
     model.traverse((o) => { if (o.isSkinnedMesh && !mesh) mesh = o; });
+    if (!mesh) throw new Error('arms model without a skinned mesh');
     this.model = model;
     const sk = mesh.skeleton;
-    const bone = (n) => sk.bones.find((b) => b.name === san(n));
-    // bind pose (a T-pose: arms along ±X, palms down, thumbs toward +Z), model space at scale 1
+    const bone = (n) => sk.bones.find((b) => b.name === THREE.PropertyBinding.sanitizeNodeName(n));
     sk.pose();
     model.updateMatrixWorld(true);
+    const wp = (b) => new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+    if ((cfg.stretch ?? 1) !== 1) stretchArms(mesh, bone, cfg.stretch);
+    const mq = (b) => b.getWorldQuaternion(new THREE.Quaternion());
     this.sides = {};
-    const geo = mesh.geometry;
-    const keep = new Set();
     for (const s of ['R', 'L']) {
       const side = { s, sign: s === 'R' ? 1 : -1 };
       side.upper = bone(`UpperArm.${s}`); side.lower = bone(`LowerArm.${s}`); side.wrist = bone(`Wrist.${s}`);
-      side.fingers = FINGERS.map((f) => [2, 3, 4].map((i) => bone(`${f}${i}.${s}`)).filter(Boolean));
+      if (!side.upper || !side.lower || !side.wrist) throw new Error(`arms model: missing ${s} arm bones`);
+      side.fingers = FINGERS.map((f) => [1, 2, 3].map((i) => bone(`${f}${i}.${s}`)).filter(Boolean));
       side.thumb = [1, 2, 3].map((i) => bone(`Thumb${i}.${s}`)).filter(Boolean);
-      side.bones = new Set([side.upper, side.lower, side.wrist, ...side.thumb, ...side.fingers.flat(), ...FINGERS.map((f) => bone(`${f}1.${s}`))].filter(Boolean).map((b) => sk.bones.indexOf(b)));
-      for (const i of side.bones) keep.add(i);
+      // bind data (model space): bone lengths and directions, world rotations, finger rest rotations
+      const S = wp(side.upper), E = wp(side.lower), W = wp(side.wrist);
+      side.lenU = E.distanceTo(S);
+      side.lenF = W.distanceTo(E);
+      side.shoulder0 = side.upper.position.clone(); // rest position (parent space): the shoulder moves forward when needed
+      side.qU = mq(side.upper); side.qF = mq(side.lower); side.qW = mq(side.wrist);
+      side.dU0 = E.clone().sub(S).normalize();
+      side.dF0 = W.clone().sub(E).normalize();
+      const base = (i) => (side.fingers[i]?.[0] ? wp(side.fingers[i][0]) : W.clone());
+      side.dH0 = base(1).sub(W).normalize(); // wrist -> middle finger
+      // thumb side of the hand (pinky -> index, across the palm) and palm normal (out of the palm)
+      side.t0 = base(0).sub(base(3));
+      side.t0.addScaledVector(side.dH0, -side.t0.dot(side.dH0)).normalize();
+      const palm = new THREE.Vector3().crossVectors(side.dH0, side.t0).multiplyScalar(-side.sign);
+      // the elbow bends toward the front of the body (+Z) in the bind pose
+      side.fwd0 = new THREE.Vector3(0, 0, 1);
+      // curl: each finger bends toward the palm, about (finger direction x palm normal), per bone local;
+      // the thumb folds across the palm about (thumb side x palm normal)
+      side.rest = new Map();
+      side.curlAxis = new Map();
+      const chains = [...side.fingers, side.thumb];
+      for (const chain of chains) {
+        chain.forEach((b, j) => {
+          const next = chain[j + 1] ?? null;
+          const dir = next ? wp(next).sub(wp(b)) : wp(b).sub(wp(chain[j - 1] ?? side.wrist));
+          const axis = new THREE.Vector3().crossVectors(chain === side.thumb ? side.dH0 : dir.normalize(), palm).normalize();
+          side.rest.set(b, b.quaternion.clone());
+          side.curlAxis.set(b, axis.applyQuaternion(mq(b).invert()));
+        });
+      }
+      side.thumbAxis = new Map();
+      const fold = new THREE.Vector3().crossVectors(side.t0, palm).normalize();
+      for (const b of side.thumb) side.thumbAxis.set(b, fold.clone().applyQuaternion(mq(b).invert()));
       this.sides[s] = side;
     }
-    // keep the triangles whose three vertices mostly follow an arm bone
-    const si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, idx = geo.index.array;
-    const main = new Int16Array(si.count);
-    for (let i = 0; i < si.count; i++) {
-      let best = -1;
-      for (let k = 0; k < 4; k++) { const w = sw.getComponent(i, k); if (w > best) { best = w; main[i] = si.getComponent(i, k); } }
-    }
-    const tris = [], remap = new Map();
-    for (let f = 0; f < idx.length; f += 3) {
-      if (!keep.has(main[idx[f]]) || !keep.has(main[idx[f + 1]]) || !keep.has(main[idx[f + 2]])) continue;
-      for (let j = 0; j < 3; j++) { const v = idx[f + j]; if (!remap.has(v)) remap.set(v, remap.size); tris.push(remap.get(v)); }
-    }
-    // re-bind in the bind-pose world (whatever space the glTF skin used): each kept vertex at its
-    // skinned bind position / normal, bones inverted where they stand
-    model.updateMatrixWorld(true);
-    const n = remap.size, P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3);
-    const SI = new Uint16Array(n * 4), SW = new Float32Array(n * 4), M = new Int16Array(n);
-    const nrm = new THREE.Matrix3();
-    for (const [v, i] of remap) {
-      mesh.getVertexPosition(v, _a);
-      mesh.localToWorld(_a).toArray(P, i * 3);
-      nrm.getNormalMatrix(_m.multiplyMatrices(sk.bones[main[v]].matrixWorld, sk.boneInverses[main[v]]));
-      _a.fromBufferAttribute(geo.attributes.normal, v).applyMatrix3(nrm).normalize().toArray(N, i * 3);
-      _a.fromBufferAttribute(geo.attributes.color, v).toArray(C, i * 3);
-      for (let k = 0; k < 4; k++) { SI[i * 4 + k] = si.getComponent(v, k); SW[i * 4 + k] = sw.getComponent(v, k); }
-      M[i] = main[v];
-    }
-    // stretch the (short, stylised) arms: vertices slide along the upper arm / forearm by
-    // (k - 1) x their distance along it, the hand moves by the whole extra length
-    const k = cfg.stretch ?? 1;
-    const wp = (b) => new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
-    for (const side of Object.values(this.sides)) {
-      const S = wp(side.upper), E = wp(side.lower), W = wp(side.wrist);
-      const du = E.clone().sub(S), lu = du.length(); du.divideScalar(lu);
-      const df = W.clone().sub(E), lf = df.length(); df.divideScalar(lf);
-      const lowerI = sk.bones.indexOf(side.lower), upperI = sk.bones.indexOf(side.upper);
-      for (let i = 0; i < n; i++) {
-        const b = M[i];
-        if (!side.bones.has(b)) continue;
-        _a.fromArray(P, i * 3);
-        _b.set(0, 0, 0);
-        if (b === upperI) _b.addScaledVector(du, (k - 1) * THREE.MathUtils.clamp(_c.subVectors(_a, S).dot(du), 0, lu));
-        else if (b === lowerI) _b.addScaledVector(du, (k - 1) * lu).addScaledVector(df, (k - 1) * THREE.MathUtils.clamp(_c.subVectors(_a, E).dot(df), 0, lf));
-        else _b.addScaledVector(du, (k - 1) * lu).addScaledVector(df, (k - 1) * lf);
-        _a.add(_b).toArray(P, i * 3);
-      }
-      // move the elbow / wrist bones by the same amounts (world offsets -> parent space)
-      for (const [b, off] of [[side.lower, du.clone().multiplyScalar((k - 1) * lu)], [side.wrist, df.clone().multiplyScalar((k - 1) * lf)]]) {
-        const target = wp(b).add(off);
-        b.position.copy(b.parent.worldToLocal(target));
-        b.updateMatrixWorld(true);
-      }
-    }
-    model.updateMatrixWorld(true);
-    sk.boneInverses = sk.bones.map((b) => b.matrixWorld.clone().invert()); // own array (the clone shares the template's)
-    const arms = new THREE.BufferGeometry();
-    arms.setAttribute('position', new THREE.BufferAttribute(P, 3));
-    arms.setAttribute('normal', new THREE.BufferAttribute(N, 3));
-    arms.setAttribute('color', new THREE.BufferAttribute(C, 3));
-    arms.setAttribute('skinIndex', new THREE.BufferAttribute(SI, 4));
-    arms.setAttribute('skinWeight', new THREE.BufferAttribute(SW, 4));
-    arms.setIndex(tris);
-    arms.computeBoundingSphere();
-    mesh.geometry = arms;
-    mesh.bind(sk, new THREE.Matrix4()); // attached: vertex = sum(bone x inverse) x position
-    mesh.material = new THREE.MeshLambertMaterial({ vertexColors: true, name: 'ViewArms' });
     mesh.frustumCulled = false;
-    model.traverse((o) => o.layers.set(LAYERS.VIEW));
-    // bind data in model space: world quaternions, bone lengths, the local rotations at rest
-    const mq = (b) => b.getWorldQuaternion(new THREE.Quaternion());
-    for (const side of Object.values(this.sides)) {
-      side.lenU = wp(side.lower).distanceTo(wp(side.upper));
-      side.lenF = wp(side.wrist).distanceTo(wp(side.lower));
-      side.qU = mq(side.upper); side.qF = mq(side.lower); side.qW = mq(side.wrist);
-      // bind directions (model space): upper arm, forearm, straight fingers
-      const mid = side.fingers[1][0] ?? side.fingers[0][0];
-      side.dU0 = wp(side.lower).sub(wp(side.upper)).normalize();
-      side.dF0 = wp(side.wrist).sub(wp(side.lower)).normalize();
-      side.dH0 = wp(mid).sub(wp(side.wrist)).normalize();
-      side.rest = new Map();
-      for (const b of [...side.thumb, ...side.fingers.flat()]) side.rest.set(b, b.quaternion.clone());
-      // curl axis (palm down, fingers along ∓X: bending toward -Y turns about ±Z), per bone local
-      const axisW = new THREE.Vector3(0, 0, side.sign);
-      side.curlAxis = new Map();
-      for (const b of [...side.thumb, ...side.fingers.flat()]) side.curlAxis.set(b, axisW.clone().applyQuaternion(mq(b).invert()));
-      // thumb: folds across the palm (about the axis along the hand)
-      side.thumbAxis = new Map();
-      for (const b of side.thumb) side.thumbAxis.set(b, new THREE.Vector3(1, 0, 0).applyQuaternion(mq(b).invert()));
-    }
-    // model space -> camera space: face -Z, real size, shoulders centred on x = 0 at cfg.shoulder's
-    // height / depth
+    model.traverse((o) => {
+      o.layers.set(LAYERS.VIEW);
+      if (o.material) o.material.envMapIntensity = cfg.envMap ?? 1;
+    });
+    // model space -> camera space: face -Z (turned by cfg.yaw: a shooter blades the torso, the
+    // left shoulder forward), shoulders centred on x = 0 at cfg.shoulder's height / depth
     const sh = wp(this.sides.R.upper).add(wp(this.sides.L.upper)).multiplyScalar(0.5);
-    model.rotation.y = Math.PI;
-    model.scale.setScalar(t.scale * (cfg.scale ?? 1));
-    const shoulder = new THREE.Vector3(0, ...(cfg.shoulder ?? [0, -0.26, -0.08]).slice(1));
+    model.rotation.y = Math.PI - (cfg.yaw ?? 0) * D2R;
+    model.scale.setScalar(cfg.scale ?? 1);
+    const shoulder = new THREE.Vector3(0, ...(cfg.shoulder ?? [0, -0.26, 0.02]).slice(1));
     model.position.copy(shoulder).sub(sh.applyQuaternion(model.quaternion).multiplyScalar(model.scale.x));
     this.root.add(model);
     parent.add(this.root);
-    // the stylised hands are big (palm ~1.5x a real one): scale them about the wrist
-    for (const side of Object.values(this.sides)) side.wrist.scale.setScalar(cfg.handScale ?? 1);
     this.pole = new THREE.Vector3(...(cfg.pole ?? [0.5, -1, 0.15]));
+    this.reach = cfg.reach ?? 0.1; // how far a shoulder can move toward a grip out of reach (m, scapula protraction)
     this.mesh = mesh;
     const v = () => new THREE.Vector3(), q = () => new THREE.Quaternion();
-    this._t = { T: v(), fingers: v(), thumb: v(), S: v(), E: v(), W: v(), n: v(), m: v(), dU: v(), dF: v(), bend: v(), fwd0: v(), along: v(), rootQ: q(), wq: q(), g: q(), g2: q() };
+    this._t = { T: v(), fingers: v(), thumb: v(), S: v(), E: v(), W: v(), n: v(), m: v(), dU: v(), dF: v(), bend: v(), fwd0: v(), along: v(), t0: v(), rootQ: q(), wq: q(), g: q(), g2: q() };
   }
 
   set visible(v) { this.root.visible = v; }
@@ -198,10 +189,18 @@ export class ViewArms {
   }
 
   _solve(side, t) {
-    const { T, fingers, thumb, rootQ, S, E, W, n, m, dU, dF, bend, fwd0, along, g, g2 } = t;
-    side.upper.getWorldPosition(S);
+    const { T, fingers, thumb, rootQ, S, E, W, n, m, dU, dF, bend, fwd0, along, t0, g, g2 } = t;
     const scale = this.model.scale.x;
     const a = side.lenU * scale, b = side.lenF * scale;
+    // shoulder: at rest, or moved toward a grip that the straight arm can't reach (up to `reach`)
+    side.upper.position.copy(side.shoulder0);
+    side.upper.parent.localToWorld(S.copy(side.shoulder0));
+    const over = S.distanceTo(T) - (a + b) * 0.97;
+    if (over > 0) {
+      S.addScaledVector(n.subVectors(T, S).normalize(), Math.min(over, this.reach));
+      side.upper.position.copy(side.upper.parent.worldToLocal(n.copy(S)));
+    }
+    side.upper.updateMatrixWorld(true);
     const d = THREE.MathUtils.clamp(n.subVectors(T, S).length(), Math.abs(a - b) + 1e-4, a + b - 1e-4);
     n.normalize();
     m.copy(this.pole);
@@ -210,21 +209,22 @@ export class ViewArms {
     const cosA = (a * a + d * d - b * b) / (2 * a * d);
     E.copy(S).addScaledVector(n, a * cosA).addScaledVector(m, a * Math.sqrt(Math.max(0, 1 - cosA * cosA)));
     W.copy(S).addScaledVector(n, d);
-    // bind frames in world: bone directions of the T-pose, elbow bend / thumbs toward +Z (model)
-    fwd0.set(0, 0, 1).applyQuaternion(rootQ);
+    // bind frames in world: bone directions, the elbow bending toward the front, the thumb side
+    fwd0.copy(side.fwd0).applyQuaternion(rootQ);
+    t0.copy(side.t0).applyQuaternion(rootQ);
     // upper arm: along S->E, the forearm bending toward W
     dU.subVectors(E, S).normalize();
     bend.subVectors(W, E).addScaledVector(dU, -bend.dot(dU));
     frameRotation(along.copy(side.dU0).applyQuaternion(rootQ), fwd0, dU, bend, g);
     this._setWorld(side.upper, _q2.copy(g).multiply(rootQ).multiply(side.qU));
-    // forearm: along E->W, twist halfway between the elbow hinge and the hand's thumb direction
+    // forearm: along E->W, twist halfway between the elbow hinge and the hand's thumb side
     dF.subVectors(W, E);
     along.copy(side.dF0).applyQuaternion(rootQ);
     frameRotation(along, fwd0, dF, bend.copy(fwd0).applyQuaternion(g), g2);
-    frameRotation(along, fwd0, dF, thumb, g);
+    frameRotation(along, t0, dF, thumb, g);
     this._setWorld(side.lower, g2.slerp(g, 0.5).multiply(rootQ).multiply(side.qF));
-    // hand: fingers / thumb
-    frameRotation(along.copy(side.dH0).applyQuaternion(rootQ), fwd0, fingers, thumb, g);
+    // hand: fingers / thumb side
+    frameRotation(along.copy(side.dH0).applyQuaternion(rootQ), t0, fingers, thumb, g);
     this._setWorld(side.wrist, g.multiply(rootQ).multiply(side.qW));
   }
 
