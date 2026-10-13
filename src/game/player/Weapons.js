@@ -83,8 +83,9 @@ export class Weapons {
     const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.02, 10);
     camera.layers.enableAll();
     scene.add(camera);
-    // sun + image-based sky light (PBR weapons and arms, ViewLight.js)
-    this.vmLight = new ViewLight(this.game.engine.renderer, scene, this.game.engine.lighting);
+    // world sun + shadows, probe GI and sky reflections (PBR weapons and arms, ViewLight.js); the
+    // camera follows the world camera, so the view-model scene is in world space
+    this.vmLight = new ViewLight(this.game.engine.renderer, scene, this.game.engine.lighting, camera);
     this.vmRoot = new THREE.Group();
     camera.add(this.vmRoot);
     this.vmWeapon = new THREE.Group();
@@ -94,11 +95,11 @@ export class Weapons {
     this.flash = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 0), new THREE.MeshBasicMaterial({ color: 0xffc860, transparent: true, depthWrite: false, toneMapped: false }));
     this.flash.visible = false;
     this.vmWeapon.add(this.flash);
-    this.vm = { scene, camera, visible: true };
+    this.vm = { scene, camera, visible: true, beforeRender: () => this.vmLight.follow() };
     // realistic arms (public/models/fp, posed by IK on the weapon grips); box arms as fallback
     const armsModel = this.game.viewModels?.arms;
     try { if (armsModel) this.arms = new ViewArms(armsModel, this.game.data.player?.arms, camera); } catch (e) { console.warn('view arms unavailable', e); }
-    if (this.arms) this.arms.visible = false;
+    if (this.arms) { this.arms.visible = false; this.vmLight.patch(this.arms.root); }
     this.game.engine.overlay = this.vm;
     this.game.engine.on('resize', ({ w, h }) => { camera.aspect = w / h; camera.updateProjectionMatrix(); });
   }
@@ -158,6 +159,7 @@ export class Weapons {
       }
     }
     g.traverse((o) => o.layers.set(LAYERS.VIEW));
+    this.vmLight.patch(g);
     g.visible = false;
     this.vmWeapon.add(g);
     this.vmMeshes[id] = { group: g, info };
