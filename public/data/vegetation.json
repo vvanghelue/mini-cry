@@ -101,7 +101,7 @@
           "quality": 1
         },
         {
-          "distance": 260,
+          "distance": 200,
           "quality": 0.5
         },
         {
@@ -128,7 +128,7 @@
       },
       "shareVariantsFrom": 3,
       "impostor": {
-        "cell": 96
+        "cell": 128
       }
     },
     {
