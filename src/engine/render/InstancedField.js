@@ -209,6 +209,51 @@ export class InstancedField {
     this.stats.triangles = tris;
   }
 
+  /**
+   * Draw statistics per (kind, LOD) for the camera of the last update (benchmarks, debug), over its
+   * variant meshes: submitted = instances drawn (zeroed holes included: they still run the vertex
+   * shader), inRange = instances inside the LOD's distance range (the others collapse in the vertex
+   * shader), medianPx = median height on screen of those (`viewHeight` px viewport), tiny = how many
+   * are under `tinyPx` px, vertexInvocations = sum of submitted x vertices, triangles = sum of
+   * in-range x triangles (what is really rasterized).
+   */
+  lodStats(camera, viewHeight, tinyPx = 12) {
+    const cp = camera.position, f = viewHeight / 2 / Math.tan((camera.fov * Math.PI) / 360);
+    const rows = [];
+    for (const k of this.kinds) {
+      if (!k.scaled) continue;
+      for (let li = 0; li < k.lods.length; li++) {
+        const meshes = new Set(k.variants.map((v) => v.meshes[li]).filter((m) => m?.count));
+        if (!meshes.size) continue;
+        const [inA, , , outB] = k.scaled[li], px = [];
+        const row = { kind: k.def.id, lod: li, meshes: meshes.size, submitted: 0, inRange: 0, tiny: 0, medianPx: 0, vertexInvocations: 0, triangles: 0, shadow: false };
+        for (const m of meshes) {
+          const a = m.instanceMatrix.array, g = m.geometry;
+          const verts = g.attributes.position.count, tris = (g.index ? g.index.count : verts) / 3;
+          let inRange = 0;
+          for (let i = 0; i < m.count; i++) {
+            const o = i * 16, s = Math.hypot(a[o], a[o + 1], a[o + 2]);
+            if (!s) continue;
+            const d = Math.hypot(a[o + 12] - cp.x, a[o + 14] - cp.z);
+            if (d < inA || d >= outB) continue;
+            inRange++;
+            px.push((k.height * s * f) / Math.max(d, 1));
+          }
+          row.submitted += m.count;
+          row.inRange += inRange;
+          row.vertexInvocations += m.count * verts;
+          row.triangles += inRange * tris;
+          row.shadow ||= m.layers.isEnabled(LAYERS.STATIC);
+        }
+        px.sort((a, b) => a - b);
+        row.medianPx = Math.round(px[px.length >> 1] ?? 0);
+        row.tiny = px.filter((p) => p < tinyPx).length;
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+
   /** Nearest item hit by a ray, using each kind's bounding sphere (editor picking). */
   pick(ray, maxDist = 2000) {
     let best = null, bd = maxDist;

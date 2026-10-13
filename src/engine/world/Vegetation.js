@@ -32,6 +32,8 @@ export class Vegetation {
     const a = this.fieldNear.stats, b = this.fieldFar.stats;
     return { instances: a.instances + b.instances, meshes: a.meshes + b.meshes, triangles: a.triangles + b.triangles };
   }
+  /** Per species / LOD draw statistics (InstancedField.lodStats), both fields. */
+  lodStats(camera, viewHeight, tinyPx) { return [...this.fieldNear.lodStats(camera, viewHeight, tinyPx), ...this.fieldFar.lodStats(camera, viewHeight, tinyPx)]; }
   set drawScale(v) { this.fieldNear.drawScale = v; this.fieldFar.drawScale = v; }
   get drawScale() { return this.fieldFar.drawScale; }
 

@@ -23,16 +23,26 @@ character names stay French.
   keep it at 0 — if a new material / object type shows up late, make `World.warmUp` cover it.
 - **Performance budget**: 120 fps on a MacBook Air M1 ≈ 8.3 ms per frame. Check with
   `npm run bench -- --mode play --prod --m1 --repeat 3 --fresh` (CPU throttled 2x, GPU time x1.9,
-  median of 3, new page per view: every view must say OK / worst ≥ 120; last run ≥ 164) and
-  `npm run profile -- --spawn x,y,z`; break a slow view down with `--breakdown`. For hitches use
+  median of 3, new page per view: every view must say OK / worst ≥ 120; the low-poly version made
+  ≥ 164, the textured one 21 on 2026-10-14) and `npm run profile -- --spawn x,y,z`. Break a slow
+  view down with `--views <name> --breakdown`: GPU ms each system costs, measured by switching it
+  off and on in pairs (`--only a,b`; `--veg` = per vegetation LOD / species; `res 50%` tells
+  fill-rate from geometry cost) and `--veg-stats` (instances, screen height, triangles per
+  vegetation species / LOD, `Vegetation.lodStats`). `profile`: `--by file`, `--callers <fn>`,
+  `--size 480x300` (with the GPU saturated, the JS waits in a native WebGL call such as
+  `uniform4fv`: that is GPU backpressure, not JS work), `--load`. Never time passes with one GPU
+  timer query each: on ANGLE / Metal a query adds ~3 ms. The F3 / bench triangle count sums every
+  pass (cascades, SSAO pre-pass) and the instances the LOD shader collapses. For hitches use
   `node tools/trace-flight.mjs --prod` (long frames with GC / JS / GPU-sync breakdown). Instance
   buffers must stay incremental (`render/InstanceBlocks.js`: one block per sector / tile, only
   changed blocks uploaded) — never re-upload a whole InstancedMesh every frame. GPU timer queries are inflated when other apps use the GPU: always
   use --repeat. Watch draw calls (static props are batched per sector;
   small-plant far LODs share one mesh per species — `shareVariantsFrom`; trees don't, so each
   variant keeps its own silhouette at every LOD). Vegetation shaders may discard (LOD dithering),
-  which turns off the tile GPU's hidden surface removal: crown size / screen coverage is the main
-  cost of trees (near LODs are drawn first so hidden far ones fail the depth test).
+  which turns off the tile GPU's hidden surface removal (near LODs are drawn first so hidden far
+  ones fail the depth test). Measured 2026-10-14: vegetation ≈ 60 % of the GPU frame, the far
+  LOD (lod2) alone 25–43 % (trees 17–30 px tall with 100–180 triangles: micro-triangles, so it
+  barely gets cheaper at half resolution); terrain ~20 %, SSAO 13–20 %, shadows ~16 %.
 - The dev server (`npm run dev`, port 5190) hot-reloads pages on any source change; tools start it
   if needed. Use `--prod` for stable benchmarks (builds + serves `dist/` on 5191).
 
