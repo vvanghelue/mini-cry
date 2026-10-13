@@ -13,6 +13,7 @@ import { worldCommands } from './world-commands.js';
 import { voiceCommands } from './voice-commands.js';
 import { giCommands } from './gi-commands.js';
 import { textureCommands } from './texture-commands.js';
+import { viewmodelCommands } from './viewmodel-commands.js';
 import { setSurfaceManifest } from '../../src/engine/assets/surfaces.js';
 
 /** Areas kept free of vegetation: building sites, roads, and entity footprints. */
@@ -287,13 +288,17 @@ export const commands = {
   'data set': {
     usage: '<file.json> <json.path> <json value>',
     help: 'Set a value inside a JSON data file (value parsed as JSON, else kept as a string).',
-    run([file, p, ...v]) {
+    async run([file, p, ...v]) {
       const obj = readJSON(file);
       const raw = v.join(' ');
       let val;
       try { val = JSON.parse(raw); } catch { val = raw; }
       setPath(obj, p, val);
-      writeJSON(file, obj);
+      if (/^assets\//.test(file)) {
+        // assets keep their number arrays on one line (parts' raw triangles)
+        const { stringifyCompact } = await import('./import-glb.js');
+        writeJSON(file, obj, stringifyCompact);
+      } else writeJSON(file, obj);
       return { ok: true, file, path: p, value: val };
     },
   },
@@ -302,6 +307,7 @@ export const commands = {
   ...voiceCommands,
   ...giCommands,
   ...textureCommands,
+  ...viewmodelCommands,
 };
 
 let _build = null;

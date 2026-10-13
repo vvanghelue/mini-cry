@@ -1,0 +1,305 @@
+{
+  "arms": {
+    "military": {
+      "label": "Rolled-up sleeves, tactical gloves",
+      "author": "Microsoft (Rocketbox Avatar Library, avatar Military_Male_03)",
+      "license": "MIT",
+      "url": "https://github.com/microsoft/Microsoft-Rocketbox",
+      "base": "https://raw.githubusercontent.com/microsoft/Microsoft-Rocketbox/0943055db6ec570bcef9f2c8b41c9e5467c808f9/Assets/Avatars/Professions/Military_Male_03/",
+      "fbx": "Export/Military_Male_03.fbx",
+      "textures": {
+        "color": "Textures/sm004_body_color_acu.tga",
+        "normal": "Textures/sm004_body_normal.tga",
+        "specular": "Textures/sm004_body_specular.tga"
+      },
+      "mesh": "body",
+      "roughness": [
+        0.85,
+        0.35
+      ],
+      "erase": [
+        [
+          275,
+          1020,
+          158,
+          190,
+          -158,
+          0
+        ],
+        [
+          1590,
+          1053,
+          152,
+          158,
+          152,
+          0
+        ]
+      ],
+      "note": "US flag, name tape and unit patches on the sleeves painted out (erase)"
+    }
+  },
+  "weapons": {
+    "machete": {
+      "label": "Machete",
+      "author": "Ulan Cabanilla (Poly Haven)",
+      "license": "CC0",
+      "url": "https://polyhaven.com/a/machete",
+      "polyhaven": "machete",
+      "res": "2k",
+      "maxTexture": 1024,
+      "rot": [
+        -90,
+        0,
+        0
+      ],
+      "length": 0.65,
+      "origin": [
+        0,
+        0.02,
+        0.2
+      ]
+    },
+    "pistol": {
+      "label": "Service pistol (P38 type)",
+      "author": "Mateusz Sadek (Poly Haven)",
+      "license": "CC0",
+      "url": "https://polyhaven.com/a/service_pistol",
+      "polyhaven": "service_pistol",
+      "res": "2k",
+      "keep": "_a$",
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "origin": [
+        0,
+        0.045,
+        0.063
+      ],
+      "maxTexture": 1024
+    },
+    "smg": {
+      "label": "Kriss Vector (.45 ACP)",
+      "author": "Rajil Jose Macatangay (3D Model Haven)",
+      "license": "CC0",
+      "url": "https://archive.org/details/gun_models.7z",
+      "note": "3D Model Haven gun pack (CC0, removed from the site); files from a copy on GitHub",
+      "files": {
+        "KrissVector_01.fbx": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/KrissVector_01.fbx",
+        "Textures/KrissVector_01_8-bit_Diffuse.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_8-bit_Diffuse.png",
+        "Textures/KrissVector_01_8-bit_Normal.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_8-bit_Normal.png",
+        "Textures/KrissVector_01_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_8-bit_OcclusionRoughnessMetallic.png",
+        "Textures/KrissVector_01_Foregrip_8-bit_Diffuse.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Foregrip_8-bit_Diffuse.png",
+        "Textures/KrissVector_01_Foregrip_16-bit_Normal.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Foregrip_16-bit_Normal.png",
+        "Textures/KrissVector_01_Foregrip_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Foregrip_8-bit_OcclusionRoughnessMetallic.png",
+        "Textures/KrissVector_01_Magazine_Extended_16-bit_Diffuse.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Magazine_Extended_16-bit_Diffuse.png",
+        "Textures/KrissVector_01_Magazine_Extended_8-bit_Normal.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Magazine_Extended_8-bit_Normal.png",
+        "Textures/KrissVector_01_Magazine_Extended_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Magazine_Extended_8-bit_OcclusionRoughnessMetallic.png",
+        "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_16-bit_Diffuse.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_16-bit_Diffuse.png",
+        "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_8-bit_Normal.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_8-bit_Normal.png",
+        "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_8-bit_OcclusionRoughnessMetallic.png",
+        "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Dot_8-bit_Diffuse.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Dot_8-bit_Diffuse.png",
+        "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Glass_8-bit_Diffuse.png": "https://raw.githubusercontent.com/Haeri/LootyShooty/e3c3f2206bf4d415c940ace36e3e08aa571a4e99/Assets/Models/Vecror/Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Glass_8-bit_Diffuse.png"
+      },
+      "file": "KrissVector_01.fbx",
+      "hide": "^Suppressor",
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "materials": {
+        "Vector": {
+          "color": "Textures/KrissVector_01_8-bit_Diffuse.png",
+          "normal": "Textures/KrissVector_01_8-bit_Normal.png",
+          "orm": "Textures/KrissVector_01_8-bit_OcclusionRoughnessMetallic.png",
+          "maxTexture": 1024
+        },
+        "Grip": {
+          "color": "Textures/KrissVector_01_Foregrip_8-bit_Diffuse.png",
+          "normal": "Textures/KrissVector_01_Foregrip_16-bit_Normal.png",
+          "orm": "Textures/KrissVector_01_Foregrip_8-bit_OcclusionRoughnessMetallic.png",
+          "maxTexture": 512
+        },
+        "Magazine": {
+          "color": "Textures/KrissVector_01_Magazine_Extended_16-bit_Diffuse.png",
+          "normal": "Textures/KrissVector_01_Magazine_Extended_8-bit_Normal.png",
+          "orm": "Textures/KrissVector_01_Magazine_Extended_8-bit_OcclusionRoughnessMetallic.png",
+          "maxTexture": 512
+        },
+        "Holosight": {
+          "color": "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_16-bit_Diffuse.png",
+          "normal": "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_8-bit_Normal.png",
+          "orm": "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Base_8-bit_OcclusionRoughnessMetallic.png",
+          "maxTexture": 512
+        },
+        "Glass": {
+          "color": "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Glass_8-bit_Diffuse.png",
+          "maxTexture": 256,
+          "alphaMode": "BLEND",
+          "roughnessFactor": 0.05,
+          "metallicFactor": 0
+        },
+        "Dot": {
+          "color": "Textures/KrissVector_01_Holosight/KrissVector_01_Holosight_Dot_8-bit_Diffuse.png",
+          "maxTexture": 256,
+          "alphaMode": "BLEND"
+        }
+      },
+      "origin": [
+        0.003,
+        0.204,
+        0.04
+      ]
+    },
+    "rifle_ak": {
+      "label": "AKM",
+      "author": "LonesomeDucky (OpenGameArt)",
+      "license": "CC0",
+      "url": "https://opengameart.org/content/akm",
+      "files": {
+        "akm54.blend": "https://opengameart.org/sites/default/files/akm54.blend"
+      },
+      "file": "akm54.blend",
+      "maxTexture": 1024,
+      "length": 0.88,
+      "origin": [
+        -0.0085,
+        0.1,
+        0.12
+      ]
+    },
+    "rifle_m4": {
+      "label": "M4A1",
+      "author": "TORI106 (Sketchfab)",
+      "license": "CC-BY-4.0",
+      "url": "https://sketchfab.com/3d-models/m4a1-33107f38b23c45cc8103768c0e961cdf",
+      "credit": "\"M4A1\" (https://sketchfab.com/3d-models/m4a1-33107f38b23c45cc8103768c0e961cdf) by TORI106 (https://sketchfab.com/TORI106), CC-BY-4.0",
+      "files": {
+        "scene.gltf": "https://media.githubusercontent.com/media/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/scene.gltf",
+        "scene.bin": "https://raw.githubusercontent.com/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/scene.bin",
+        "textures/M4-1_baseColor.png": "https://media.githubusercontent.com/media/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/textures/M4-1_baseColor.png",
+        "textures/M4-1_metallicRoughness.png": "https://media.githubusercontent.com/media/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/textures/M4-1_metallicRoughness.png",
+        "textures/M4-1_normal.png": "https://media.githubusercontent.com/media/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/textures/M4-1_normal.png",
+        "textures/M4-2_baseColor.png": "https://media.githubusercontent.com/media/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/textures/M4-2_baseColor.png",
+        "textures/M4-2_metallicRoughness.png": "https://media.githubusercontent.com/media/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/textures/M4-2_metallicRoughness.png",
+        "textures/M4-2_normal.png": "https://media.githubusercontent.com/media/moyzyy/FirstWave/b4a5a01c1712ccf8b75d03fe864d72d9d77d2dba/assets/models/m4a1/textures/M4-2_normal.png"
+      },
+      "file": "scene.gltf",
+      "length": 0.84,
+      "maxTexture": 1024,
+      "rot": [
+        0,
+        -90,
+        0
+      ],
+      "origin": [
+        0,
+        0.083,
+        0.09
+      ]
+    },
+    "shotgun": {
+      "label": "Mossberg 500",
+      "author": "Rajil Jose Macatangay (3D Model Haven)",
+      "license": "CC0",
+      "url": "https://archive.org/details/gun_models.7z",
+      "note": "3D Model Haven gun pack (CC0, removed from the site); files from a copy on GitHub",
+      "files": {
+        "Mossberg500_01.blend": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01.blend",
+        "Mossberg500_01_Textures/Mossberg500_01_8-bit_Diffuse.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_8-bit_Diffuse.png",
+        "Mossberg500_01_Textures/Mossberg500_01_8-bit_Normal.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_8-bit_Normal.png",
+        "Mossberg500_01_Textures/Mossberg500_01_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_8-bit_OcclusionRoughnessMetallic.png",
+        "Mossberg500_01_Textures/Mossberg500_01_Stock_8-bit_Diffuse.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_Stock_8-bit_Diffuse.png",
+        "Mossberg500_01_Textures/Mossberg500_01_Stock_8-bit_Normal.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_Stock_8-bit_Normal.png",
+        "Mossberg500_01_Textures/Mossberg500_01_Stock_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_Stock_8-bit_OcclusionRoughnessMetallic.png",
+        "Mossberg500_01_Textures/Mossberg500_01_Forend_8-bit_Diffuse.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_Forend_8-bit_Diffuse.png",
+        "Mossberg500_01_Textures/Mossberg500_01_Forend_8-bit_Normal.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_Forend_8-bit_Normal.png",
+        "Mossberg500_01_Textures/Mossberg500_01_Forend_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_Forend_8-bit_OcclusionRoughnessMetallic.png",
+        "Mossberg500_01_Textures/Mossberg500_01_MagazineTube_8-bit_Diffuse.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_MagazineTube_8-bit_Diffuse.png",
+        "Mossberg500_01_Textures/Mossberg500_01_MagazineTube_8-bit_Normal.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_MagazineTube_8-bit_Normal.png",
+        "Mossberg500_01_Textures/Mossberg500_01_MagazineTube_8-bit_OcclusionRoughnessMetallic.png": "https://raw.githubusercontent.com/pgrenon1/DesFoisJsuisFache/51aaa3e58d7acd69b17655b2f6660d56c5e08768/Assets/Models/Mossberg/Mossberg500_01.blend/Mossberg500_01_Textures/Mossberg500_01_MagazineTube_8-bit_OcclusionRoughnessMetallic.png"
+      },
+      "file": "Mossberg500_01.blend",
+      "hide": "Cartridge",
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "scale": 1,
+      "maxTexture": 1024,
+      "materials": {
+        "Stock": {
+          "maxTexture": 512
+        },
+        "Forend": {
+          "maxTexture": 512
+        },
+        "MagazineTube": {
+          "maxTexture": 512
+        }
+      },
+      "origin": [
+        0,
+        0.08,
+        0.12
+      ]
+    },
+    "sniper": {
+      "label": "Bolt action rifle 7.62 (scoped)",
+      "author": "Mateusz Sadek (Poly Haven)",
+      "license": "CC0",
+      "url": "https://polyhaven.com/a/bolt_action_rifle_7_62",
+      "polyhaven": "bolt_action_rifle_7_62",
+      "res": "2k",
+      "scale": 1,
+      "maxTexture": 1024,
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "hide": "bolt_b|bullet",
+      "origin": [
+        -0.007,
+        0.06,
+        0.276
+      ],
+      "materials": {
+        "bolt_action_rifle_7_62_accesories": {
+          "maxTexture": 512
+        },
+        "bolt_action_rifle_7_62_accesories_glass": {
+          "maxTexture": 256
+        }
+      }
+    },
+    "rpg": {
+      "label": "RPG-7",
+      "author": "Tactical_Gamer (Sketchfab)",
+      "license": "CC-BY-4.0",
+      "url": "https://sketchfab.com/3d-models/rpg-7-01c0fa7bb9e0439cac27264b3119a3fd",
+      "credit": "\"RPG-7\" (https://sketchfab.com/3d-models/rpg-7-01c0fa7bb9e0439cac27264b3119a3fd) by Tactical_Gamer (https://sketchfab.com/Tactical_Beard), CC-BY-4.0",
+      "files": {
+        "rpg7.glb": "https://huggingface.co/datasets/allenai/objaverse/resolve/main/glbs/000-045/01c0fa7bb9e0439cac27264b3119a3fd.glb"
+      },
+      "file": "rpg7.glb",
+      "length": 0.95,
+      "maxTexture": 1024,
+      "rot": [
+        0,
+        90,
+        0
+      ],
+      "origin": [
+        0,
+        0.008,
+        -0.13
+      ]
+    }
+  }
+}

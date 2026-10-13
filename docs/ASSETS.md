@@ -125,21 +125,59 @@ bend. Wings are flat `tris`: two single-sided layers for different colours above
 
 Weapon assets (category `weapon`, used by `game/weapons.json`) carry points in asset space:
 `muzzle` (flash, tracers, NPC shots), `sight` (aiming down sights puts it on the eye line;
-`weapons.json` `view.adsDist` = its distance, default 0.32 m) and `magazine`. `hands` places the
-first-person arms (`src/game/player/ViewArms.js`: the arms of a Quaternius character, two-bone
-IK, config in `game/player.json` `arms`):
+`weapons.json` `view.adsDist` = its distance from the eye, default 0.32 m) and `magazine`. In the
+world (pickups, NPCs) a weapon is its low-poly asset; in first person it is the realistic model
+of the same name in `public/models/fp/` when there is one (below), in the same weapon space.
+`hands` places the first-person arms (`src/game/player/ViewArms.js`: realistic skinned arms, two-bone IK,
+config in `game/player.json` `arms`):
 ```json
 "hands": {
-  "right": { "pos": [0.03, 0.064, 0.1],        // wrist
-             "fingers": [0, -0.53, -0.85],     // direction of the straight fingers
-             "thumb": [0, 0.85, -0.53],        // direction of the thumb
+  "right": { "pos": [0.022, 0.035, 0.12],      // wrist
+             "fingers": [0, -0.29, -0.96],     // direction of the straight fingers
+             "thumb": [0, 0.96, -0.29],        // thumb side of the hand (pinky -> index)
              "curl": [[25, 40, 30], 65, 70, 75],  // index, middle, ring, pinky: deg per joint
              "thumbCurl": [10, 20, 20], "thumbFold": 30 },
   "left": { ... }                              // no left grip: that arm hangs out of view
 }
 ```
-The palm faces away from the thumb side (right hand: palm toward -X when the thumb is up and the
-fingers forward). Check with a first-person shot of the weapon (hip and aiming).
+The fingers curl toward the palm, which faces away from the back of the hand. On a pistol grip,
+the right palm faces -X when the thumb side is up and the fingers point forward. Under a
+handguard, the left palm faces up when the fingers point right and the thumb side points
+forward. Check the hip, aiming and outside views with `mc viewmodel shot` (below). Each wrist
+must reach its grip, and the shot reports `gripError` (m) for each hand. When a grip is too far,
+move the weapon closer with `weapons.json` `view.pos`, or move the grip back along the
+handguard. The arms are real arms, slightly lengthened (`arms.stretch`); the torso is turned
+(`arms.yaw`) and a shoulder can move up to `arms.reach` toward a grip.
+
+### First-person models (`public/models/fp`)
+
+`public/data/viewmodels.json` lists the sources of the first-person models. Each source has its
+URL, author and licence, and `public/models/fp/CREDITS.md` credits them.
+- `arms.<name>`: a Microsoft Rocketbox avatar (MIT). Its FBX is converted with FBX2glTF. The
+  build keeps the triangles and bones of the arms (named `UpperArm.R`, `LowerArm.R`,
+  `Wrist.R`, `Index1..3.R`, `Thumb1..3.R`…) in a canonical frame: shoulders on the origin,
+  left arm toward +X, facing +Z. It packs the arms' UV islands into one colour / normal /
+  roughness texture set. `erase` paints out texel rectangles (insignia). `game/player.json`
+  `arms.model` picks the arms.
+- `weapons.<asset>`: a textured glTF / GLB, or an FBX / .blend / .obj that Blender converts.
+  Poly Haven models only need `polyhaven: <id>`; other sources give `files: { path: url }`.
+  - `keep` / `hide` are regexps on mesh names that select one variant.
+  - `rot`, `length` | `scale` and `origin` follow the same conventions as `asset import`. Put
+    the origin at the trigger, about 0.1 m under the bore, so the asset's `muzzle`, `sight`
+    and `hands` and the `weapons.json` `view` stay meaningful.
+  - The build merges meshes per material. It resizes textures to `maxTexture` (default
+    1024; occlusion / roughness / metalness at half that size).
+  - `materials.<name>` overrides a material: its `maxTexture`, `color` / `normal` / `orm`
+    texture files of the source folder (a model whose files aren't linked), `alphaMode`,
+    and pbr factors.
+
+```bash
+npm run mc -- viewmodel list                       # sources, licences, built files
+npm run mc -- viewmodel fetch [name]               # download the sources into .vm-cache/
+npm run mc -- viewmodel build [name]               # -> public/models/fp/*.glb (.blend sources: BLENDER=/path/to/blender)
+npm run mc -- viewmodel shot rifle_ak [--ads 1] [--reload 0.5] [--orbit 270,15,0.8 --grips]
+                                                   # first-person view (?mode=viewmodel) -> shots/, gripError per hand
+```
 
 ## Vehicles
 

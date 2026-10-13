@@ -3,6 +3,7 @@
 // binoculars tagging, checkpoints).
 import * as THREE from 'three';
 import { Data } from '../engine/core/Data.js';
+import { loadViewModels } from './player/ViewModels.js';
 import { VOICE_MANIFEST } from './missions/voice.js';
 import { CharacterLibrary, nextCharacterFrame } from '../engine/anim/Characters.js';
 import { Player } from './player/Player.js';
@@ -70,16 +71,20 @@ export class Game {
 
   async init() {
     const t0 = performance.now();
-    const [player, weapons, archetypes, items, missions, dialogue, sounds, voices, birds] = await Promise.all([
+    const [player, weapons, archetypes, items, missions, dialogue, sounds, voices, birds, viewModels] = await Promise.all([
       Data.json('game/player.json'), Data.json('game/weapons.json'), Data.json('game/archetypes.json'), Data.json('game/items.json'),
       Data.jsonOr('game/missions.json', { missions: [] }), Data.jsonOr('game/dialogue.json', { speakers: {}, dialogues: {} }), Data.jsonOr('sounds.json', { sounds: {} }),
-      Data.jsonOr(VOICE_MANIFEST, { lines: {} }), Data.jsonOr('game/birds.json', { species: {} }),
+      Data.jsonOr(VOICE_MANIFEST, { lines: {} }), Data.jsonOr('game/birds.json', { species: {} }), Data.jsonOr('viewmodels.json', {}),
     ]);
     this.data = { player, weapons, archetypes, items, missions, dialogue, sounds, birds };
     // characters (all archetype models)
     const models = [...new Set(Object.values(archetypes.archetypes).map((a) => a.model))];
     this.app.onLoadProgress?.(0.85, 'Characters and animations');
-    this.characters = await new CharacterLibrary(this.engine.lighting).load(models);
+    // + the first-person arms and weapons (public/models/fp)
+    [this.characters, this.viewModels] = await Promise.all([
+      new CharacterLibrary(this.engine.lighting).load(models),
+      loadViewModels(viewModels, player.arms?.model, this.engine.renderer),
+    ]);
     this.app.onLoadProgress?.(0.95, 'Audio');
     // audio (optional module)
     try {

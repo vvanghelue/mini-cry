@@ -83,6 +83,7 @@ npm run mc -- textures fetch && npm run mc -- textures build   # (re)build the t
 npm test                                 # headless regression scenarios (tests/*.play)
 npm run mc -- terrain preview            # top-down map -> shots/map.png
 npm run mc -- asset shot hut_stilt --colliders   # render an asset -> PNG
+npm run mc -- viewmodel shot rifle_ak --ads 1     # first-person weapon + arms -> PNG
 npm run shot -- --at outpost_river --tod 17      # capture a viewpoint of the world
 npm run play -- --spawn x,y,z,yaw --steps "wait 2; key KeyW 1; click 0.5; shot test; state"
 npm run bench -- --mode play [--prod]    # performance per viewpoint (fps, CPU/GPU ms, draw calls)
@@ -154,7 +155,9 @@ same probes at the camera. See `docs/GI.md`.
 
 Credits: characters and animations — Quaternius (CC0, *Universal Animation Library*); firearms —
 Quaternius gun models (CC0, via poly.pizza; converted to asset JSON by `mc asset import`, each
-asset's `source` names its model); first-person arms — the Quaternius character arms, posed by IK.
+asset's `source` names its model) in the world; in first person, realistic weapons (Poly Haven,
+3D Model Haven and OpenGameArt models, CC0; two Sketchfab models, CC-BY 4.0) and arms
+(Microsoft Rocketbox avatar, MIT), posed by IK — see `public/models/fp/CREDITS.md`.
 Textures — [Poly Haven](https://polyhaven.com) (CC0) and [ambientCG](https://ambientcg.com) (CC0; the foliage
 atlases are composed from its leaf and grass scans); water ripple normals from the three.js
 examples (MIT).

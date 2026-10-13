@@ -5,3 +5,4 @@ dist
 shots
 .env
 .tex-cache
+.vm-cache

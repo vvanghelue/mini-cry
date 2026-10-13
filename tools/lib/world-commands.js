@@ -170,6 +170,16 @@ export const worldCommands = {
         if (!b.orbit && !b.perch && !b.ground) warnings.push(`bird ${id}: no orbit / perch / ground: never spawns`);
       }
       for (const [id, w] of Object.entries(weapons.weapons)) for (const k of ['sound', 'hitSound', 'boltSound', 'pumpSound']) if (w[k] && !sounds[w[k]]) errors.push(`weapon ${id}: unknown ${k} ${w[k]}`);
+      // first-person models (viewmodels.json -> public/models/fp, `mc viewmodel build`)
+      const fpm = readJSON('viewmodels.json', { arms: {}, weapons: {} }), fp = (f) => fs.existsSync(path.join(ROOT, 'public', 'models', 'fp', `${f}.glb`));
+      const armsModel = readJSON('game/player.json').arms?.model;
+      if (armsModel && !fpm.arms?.[armsModel]) errors.push(`player.json arms.model ${armsModel} not in viewmodels.json`);
+      for (const k of Object.keys(fpm.arms ?? {})) if (!fp('arms_' + k)) warnings.push(`viewmodel arms ${k}: models/fp/arms_${k}.glb not built (mc viewmodel build ${k})`);
+      for (const [k, src] of Object.entries(fpm.weapons ?? {})) {
+        if (!assets[k]) errors.push(`viewmodel ${k}: no weapon asset ${k} (its muzzle / sight / hands are used)`);
+        if (!fp(k)) warnings.push(`viewmodel ${k}: models/fp/${k}.glb not built (mc viewmodel build ${k})`);
+        if (!src.license || !src.author) errors.push(`viewmodel ${k}: author / license missing`);
+      }
       for (const [n, r] of Object.entries(sounds)) for (const f of sampleFiles(r)) if (!exists(f)) errors.push(`sound ${n}: sample file ${f} not found`);
       // entities
       const w = loadWorld();

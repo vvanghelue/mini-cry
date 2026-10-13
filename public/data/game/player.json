@@ -44,14 +44,15 @@
   "startGrenades": 0,
   "maxGrenades": 4,
   "arms": {
-    "model": "adventurer",
+    "model": "military",
     "shoulder": [
       0,
-      -0.32,
-      -0.1
+      -0.22,
+      -0.03
     ],
-    "stretch": 1.8,
-    "handScale": 0.8,
+    "yaw": 25,
+    "stretch": 1.12,
+    "reach": 0.1,
     "pole": [
       0.6,
       -1,

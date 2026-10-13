@@ -1,6 +1,7 @@
 // Non-game modes of the game page, used by the editor previews and the agent tools:
 //   ?mode=view   free camera over the world (?cam=x,y,z,yaw,pitch  ?at=entityId|x,z  ?tod=h)
 //   ?mode=asset  turntable view of one asset (?asset=name&variant=0&quality=1&yaw=30&dist=)
+//   ?mode=viewmodel  first-person weapon + arms (?weapon=id&ads=0..1&reload=0..1&tod=h&orbit=yaw,pitch,dist)
 import * as THREE from 'three';
 import { FlyCamera } from '../../engine/core/FlyCamera.js';
 import { AssetLibrary } from '../../engine/assets/AssetLibrary.js';
@@ -132,4 +133,94 @@ export async function startAssetMode(app, params) {
     : app.showAsset(params.get('asset') ?? 'palm', { variant: Number(params.get('variant') ?? 0), quality: Number(params.get('quality') ?? 1) });
   const spin = params.has('spin');
   engine.addSystem({ update: (dt) => { lighting.update(dt, { advanceDay: false }); lineupFrame?.(); if (spin) pivot.rotation.y += dt * 0.5; } });
+}
+
+/**
+ * ?mode=viewmodel: the first-person view of one weapon (realistic model + arms on its grips, the
+ * same overlay pass and light as in game) over the sky, to tune the asset `hands` / `sight` and
+ * the weapons.json `view` (?weapon=rifle_ak&ads=0..1&reload=0..1&tod=h). `mc viewmodel shot`.
+ */
+export async function startViewModelMode(app, params) {
+  const { engine } = app;
+  const lighting = engine.lighting;
+  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004 });
+  lighting.flare.setEnabled(false);
+  const { Data } = await import('../../engine/core/Data.js');
+  const { loadViewModels } = await import('../player/ViewModels.js');
+  const [assets, player, weapons, manifest] = await Promise.all([
+    new AssetLibrary(lighting).load(), Data.json('game/player.json'), Data.json('game/weapons.json'), Data.jsonOr('viewmodels.json', {}),
+  ]);
+  const viewModels = await loadViewModels(manifest, player.arms?.model, engine.renderer);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(400, 48).rotateX(-Math.PI / 2), lighting.material({ vertexColors: false, color: 0xb8a77a }));
+  ground.layers.set(LAYERS.STATIC);
+  engine.scene.add(ground);
+  engine.camera.position.set(0, 1.65, 0);
+  engine.camera.rotation.set(-0.05, 0, 0);
+  const { Weapons } = await import('../player/Weapons.js');
+  const W = new Weapons({ engine, viewModels, data: { player }, world: { assets }, app }, weapons);
+  app.weapons = W;
+  const D2R = Math.PI / 180;
+  let pose = null;
+  app.showWeapon = (id, { ads = 0, reload = 0 } = {}) => {
+    const d = W.defs[id];
+    if (!d) throw new Error('no weapon ' + id);
+    W._showVM(id);
+    const info = W.vmInfo, view = d.view ?? { pos: [0.2, -0.25, -0.5], rot: [0, 0, 0] };
+    const t = ads * ads * (3 - 2 * ads);
+    W.vmRoot.position.set(...view.pos).lerp(new THREE.Vector3(-info.sight.x, -info.sight.y, -(view.adsDist ?? 0.32)), t);
+    W.vmRoot.rotation.set((view.rot[0] ?? 0) * D2R, (view.rot[1] ?? 0) * D2R * (1 - ads), (view.rot[2] ?? 0) * D2R * (1 - ads));
+    W.vm.camera.fov = 58;
+    W.vm.camera.updateProjectionMatrix();
+    pose = { id, info, leftAway: reload ? Math.sin(reload * Math.PI) : 0, shell: !!d.reloadPerShell };
+    // ?grips=1: the grip targets (wrist dot, fingers arrow red, thumb side arrow blue)
+    W.vmGroup.getObjectByName('gripDebug')?.removeFromParent();
+    if (params.get('grips') === '1' && info.hands) {
+      const dbg = new THREE.Group();
+      dbg.name = 'gripDebug';
+      for (const h of Object.values(info.hands)) {
+        const p0 = new THREE.Vector3(...h.pos);
+        dbg.add(new THREE.ArrowHelper(new THREE.Vector3(...h.fingers).normalize(), p0, 0.09, 0xff3030, 0.02, 0.012));
+        dbg.add(new THREE.ArrowHelper(new THREE.Vector3(...h.thumb).normalize(), p0, 0.06, 0x3060ff, 0.02, 0.012));
+      }
+      dbg.traverse((o) => { o.layers.set(LAYERS.VIEW); if (o.material) { o.material.depthTest = false; o.renderOrder = 10; } });
+      W.vmGroup.add(dbg);
+    }
+    return { id, real: !!viewModels.weapons[d.asset], arms: !!W.arms?.visible, sight: info.sight.toArray(), muzzle: info.muzzle.toArray() };
+  };
+  engine.addSystem({
+    update: (dt) => {
+      lighting.update(dt, { advanceDay: false });
+      W.vmLight.update();
+      if (pose && W.arms?.visible) {
+        W.vm.camera.updateMatrixWorld(true);
+        const away = pose.shell ? new THREE.Vector3(0.03, -0.12, 0.1) : new THREE.Vector3(-0.05, -0.35, 0.15);
+        W.arms.update(W.vmGroup, pose.info.hands, { leftAway: pose.leftAway, awayOffset: away });
+        // how far each wrist is from its grip (m): > 0.01 = out of reach (move the weapons.json view)
+        const err = {};
+        for (const [k, h] of Object.entries(pose.info.hands ?? {})) {
+          if (k === 'left' && pose.leftAway) continue;
+          const tgt = new THREE.Vector3(...h.pos).applyMatrix4(W.vmGroup.matrixWorld);
+          err[k] = +W.arms.sides[k[0].toUpperCase()].wrist.getWorldPosition(new THREE.Vector3()).distanceTo(tgt).toFixed(4);
+        }
+        if (app.viewModelInfo) app.viewModelInfo.gripError = err;
+      }
+    },
+  });
+  // ?orbit=yaw,pitch,dist: look at the view model from outside (deg, m around the weapon origin)
+  const orbit = params.get('orbit')?.split(',').map(Number);
+  if (orbit) {
+    const cam = new THREE.PerspectiveCamera(35, engine.camera.aspect, 0.01, 20);
+    cam.layers.enableAll();
+    W.vm.scene.add(cam);
+    engine.overlay = { scene: W.vm.scene, camera: cam };
+    engine.addSystem({
+      lateUpdate: () => {
+        const c = W.vmWeapon.getWorldPosition(new THREE.Vector3());
+        const [yaw, pitch, dist = 0.9] = orbit, y = yaw * D2R, p = pitch * D2R;
+        cam.position.set(c.x + Math.sin(y) * Math.cos(p) * dist, c.y + Math.sin(p) * dist, c.z + Math.cos(y) * Math.cos(p) * dist);
+        cam.lookAt(c);
+      },
+    });
+  }
+  app.viewModelInfo = app.showWeapon(params.get('weapon') ?? 'rifle_ak', { ads: Number(params.get('ads') ?? 0), reload: Number(params.get('reload') ?? 0) });
 }
