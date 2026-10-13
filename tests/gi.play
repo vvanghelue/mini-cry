@@ -1,7 +1,8 @@
 # spawn: -480,9,416,0.8
 # Baked probe GI (render/GI.js, data from `mc gi bake`): loaded and active, the jungle canopy hides
 # most of the sky (low openness at the eye) and auto exposure opens up there, the open beach is
-# lit like open air and needs no compensation. The view model takes the probe light too.
+# lit like open air and needs no compensation. The view model takes the probe light too. Inside a
+# house its interior volume (asset `gi.volumes`) cuts the sky light.
 wait 2
 eval (()=>{ const g = app.engine.lighting.gi; window.__gi = { loaded: g.loaded, active: g.active, jungle: { open: +g.openness.toFixed(2), exposure: +g.exposure.toFixed(2) } }; return window.__gi })()
 expect window.__gi.active
@@ -12,3 +13,10 @@ wait 4
 eval (()=>{ const g = app.engine.lighting.gi; window.__gi.beach = { open: +g.openness.toFixed(2), exposure: +g.exposure.toFixed(2) }; return window.__gi })()
 expect window.__gi.beach.open > 0.8 && window.__gi.beach.exposure < 1.1
 shot gi_beach
+# inside house_wood (prop_15): its interior volume, not the 8 m world grid, lights the room: far
+# less sky than the world grid says there (it leaks the outdoor sky through the walls)
+eval game.player.teleport([-144.5, 3.1, 612])
+wait 4
+eval (()=>{ const g = app.engine.lighting.gi, p = app.engine.camera.position; g.snapExposure(p); const vol = +g.openness.toFixed(2), exposure = +g.exposure.toFixed(2); g.setVolumesEnabled(false); g.snapExposure(p); const world = +g.openness.toFixed(2); g.setVolumesEnabled(true); g.snapExposure(p); window.__gi.house = { vol, world, exposure }; return window.__gi })()
+expect window.__gi.house.vol < 0.5 && window.__gi.house.vol < window.__gi.house.world * 0.6 && window.__gi.house.exposure > 1.3
+shot gi_house

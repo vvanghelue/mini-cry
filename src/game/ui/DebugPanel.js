@@ -241,6 +241,7 @@ export class DebugPanel {
       get intensity() { return L.env.gi.intensity; }, set intensity(v) { L.env.gi.intensity = v; gi.setConfig(L.env); relight(); },
       get bias() { return L.env.gi.bias; }, set bias(v) { L.env.gi.bias = v; gi.setConfig(L.env); },
       get floor() { return L.env.gi.floor; }, set floor(v) { L.env.gi.floor = v; gi.setConfig(L.env); },
+      get volumes() { return gi.volumesEnabled; }, set volumes(v) { gi.setVolumesEnabled(v); },
       get debug() { return gi.uniforms.giDebug.value > 0.5; }, set debug(v) { gi.uniforms.giDebug.value = v ? 1 : 0; },
       get ae() { return L.env.autoExposure.enabled; }, set ae(v) { L.env.autoExposure.enabled = v; gi.setConfig(L.env); },
       get strength() { return L.env.autoExposure.strength; }, set strength(v) { L.env.autoExposure.strength = v; gi.setConfig(L.env); },
@@ -253,6 +254,7 @@ export class DebugPanel {
     fg.add(g, 'intensity', 0, 3, 0.01).name('intensity');
     fg.add(g, 'floor', 0, 1, 0.01).name('ambient floor');
     fg.add(g, 'bias', 0, 3, 0.05).name('normal bias (m)');
+    fg.add(g, 'volumes').name('interior volumes');
     fg.add(g, 'debug').name('irradiance only view');
     // probe spheres around the camera (an engine system only while shown)
     const pv = (this.probeView ??= new GIProbeView(gi, engine.scene, world ? (x, z) => world.heightAt(x, z) : null));

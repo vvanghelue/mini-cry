@@ -7,10 +7,13 @@
 //  - Patched materials replace the hemisphere light by the probe irradiance at the shaded point
 //    (one base-height fetch + three trilinear 3D fetches), so props, terrain, vegetation and
 //    characters all get sky occlusion and coloured bounce light.
+//  - Interior volumes (boxes of finer probes baked inside buildings, GIField.js) sit in a second
+//    3D texture relit the same way; a 2 m index texture says which volume covers a pixel (one
+//    more fetch everywhere, three more inside a volume).
 //  - The CPU keeps the field to meter the light at the camera: auto exposure (brighter in the
 //    jungle or a bunker, a bit) and the view model's light.
 import * as THREE from 'three';
-import { GIFieldData, GI_LAYERS, GI_H0, GI_RATIO, keyBlend, sliceCount, evalSH, luminance } from './GIField.js';
+import { GIFieldData, GI_LAYERS, GI_H0, GI_RATIO, GI_VOL_CELL, keyBlend, sliceCount, evalSH, luminance } from './GIField.js';
 
 const SLICES = 3 * GI_LAYERS; // field 3D texture: channel r, g, b x layers
 
@@ -34,10 +37,39 @@ vec3 giIrradiance(vec3 P, vec3 N) {
   vec4 k = vec4(1.0, N);
   return max(vec3(dot(r, k), dot(g, k), dot(b, k)), vec3(0.0));
 }
+uniform highp sampler3D giVolField;
+uniform highp sampler2D giVolIndex, giVols;
+uniform vec4 giVolGrid;  // world -> index uv: x, z offset, 1 / size; w = on
+uniform vec3 giVolAtlas; // 1 / atlas width, 1 / atlas height, atlas layers
+// interior volume covering P (if any): its probes, faded into the world field at the box faces
+vec3 giVolume(vec3 P, vec3 N, vec3 world) {
+  if (giVolGrid.w < 0.5) return world;
+  float id = texture(giVolIndex, (P.xz + giVolGrid.xy) * giVolGrid.z).r;
+  if (id < 0.5) return world;
+  int v = int(id + 0.5) - 1;
+  vec4 a = texelFetch(giVols, ivec2(0, v), 0); // centre, cos yaw
+  vec4 b = texelFetch(giVols, ivec2(1, v), 0); // half size, sin yaw
+  vec4 c = texelFetch(giVols, ivec2(2, v), 0); // atlas column, row, blend, normal offset
+  vec3 res = texelFetch(giVols, ivec2(3, v), 0).xyz;
+  vec3 p = P + N * c.w - a.xyz;
+  vec3 q = vec3(a.w * p.x - b.w * p.z, p.y, b.w * p.x + a.w * p.z);
+  vec3 e = b.xyz - abs(q);
+  float m = min(e.x, min(e.y, e.z));
+  if (m <= 0.0) return world;
+  vec3 f = clamp((q + b.xyz) / (2.0 * b.xyz) * res - 0.5, vec3(0.0), res - 1.0);
+  vec2 uv = (c.xy + f.xz + 0.5) * giVolAtlas.xy;
+  float w = (f.y + 0.5) / (3.0 * giVolAtlas.z);
+  vec4 r = texture(giVolField, vec3(uv, w));
+  vec4 g = texture(giVolField, vec3(uv, w + 1.0 / 3.0));
+  vec4 bl = texture(giVolField, vec3(uv, w + 2.0 / 3.0));
+  vec4 k = vec4(1.0, N);
+  vec3 ev = max(vec3(dot(r, k), dot(g, k), dot(bl, k)), vec3(0.0));
+  return mix(world, ev, clamp(m / max(c.z, 1e-3), 0.0, 1.0));
+}
 vec3 giHemi(const in HemisphereLight hemi, const in vec3 normal, const in vec3 P, const in vec3 N) {
   vec3 h = getHemisphereLightIrradiance(hemi, normal);
   // floor: keep a part of the flat ambient so nothing goes pitch black (artistic)
-  vec3 e = giGrid.w > 0.5 ? mix(giIrradiance(P, N), h, giFloor) : h;
+  vec3 e = giGrid.w > 0.5 ? mix(giVolume(P, N, giIrradiance(P, N)), h, giFloor) : h;
   giOcc = clamp(luminance(e) / max(luminance(h), 1e-4), 0.0, 1.0);
   giDbg = e;
   return e;
@@ -83,6 +115,8 @@ export class GI {
     this.renderer = renderer;
     this.data = null;
     this.enabled = true;
+    // interior volumes (A/B: F2 > GI, `?givol=0`)
+    this.volumesEnabled = typeof location === 'undefined' || new URLSearchParams(location.search).get('givol') !== '0';
     this.cfg = structuredClone(GI_DEFAULTS.gi);
     this.ae = structuredClone(GI_DEFAULTS.autoExposure);
     this.exposure = 1; // auto exposure multiplier
@@ -95,6 +129,8 @@ export class GI {
     d3.needsUpdate = true;
     const d2 = new THREE.DataTexture(new Float32Array(1), 1, 1, THREE.RedFormat, THREE.FloatType);
     d2.needsUpdate = true;
+    const dv = new THREE.DataTexture(new Float32Array(4), 1, 1, THREE.RGBAFormat, THREE.FloatType);
+    dv.needsUpdate = true;
     this.uniforms = {
       giField: { value: d3 },
       giBase: { value: d2 },
@@ -102,7 +138,13 @@ export class GI {
       giLayer: { value: new THREE.Vector4(GI_H0, 1 / Math.log2(GI_RATIO), GI_LAYERS - 1, this.cfg.bias) },
       giDebug: { value: 0 },
       giFloor: { value: this.cfg.floor },
+      giVolField: { value: d3 },
+      giVolIndex: { value: d2 },
+      giVols: { value: dv },
+      giVolGrid: { value: new THREE.Vector4(0, 0, 1, 0) },
+      giVolAtlas: { value: new THREE.Vector3(1, 1, 1) },
     };
+    this._dummies = { d3, d2, dv };
   }
 
   get loaded() { return !!this.data; }
@@ -119,8 +161,15 @@ export class GI {
 
   setEnabled(v) { this.enabled = !!v; this._sync(); }
 
+  setVolumesEnabled(v) {
+    this.volumesEnabled = !!v;
+    if (this.data) this.data.useVolumes = this.volumesEnabled;
+    this._sync();
+  }
+
   _sync() {
     this.uniforms.giGrid.value.w = this.active ? 1 : 0;
+    this.uniforms.giVolGrid.value.w = this.active && this.vol && this.volumesEnabled ? 1 : 0;
     this._dirty = true;
   }
 
@@ -129,6 +178,7 @@ export class GI {
     if (bytes[0] === 0x1f && bytes[1] === 0x8b) bytes = await gunzip(bytes);
     const d = new GIFieldData(meta, bytes);
     this.data = d;
+    d.useVolumes = this.volumesEnabled;
     const n = d.n;
     const terms = new THREE.DataArrayTexture(d.texels, n, n * GI_LAYERS, sliceCount(d.keys));
     terms.format = THREE.RGBAFormat;
@@ -162,6 +212,7 @@ export class GI {
       depthTest: false,
       depthWrite: false,
     });
+    this._loadVolumes(d);
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.blendMat);
     this.quad.frustumCulled = false;
     this.quadScene = new THREE.Scene();
@@ -169,6 +220,43 @@ export class GI {
     this.quadCam = new THREE.Camera();
     this._sync();
     return this;
+  }
+
+  /** GPU side of the interior volumes: terms array, relit 3D atlas, index + parameter textures. */
+  _loadVolumes(d) {
+    const V = d.vols, U = this.uniforms;
+    this.vol = null;
+    if (!V) {
+      U.giVolField.value = this._dummies.d3; U.giVolIndex.value = this._dummies.d2; U.giVols.value = this._dummies.dv;
+      return;
+    }
+    const terms = new THREE.DataArrayTexture(V.texels, V.aw, V.ah * V.ad, sliceCount(d.keys));
+    terms.format = THREE.RGBAFormat;
+    terms.type = THREE.UnsignedByteType;
+    terms.minFilter = terms.magFilter = THREE.NearestFilter;
+    terms.generateMipmaps = false;
+    terms.needsUpdate = true;
+    const rt = new THREE.WebGL3DRenderTarget(V.aw, V.ah, 3 * V.ad, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, depthBuffer: false, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+    rt.texture.wrapS = rt.texture.wrapT = rt.texture.wrapR = THREE.ClampToEdgeWrapping;
+    const ix = V.index, idx = new Float32Array(ix.idx);
+    const index = new THREE.DataTexture(toHalf(idx), ix.n, ix.n, THREE.RedFormat, THREE.HalfFloatType);
+    index.minFilter = index.magFilter = THREE.NearestFilter;
+    index.wrapS = index.wrapT = THREE.ClampToEdgeWrapping;
+    index.needsUpdate = true;
+    const p = new Float32Array(V.list.length * 16);
+    V.list.forEach((v, i) => {
+      p.set([v.c[0], v.c[1], v.c[2], Math.cos(v.yaw), v.size[0] / 2, v.size[1] / 2, v.size[2] / 2, Math.sin(v.yaw), v.at[0], v.at[1], v.blend, v.bias, v.res[0], v.res[1], v.res[2], 0], i * 16);
+    });
+    const params = new THREE.DataTexture(p, 4, V.list.length, THREE.RGBAFormat, THREE.FloatType);
+    params.minFilter = params.magFilter = THREE.NearestFilter;
+    params.needsUpdate = true;
+    this.vol = { terms, rt, index, params, ah: V.ah, ad: V.ad, amax: V.amax };
+    U.giVolField.value = rt.texture;
+    U.giVolIndex.value = index;
+    U.giVols.value = params;
+    const size = ix.n * GI_VOL_CELL;
+    U.giVolGrid.value.set(d.meta.size / 2, d.meta.size / 2, 1 / size, 0);
+    U.giVolAtlas.value.set(1 / V.aw, 1 / V.ah, V.ad);
   }
 
   /**
@@ -189,20 +277,26 @@ export class GI {
   relight() {
     if (!this._dirty || !this.data || !this.active) return;
     this._dirty = false;
-    const r = this.renderer, u = this.blendMat.uniforms, w = this.weights, am = this.data.amax;
+    const r = this.renderer, u = this.blendMat.uniforms, w = this.weights;
     u.wSky.value.fromArray(w.sky);
     u.wA.value.fromArray(w.sun).multiplyScalar(1 - w.f);
     u.wB.value.fromArray(w.sun).multiplyScalar(w.f);
     u.kA.value = w.kA; u.kB.value = w.kB;
-    u.amA.value = am[1 + w.kA]; u.amB.value = am[1 + w.kB];
     const prev = r.getRenderTarget(), prevFace = r.getActiveCubeFace(), prevMip = r.getActiveMipmapLevel();
     const autoClear = r.autoClear;
     r.autoClear = false;
-    for (let c = 0; c < 3; c++) {
-      for (let l = 0; l < GI_LAYERS; l++) {
-        u.chan.value = c; u.layer.value = l;
-        r.setRenderTarget(this.rt, c * GI_LAYERS + l);
-        r.render(this.quadScene, this.quadCam);
+    // the world field, then the interior volume atlas (same terms layout, rows of `n` per layer)
+    const fields = [{ terms: this.termsTex, rt: this.rt, n: this.data.n, layers: GI_LAYERS, am: this.data.amax }];
+    if (this.vol) fields.push({ terms: this.vol.terms, rt: this.vol.rt, n: this.vol.ah, layers: this.vol.ad, am: this.vol.amax });
+    for (const fd of fields) {
+      u.terms.value = fd.terms; u.n.value = fd.n;
+      u.amSky.value = fd.am[0]; u.amA.value = fd.am[1 + w.kA]; u.amB.value = fd.am[1 + w.kB];
+      for (let c = 0; c < 3; c++) {
+        for (let l = 0; l < fd.layers; l++) {
+          u.chan.value = c; u.layer.value = l;
+          r.setRenderTarget(fd.rt, c * fd.layers + l);
+          r.render(this.quadScene, this.quadCam);
+        }
       }
     }
     r.setRenderTarget(prev, prevFace, prevMip);
@@ -270,6 +364,8 @@ export class GI {
     this.termsTex?.dispose();
     this.baseTex?.dispose();
     this.rt?.dispose();
+    if (this.vol) for (const k of ['terms', 'rt', 'index', 'params']) this.vol[k].dispose();
+    this.vol = null;
     this.blendMat?.dispose();
     this.quad?.geometry.dispose();
   }

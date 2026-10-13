@@ -200,5 +200,10 @@
     { "type": "box", "size": [6.4,0.4,2.3], "pos": [0,3,-4.1], "walkable": false },
     { "type": "box", "size": [1.6,0.3,0.32], "pos": [0,0.15,-5.14] },
     { "type": "cylinder", "radius": 0.35, "height": 0.9, "pos": [3.45,0.45,2.4] }
-  ]
+  ],
+  "gi": {
+    "volumes": [
+      { "pos": [0,1.925,0], "size": [6.34,3.05,6.34], "spacing": 1.2 }
+    ]
+  }
 }

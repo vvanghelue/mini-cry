@@ -188,6 +188,12 @@ assets placed by the entity: `wheels: [[x, y, z], ...]` (wheel centres, front fi
 the jeep) and `propeller: [x, y, z]` (hub of the `plane_propeller` asset, spun about Z; the plane).
 `seats: [[x, y, z], ...]` are the occupants' hips.
 
+## GI volumes
+
+`"gi": { "volumes": [{ "pos", "size", "rot", "spacing", "blend", "bias" }] }`: boxes of baked GI
+probes inside enterable buildings (indoor light without the outdoor sky leaking through walls).
+Format and placement rules in docs/GI.md; re-bake with `mc gi bake` after editing them.
+
 ## Colliders
 
 Collision shapes in asset space (same transform conventions):

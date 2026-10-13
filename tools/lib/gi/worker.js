@@ -4,7 +4,7 @@
 // every ray hit. Results go straight into shared Float32 fields (S = terms * 12 floats per probe).
 import { parentPort, workerData } from 'node:worker_threads';
 import { traceScene, hitSurface, meshView, heightfieldView, HIT, HIT_N, HIT_C } from './bvh.js';
-import { GI_LAYERS, layerCoord } from '../../../src/engine/render/GIField.js';
+import { GI_LAYERS, layerCoord, buildVolumeIndex, volumeAt } from '../../../src/engine/render/GIField.js';
 
 const W = workerData;
 const scene = { hf: heightfieldView(W.hf), F: new Float32Array(W.tlas), U: new Uint32Array(W.tlas), I: new Float32Array(W.inst), meshes: W.meshes.map(meshView) };
@@ -15,6 +15,11 @@ const base = new Float32Array(W.base);
 const job = new Int32Array(W.job);
 const { n, cell, half, terms: T, rays: N, seaLevel, ocean, transmission: TAU } = W;
 const S = T * 12;
+// interior volumes: probes after the world grid (worldCount), atlas order (GIField.js)
+const vols = W.vols?.length ? { list: W.vols, size: W.size, index: buildVolumeIndex(W.vols, W.size) } : null;
+const atlas = W.atlas, PW = W.worldCount;
+const VA = { v: null, f: [0, 0, 0], fade: 0 };
+const EV = new Float64Array(T * 3);
 const KEYS = W.keyDirs;
 const K = KEYS.length;
 const CHUNK = 64;
@@ -64,6 +69,22 @@ function evalField(field, x, y, z, nx, ny, nz) {
     for (let q = 0, e = 0; q < S; q += 4, e++) E[e] += w * (field[o + q] + field[o + q + 1] * nx + field[o + q + 2] * ny + field[o + q + 3] * nz);
   }
   for (let e = 0; e < T * 3; e++) if (E[e] < 0) E[e] = 0;
+  // inside an interior volume: its probes, faded into the world field at the box faces
+  const a = volumeAt(vols, x, y, z, VA);
+  if (!a) return;
+  const vol = a.v, f = a.f;
+  const x0 = Math.max(0, Math.min(vol.res[0] - 2, Math.floor(f[0]))), y0 = Math.max(0, Math.min(vol.res[1] - 2, Math.floor(f[1]))), z0 = Math.max(0, Math.min(vol.res[2] - 2, Math.floor(f[2])));
+  const fu = f[0] - x0, ft = f[1] - y0, fs = f[2] - z0;
+  EV.fill(0);
+  for (let c8 = 0; c8 < 8; c8++) {
+    const dx = c8 & 1, dy = (c8 >> 1) & 1, dz = c8 >> 2;
+    const w = (dx ? fu : 1 - fu) * (dy ? ft : 1 - ft) * (dz ? fs : 1 - fs);
+    if (w <= 0) continue;
+    const xi = Math.min(vol.res[0] - 1, x0 + dx), yi = Math.min(vol.res[1] - 1, y0 + dy), zi = Math.min(vol.res[2] - 1, z0 + dz);
+    const o = (PW + (yi * atlas.ah + vol.at[1] + zi) * atlas.aw + vol.at[0] + xi) * S;
+    for (let q = 0, e = 0; q < S; q += 4, e++) EV[e] += w * (field[o + q] + field[o + q + 1] * nx + field[o + q + 2] * ny + field[o + q + 3] * nz);
+  }
+  for (let e = 0; e < T * 3; e++) E[e] += (Math.max(0, EV[e]) - E[e]) * a.fade;
 }
 
 let stats;
