@@ -17,8 +17,10 @@ import { Surfaces } from './Surfaces.js';
 
 // ao: SSAO samples per pixel (0 = off)
 export const QUALITY = {
-  low: { dpr: 0.75, cascades: [{ radius: 22, res: 1024, every: 1 }, { radius: 90, res: 1024, every: 3 }], drawScale: 0.65, grass: 0.5, ao: 6 },
-  medium: { dpr: 1, cascades: [{ radius: 22, res: 2048, every: 1 }, { radius: 90, res: 1536, every: 3 }], drawScale: 0.8, grass: 0.8, ao: 8 },
+  // the near cascade every other frame (every frame while the camera moves fast, SunShadows.js),
+  // the next one every 4 frames: cascade i renders when (frame + i) % every == 0, never together
+  low: { dpr: 0.75, cascades: [{ radius: 22, res: 1024, every: 2 }, { radius: 90, res: 1024, every: 4 }], drawScale: 0.65, grass: 0.5, ao: 6 },
+  medium: { dpr: 1, cascades: [{ radius: 22, res: 2048, every: 2 }, { radius: 90, res: 1536, every: 4 }], drawScale: 0.8, grass: 0.8, ao: 8 },
   high: { dpr: 1, cascades: [{ radius: 20, res: 2048, every: 1 }, { radius: 80, res: 2048, every: 2 }, { radius: 260, res: 2048, every: 4 }], drawScale: 1, grass: 1, ao: 12 },
   ultra: { dpr: 2, cascades: [{ radius: 20, res: 4096, every: 1 }, { radius: 80, res: 4096, every: 1 }, { radius: 300, res: 4096, every: 2 }], drawScale: 1.25, grass: 1.3, ao: 12 },
 };

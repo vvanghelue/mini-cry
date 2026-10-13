@@ -101,10 +101,11 @@ export function lodMaterial(base, lighting) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         flat varying float vLodFade;
+        // 4x4 Bayer threshold, computed (a constant array indexed per pixel is slow on Apple GPUs)
         float lodBayer(vec2 p) {
           ivec2 q = ivec2(p) & 3;
-          const float b[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
-          return (b[q.x + q.y * 4] + 0.5) / 16.0;
+          int lo = ((q.x ^ q.y) & 1) << 1 | (q.y & 1), hi = (((q.x ^ q.y) >> 1) & 1) << 1 | ((q.y >> 1) & 1);
+          return (float(lo << 2 | hi) + 0.5) / 16.0;
         }`)
       .replace('void main() {', `void main() {
         if (vLodFade < 1.0) {
