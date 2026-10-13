@@ -59,7 +59,7 @@ Bake options: `--rays 128` per probe, `--bounces 2` (after the direct pass), `--
 ```json
 "gi": {
   "volumes": [
-    { "pos": [0, 1.925, 0], "size": [6.34, 3.05, 6.34], "rot": [0, 0, 0], "spacing": 1.25, "blend": 0.2, "bias": 0.25 }
+    { "pos": [0, 1.925, 0], "size": [6.34, 3.05, 6.34], "rot": [0, 0, 0], "spacing": 1.25, "blend": 0.1, "bias": 0.25 }
   ]
 }
 ```
@@ -67,13 +67,15 @@ Bake options: `--rays 128` per probe, `--bounces 2` (after the direct pass), `--
   outside the walls, floor and ceiling (outer surface + ~0.1 m): an outer wall pixel pushed out
   along its normal by `bias` must leave the box (world field), and an inner one, even in a corner,
   must sit deeper than `blend` inside it (wall thickness + margin > blend), or the room's edges
-  fade to the leaky world light.
-- `spacing` (1.25 m): probe spacing; `blend` (0.2 m): fade into the world field at the faces;
+  fade to the leaky world light. Same for floors and ceilings: the bias of a wall pixel is
+  horizontal, so the box must reach ~0.2 m below the floor top and above the ceiling (less under a
+  raised floor whose underside is visible: that one, pushed down by `bias`, must leave the box).
+- `spacing` (1.25 m): probe spacing; `blend` (0.1 m): fade into the world field at the faces;
   `bias` (0.25 m): normal offset of the lookup inside the box (smaller than the world `gi.bias`).
 - At most 2000 probes per asset (`mc validate`, `mc asset validate`). Editing `gi` makes the bake
   stale (the asset JSON is hashed). F2 > GI > "interior volumes" (or `?givol=0`) switches them off
   for A/B; "show probes" draws them as small spheres.
-- Example: `house_wood`. Auto placement in the asset editor is planned.
+- Examples: `house_wood`, `hut_ground`, `lab_building`. Auto placement in the asset editor is planned.
 
 ## Tuning (environment.json, editor ☀, F2 > Graphics > GI)
 - `gi.intensity` (1): scales the probe light. `gi.floor` (0.12): part of the old flat ambient kept
@@ -87,7 +89,9 @@ Bake options: `--rays 128` per probe, `--bounces 2` (after the direct pass), `--
 
 ## Limits / next steps
 - 8 m probes don't resolve small interiors (a 4 m hut sits between probes): buildings need
-  interior volumes (above); only `house_wood` has one so far. A point in a 2 m index cell takes one
+  interior volumes (above): house_wood, hut_ground, hut_stilt, shack_tin, bunker, lab_building and
+  warehouse have one. The hangar is big enough for the world grid, the gate and the arch are open
+  passages. A point in a 2 m index cell takes one
   volume (the one covering most of the cell): keep volumes of different buildings apart.
 - Emissive lights (lamps, fires) are not baked yet.
 - The whole island is rebaked each time (incremental per-sector bakes from the editor are planned).

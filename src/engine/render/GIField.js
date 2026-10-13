@@ -38,7 +38,7 @@ export const GI_KEYS = 7;
 const LOG2_RATIO = Math.log2(GI_RATIO);
 
 export const GI_VOL_CELL = 2; // m: cells of the volume index (which volume covers a point)
-export const GI_VOL_DEFAULTS = { spacing: 1.25, blend: 0.2, bias: 0.25 };
+export const GI_VOL_DEFAULTS = { spacing: 1.25, blend: 0.1, bias: 0.25 };
 export const GI_VOL_MAX_PROBES = 2000; // per asset
 const VOL_ATLAS_WIDTH = 256; // WebGL2 guarantees 3D textures up to 256
 
