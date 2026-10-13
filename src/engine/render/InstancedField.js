@@ -8,6 +8,7 @@
 // (kind, variant, LOD). The exact LOD of each instance, and the dithered cross-fade between two
 // LODs, are decided in the shader (render/LodFade.js).
 import * as THREE from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LAYERS } from './layers.js';
 import { syncBlocks, liveCount } from './InstanceBlocks.js';
 import { lodRanges, lodGeometry, setLodRange, disposeLodGeometry, lodMaterial } from './LodFade.js';
@@ -49,7 +50,7 @@ export class InstancedField {
         kind.radius = Math.max(kind.radius ?? 0, b.geometry.boundingSphere.radius);
         let mat = this.assets.material(b);
         if (fade) { mat = fadeMaterial(mat, this.lighting, kind.maxDist); kind.fadeRange = mat.userData.fadeRange; }
-        const mesh = new THREE.InstancedMesh(lodGeometry(b.geometry, kind.ranges[li]), lodMaterial(mat, this.lighting), 16);
+        const mesh = new THREE.InstancedMesh(lodGeometry(indexedGeometry(b.geometry), kind.ranges[li]), lodMaterial(mat, this.lighting), 16);
         // may discard (bands): after the opaque world, for tile GPUs' hidden surface removal; near
         // LODs first, so the far instances they hide fail the early depth test
         mesh.renderOrder = 1 + li * 0.01;
@@ -278,6 +279,24 @@ export class InstancedField {
     }
     this.group.removeFromParent();
   }
+}
+
+/** Indexed copy of an asset build's geometry (cached): the builds are triangle soups, and the
+ *  vertices they repeat (shared by neighbour triangles, both triangles of a leaf card) would be
+ *  shaded again for every instance in every pass. Vertex work, not pixels, is most of the cost of
+ *  distant vegetation. */
+const _indexed = new WeakMap();
+function indexedGeometry(g) {
+  let ig = _indexed.get(g);
+  if (!ig) {
+    ig = mergeVertices(g);
+    ig.computeBoundingBox();
+    ig.computeBoundingSphere();
+    _indexed.set(g, ig);
+    // the asset library disposes its builds when an asset changes (editor)
+    g.addEventListener('dispose', () => { ig.dispose(); _indexed.delete(g); });
+  }
+  return ig;
 }
 
 /** Clone of a lit material whose vertices shrink to nothing between 75% and 100% of maxDist. */

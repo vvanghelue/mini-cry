@@ -11,7 +11,8 @@ import { DebugPanel } from './ui/DebugPanel.js';
 
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'play';
-const engine = new Engine({ container: document.getElementById('app'), quality: params.get('quality') ?? 'medium' });
+// ?aa=0: no MSAA (A/B measurements; the canvas antialiasing can only be chosen at creation)
+const engine = new Engine({ container: document.getElementById('app'), quality: params.get('quality') ?? 'medium', antialias: params.get('aa') !== '0' });
 const input = new Input(engine.canvas);
 // debug mode (debug panel shown, settings not persisted): on by default, ?debug=0 turns it off,
 // automated runs (?bot / ?bench / ?nohud) start without it

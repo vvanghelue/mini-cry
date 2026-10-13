@@ -10,9 +10,9 @@ import { Perf } from './Perf.js';
 import { TONE_MAPPING } from '../render/Grade.js';
 
 export class Engine {
-  constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600 } = {}) {
+  constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600, antialias = true } = {}) {
     this.container = container;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
+    const renderer = new THREE.WebGLRenderer({ antialias, powerPreference: 'high-performance', stencil: false });
     this.quality = QUALITY[quality] ? quality : 'medium';
     this.maxDpr = Math.min(devicePixelRatio, QUALITY[this.quality].dpr * Math.max(1, devicePixelRatio / 2));
     this.resScale = 1; // resolution factor (x maxDpr, debug panel)

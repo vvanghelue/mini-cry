@@ -6,7 +6,7 @@
 //
 //   npm run bench -- [--mode play] [--m1] [--repeat N] [--fresh] [--views a,b] [--quality medium] [--size 1440x900]
 //                    [--seconds 3] [--json] [--query gi=0] [--res 0.5] [--pre "<js>"]
-//                    [--breakdown [--only a,b] [--veg] [--pairs 2]] [--veg-stats]
+//                    [--breakdown [--only a,b] [--veg] [--switch "name::off::on"] [--pairs 2]] [--veg-stats]
 // --mode play runs the real game (enemies, AI, HUD, view model) with the player flown to each view.
 // --m1 estimates a MacBook Air M1 (7-core GPU) conservatively: the page's CPU is throttled 2x
 // through DevTools (M1 single core ≈ 1.6x slower than this M4) and the measured GPU time is
@@ -57,6 +57,8 @@ if (opt.veg) {
   const species = readJSON('vegetation.json').species.map((s) => s.id);
   SWITCHES.push(...[0, 1, 2].map((l) => [`veg lod${l}`, ...hide(`/_lod${l}$/`)]), ...species.map((id) => [id, ...hide(`/_${id}_\\d+_lod\\d$/`)]));
 }
+// --switch "name::off code::on code" (several separated by ||): ad hoc experiments
+if (typeof opt.switch === 'string') SWITCHES.push(...opt.switch.split('||').map((x) => x.split('::')));
 if (list(opt.only)) SWITCHES = SWITCHES.filter(([k]) => list(opt.only).includes(k));
 let views = readJSON('bench.json', null)?.views ?? [
   { name: 'beach', cam: '-170,30,720,0,-0.12' },
