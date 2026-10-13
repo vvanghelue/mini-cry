@@ -1,4 +1,5 @@
 // GI probe bake (Node): places the terrain-following probe grid, traces it on worker threads
+// and the interior volumes of the placed assets (`gi.volumes`), traces them on worker threads
 // (direct pass + N bounce passes), fixes probes stuck in geometry, and writes
 // public/data/gi/probes.json + probes.bin (gzip). Format: src/engine/render/GIField.js.
 import fs from 'node:fs';
@@ -6,7 +7,9 @@ import os from 'node:os';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import { Worker } from 'node:worker_threads';
-import { GI_VERSION, GI_LAYERS, GI_H0, GI_RATIO, GI_KEYS, layerHeight, keyDir, encodePlanes } from '../../../src/engine/render/GIField.js';
+import * as THREE from 'three';
+import { GI_VERSION, GI_LAYERS, GI_H0, GI_RATIO, GI_KEYS, layerHeight, keyDir, encodePlanes, placeVolume, packVolumes, volumeProbePos } from '../../../src/engine/render/GIField.js';
+import { entityMatrix } from '../../../src/engine/world/Entities.js';
 import { readJSON, readBin, dataPath, DATA } from '../data.js';
 import { loadTerrain } from '../terrain.js';
 import { loadAssetDefs } from '../commands.js';
@@ -54,11 +57,16 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
   const vegDef = readJSON('vegetation.json', { species: [] });
   let vegBytes = null;
   try { vegBytes = readBin('vegetation.bin'); } catch { /* none */ }
-  const scene = buildBakeScene({ terrain, assets: loadAssetDefs(), world, vegDef, vegBytes, log });
+  const assets = loadAssetDefs();
+  const scene = buildBakeScene({ terrain, assets, world, vegDef, vegBytes, log });
+  const vols = collectVolumes(world, assets);
 
   // --- probe grid ----------------------------------------------------------------------------
   const size = terrain.size, half = size / 2, n = Math.round(size / cell);
-  const P = n * n * GI_LAYERS, T = 1 + GI_KEYS, S = T * 12;
+  const PW = n * n * GI_LAYERS, T = 1 + GI_KEYS, S = T * 12;
+  // interior volumes after the world grid, in atlas order (GIField.js)
+  const atlas = packVolumes(vols);
+  const VC = vols.length ? atlas.aw * atlas.ah * atlas.ad : 0, P = PW + VC;
   const sea = terrain.seaLevel;
   const base = new Float32Array(new SharedArrayBuffer(n * n * 4));
   const landy = new Uint8Array(n * n); // column has ground above the sea nearby
@@ -105,7 +113,19 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
       }
     }
   }
-  log(`probes: ${activeCount} traced of ${P} (${n}x${n}x${GI_LAYERS}, ${cell} m), ${rays} rays, ${bounces} bounces`);
+  let volProbes = 0;
+  const vpos = [0, 0, 0];
+  for (const v of vols) {
+    for (let y = 0; y < v.res[1]; y++) for (let z = 0; z < v.res[2]; z++) for (let x = 0; x < v.res[0]; x++) {
+      const p = PW + (y * atlas.ah + v.at[1] + z) * atlas.aw + v.at[0] + x;
+      volumeProbePos(v, x, y, z, vpos);
+      probePos.set(vpos, p * 3);
+      active[p] = 1; valid[p] = 1;
+      volProbes++;
+    }
+  }
+  activeCount += volProbes;
+  log(`probes: ${activeCount} traced of ${P} (${n}x${n}x${GI_LAYERS}, ${cell} m + ${vols.length} interior volumes: ${volProbes}), ${rays} rays, ${bounces} bounces`);
 
   // --- workers ---------------------------------------------------------------------------------
   const field = () => new SharedArrayBuffer(P * S * 4);
@@ -113,7 +133,7 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
   const job = new Int32Array(new SharedArrayBuffer(8));
   const keyDirs = Array.from({ length: GI_KEYS }, (_, k) => keyDir(k, GI_KEYS, tilt));
   const nw = workers || Math.max(1, Math.min(16, (os.availableParallelism?.() ?? os.cpus().length) - 1));
-  const data = { hf: scene.hf, tlas: scene.tlas, inst: scene.inst, meshes: scene.meshes, probePos: probePos.buffer, active: active.buffer, valid: valid.buffer, base: base.buffer, job: job.buffer, n, cell, half, terms: T, rays, seaLevel: sea, ocean: OCEAN_ALBEDO, transmission, keyDirs };
+  const data = { hf: scene.hf, tlas: scene.tlas, inst: scene.inst, meshes: scene.meshes, probePos: probePos.buffer, active: active.buffer, valid: valid.buffer, base: base.buffer, job: job.buffer, n, cell, half, size, vols, atlas, worldCount: PW, terms: T, rays, seaLevel: sea, ocean: OCEAN_ALBEDO, transmission, keyDirs };
   const pool = Array.from({ length: nw }, () => new Worker(new URL('./worker.js', import.meta.url), { workerData: data }));
   const runPass = async (pass, out, prev) => {
     const tp = Date.now();
@@ -137,29 +157,44 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
     passes.push(await runPass(0, direct, null));
     let invalid = 0;
     for (let p = 0; p < P; p++) if (active[p] && !valid[p]) invalid++;
+    const fix = () => {
+      fixup(TT, { n, S, valid, active, ref });
+      fixupVolumes(TT, { S, PW, vols, atlas, valid });
+    };
     TT.set(D);
-    fixup(TT, { n, S, valid, active, ref });
+    fix();
     for (let b = 1; b <= bounces; b++) {
       passes.push(await runPass(b, bounce, total));
       for (let q = 0; q < TT.length; q++) TT[q] = D[q] + B[q];
-      fixup(TT, { n, S, valid, active, ref });
+      fix();
     }
     log(`probes inside geometry (refilled from neighbours): ${invalid}`);
 
     // --- encode + write -------------------------------------------------------------------------
-    const amax = new Array(T).fill(1e-6);
-    for (let p = 0; p < P; p++) for (let t = 0; t < T; t++) for (let c = 0; c < 3; c++) amax[t] = Math.max(amax[t], TT[p * S + t * 12 + c * 4]);
-    for (let t = 0; t < T; t++) amax[t] = +(amax[t] * 1.02).toFixed(5);
+    const amaxOf = (p0, p1) => {
+      const amax = new Array(T).fill(1e-6);
+      for (let p = p0; p < p1; p++) for (let t = 0; t < T; t++) for (let c = 0; c < 3; c++) amax[t] = Math.max(amax[t], TT[p * S + t * 12 + c * 4]);
+      return amax.map((a) => +(a * 1.02).toFixed(5));
+    };
+    const amax = amaxOf(0, PW);
     const meta = { version: GI_VERSION, size, cell, n, layers: GI_LAYERS, h0: GI_H0, ratio: GI_RATIO, keys: GI_KEYS, sunTilt: tilt, amax, ref, rays, bounces, transmission };
-    const planes = encodePlanes(TT, P, n, GI_KEYS, amax);
-    const bytes = new Uint8Array(n * n * 4 + planes.length);
+    const planes = encodePlanes(TT, PW, n, GI_KEYS, amax);
+    let vplanes = new Uint8Array(0);
+    if (vols.length) {
+      const vamax = amaxOf(PW, P);
+      vplanes = encodePlanes(TT.subarray(PW * S), VC, atlas.aw, GI_KEYS, vamax);
+      const r4 = (a) => a.map((x) => +x.toFixed(4));
+      meta.volumes = { ...atlas, amax: vamax, list: vols.map((v) => ({ entity: v.entity, asset: v.asset, c: r4(v.c), yaw: +v.yaw.toFixed(5), size: r4(v.size), res: v.res, at: v.at, blend: v.blend, bias: v.bias })) };
+    }
+    const bytes = new Uint8Array(n * n * 4 + planes.length + vplanes.length);
     bytes.set(new Uint8Array(base.buffer.slice(0)), 0);
     bytes.set(planes, n * n * 4);
+    bytes.set(vplanes, n * n * 4 + planes.length);
     const gz = zlib.gzipSync(bytes, { level: 9 });
     // derived data: written directly (no .mc-backup copy of a 10 MB file per bake)
     fs.mkdirSync(dataPath('gi'), { recursive: true });
     fs.writeFileSync(dataPath(GI_BIN), gz);
-    const out = { ...meta, inputs: giInputsHash(), bakedAt: new Date().toISOString(), ms: Date.now() - t0, probes: activeCount, invalid, scene: scene.stats, passes, bytes: gz.length };
+    const out = { ...meta, inputs: giInputsHash(), bakedAt: new Date().toISOString(), ms: Date.now() - t0, probes: activeCount, volumeProbes: volProbes, invalid, scene: scene.stats, passes, bytes: gz.length };
     fs.writeFileSync(dataPath(GI_META), JSON.stringify(out, null, 2) + '\n');
     void DATA;
     return out;
@@ -207,6 +242,57 @@ function fixup(F, { n, S, valid, active, ref }) {
       const p = (l * n + j) * n + i;
       if (active[p]) continue;
       F.copyWithin(p * S, r, r + S);
+    }
+  }
+}
+
+/** Interior volumes of every placed static asset entity (asset `gi.volumes`), in world space. */
+export function collectVolumes(world, assets) {
+  const out = [], m4 = new THREE.Matrix4();
+  for (const e of world.entities ?? []) {
+    if (!(e.type in ASSET_TYPES) || e.disabled) continue;
+    const name = e.asset ?? ASSET_TYPES[e.type];
+    const list = assets[name]?.gi?.volumes;
+    if (!list?.length) continue;
+    const m = entityMatrix(e, m4).elements;
+    for (const v of list) out.push({ entity: e.id ?? null, asset: name, ...placeVolume(m, v) });
+  }
+  return out;
+}
+
+/**
+ * Volume probes stuck inside geometry (walls, floors: the box faces sit in them) take the average
+ * of their valid neighbours in the same volume, never the world grid (it leaks the outdoor sky).
+ */
+function fixupVolumes(F, { S, PW, vols, atlas, valid }) {
+  const tmp = new Float64Array(S);
+  for (const v of vols) {
+    const [nx, ny, nz] = v.res;
+    const at = (x, y, z) => PW + (y * atlas.ah + v.at[1] + z) * atlas.aw + v.at[0] + x;
+    const ok = new Uint8Array(nx * ny * nz);
+    for (let y = 0; y < ny; y++) for (let z = 0; z < nz; z++) for (let x = 0; x < nx; x++) ok[(y * nz + z) * nx + x] = valid[at(x, y, z)];
+    if (!ok.some(Boolean)) continue; // a volume entirely inside geometry: left as traced
+    for (let round = 0, left = 1; left && round < nx + ny + nz; round++) {
+      const next = ok.slice();
+      left = 0;
+      for (let y = 0; y < ny; y++) for (let z = 0; z < nz; z++) for (let x = 0; x < nx; x++) {
+        const k = (y * nz + z) * nx + x;
+        if (ok[k]) continue;
+        tmp.fill(0);
+        let w = 0;
+        for (let c = -1; c <= 1; c++) for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) {
+          const xx = x + a, yy = y + c, zz = z + b;
+          if (xx < 0 || yy < 0 || zz < 0 || xx >= nx || yy >= ny || zz >= nz || !ok[(yy * nz + zz) * nx + xx]) continue;
+          const wq = 1 / (a * a + b * b + c * c), q = at(xx, yy, zz) * S;
+          for (let s = 0; s < S; s++) tmp[s] += F[q + s] * wq;
+          w += wq;
+        }
+        if (!w) { left++; continue; }
+        const o = at(x, y, z) * S;
+        for (let s = 0; s < S; s++) F[o + s] = tmp[s] / w;
+        next[k] = 1;
+      }
+      ok.set(next);
     }
   }
 }

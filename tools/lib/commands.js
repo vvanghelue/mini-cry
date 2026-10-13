@@ -263,11 +263,14 @@ export const commands = {
     help: 'Build every asset (or one) and report errors / triangle counts / colliders.',
     async run([name]) {
       const { buildAsset } = await import('../../src/engine/assets/ModelBuilder.js');
+      const { validateGIVolumes } = await import('../../src/engine/render/GIField.js');
       const all = loadAssetDefs();
       const out = [];
       for (const [n, d] of Object.entries(all)) {
         if (name && n !== name) continue;
-        try { const b = buildAsset(d, { assets: all }); out.push({ name: n, ok: true, tris: b.triangles, size: b.bounds.max.clone().sub(b.bounds.min).toArray().map((v) => +v.toFixed(2)), colliders: b.colliders.length }); }
+        const gi = validateGIVolumes(d.gi);
+        if (gi.length) { out.push({ name: n, ok: false, error: gi.join('; ') }); continue; }
+        try { const b = buildAsset(d, { assets: all }); out.push({ name: n, ok: true, tris: b.triangles, size: b.bounds.max.clone().sub(b.bounds.min).toArray().map((v) => +v.toFixed(2)), colliders: b.colliders.length, ...(d.gi?.volumes?.length ? { giVolumes: d.gi.volumes.length } : {}) }); }
         catch (e) { out.push({ name: n, ok: false, error: e.message }); }
       }
       return out;

@@ -4,7 +4,7 @@
 // the FX layer (no shadow, no SSAO), refilled only when the camera changes cell, the light changes
 // or a setting changes. Add it as an engine system while shown.
 import * as THREE from 'three';
-import { GI_LAYERS, layerHeight } from './GIField.js';
+import { GI_LAYERS, layerHeight, volumeProbePos } from './GIField.js';
 import { LAYERS } from './layers.js';
 
 const MAX_RADIUS = 128; // m
@@ -32,7 +32,7 @@ export class GIProbeView {
   }
 
   _create() {
-    const cells = 2 * Math.ceil(MAX_RADIUS / 8) + 1, cap = cells * cells * GI_LAYERS;
+    const cells = 2 * Math.ceil(MAX_RADIUS / 8) + 1, cap = cells * cells * GI_LAYERS + (this.gi.data?.vols?.count ?? 0);
     const geo = new THREE.IcosahedronGeometry(1, 2);
     this.attrs = ['giR', 'giG', 'giB'].map((name) => {
       const a = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
@@ -95,6 +95,24 @@ export class GIProbeView {
           aB.array.set(sh.subarray(8, 12), c * 4);
           c++;
         }
+      }
+    }
+    // interior volumes (drawn smaller: their probes are closer together), every layer
+    const V = d.vols, vp = (this._vp ??= [0, 0, 0]), cx = (ci + 0.5) * cell - d.half, cz = (cj + 0.5) * cell - d.half;
+    for (const v of V?.list ?? []) {
+      if ((v.c[0] - cx) ** 2 + (v.c[2] - cz) ** 2 > this.radius ** 2) continue;
+      for (let y = 0; y < v.res[1]; y++) for (let z = 0; z < v.res[2]; z++) for (let x = 0; x < v.res[0]; x++) {
+        if (c * 16 >= m.length) break;
+        d.volumeProbe(v, x, y, z, w, sh);
+        volumeProbePos(v, x, y, z, vp);
+        const o = c * 16;
+        m.fill(0, o, o + 16);
+        m[o] = m[o + 5] = m[o + 10] = s * 0.5;
+        m[o + 12] = vp[0]; m[o + 13] = vp[1]; m[o + 14] = vp[2]; m[o + 15] = 1;
+        aR.array.set(sh.subarray(0, 4), c * 4);
+        aG.array.set(sh.subarray(4, 8), c * 4);
+        aB.array.set(sh.subarray(8, 12), c * 4);
+        c++;
       }
     }
     this.mesh.count = c;

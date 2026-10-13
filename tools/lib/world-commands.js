@@ -153,7 +153,9 @@ export const worldCommands = {
       // assets
       const assets = {};
       for (const f of listData('assets')) if (f.endsWith('.json') && !f.endsWith('index.json')) assets[f.slice(7, -5)] = { name: f.slice(7, -5), ...readJSON(f) };
+      const { validateGIVolumes } = await import('../../src/engine/render/GIField.js');
       for (const [n, d] of Object.entries(assets)) { try { buildAsset(d, { assets, quality: 0.5 }).geometry.dispose(); } catch (e) { errors.push(`asset ${n}: ${e.message}`); } }
+      for (const [n, d] of Object.entries(assets)) for (const x of validateGIVolumes(d.gi)) errors.push(`asset ${n}: ${x}`);
       const index = readJSON('assets/index.json', { assets: [] }).assets;
       for (const n of Object.keys(assets)) if (!index.includes(n)) warnings.push(`asset ${n} missing from assets/index.json (run: mc asset reindex)`);
       // data
