@@ -38,7 +38,10 @@ character names stay French.
   changed blocks uploaded) — never re-upload a whole InstancedMesh every frame. GPU timer queries are inflated when other apps use the GPU: always
   use --repeat. Watch draw calls (static props are batched per sector;
   small-plant far LODs share one mesh per species — `shareVariantsFrom`; trees don't, so each
-  variant keeps its own silhouette at every LOD). Vegetation shaders may discard (LOD dithering),
+  variant keeps its own silhouette at every LOD; the big trees' last LOD is an impostor —
+  species `impostor: { cell }` in vegetation.json, `render/Impostors.js`: every variant baked at
+  load from 8x8 hemisphere views into albedo / normal atlases, one lit camera-facing quad per tree;
+  vegetation geometry is drawn indexed). Vegetation shaders may discard (LOD dithering),
   which turns off the tile GPU's hidden surface removal (near LODs are drawn first so hidden far
   ones fail the depth test). Measured 2026-10-14: vegetation ≈ 60 % of the GPU frame, the far
   LOD (lod2) alone 25–43 % (trees 17–30 px tall with 100–180 triangles: micro-triangles, so it
@@ -49,7 +52,7 @@ character names stay French.
 ## Map of the code
 - `src/engine/core/Engine.js` frame loop (systems in order; `maxFps` cap: auto = uncapped by default, 60 in debug mode, F2 → Graphics → FPS limit, `?fps=N` overrides), `Perf.js`, `Input.js` (`?bot` forces pointer lock for tests), `Live.js` (commands from `mc live`).
 - `src/engine/render/Lighting.js` time of day, sky, fog, wind, `material(opts)` = shared patched material (`textured`: PBR MeshStandard sampling the texture arrays, sky reflections; else Lambert); `Surfaces.js` texture arrays (terrain / surfaces / foliage, one strip image each) + the surface shader code + alpha-cut depth passes, docs/TEXTURES.md; `TerrainMaterial.js` terrain splatting (material-id texture, height blend, triplanar slopes); `Grade.js` AgX tone mapping + grade; `SunShadows.js` cascades; `SSAO.js` half-res SSAO (depth pre-pass of STATIC + DYNAMIC within 80 m → AO → 4x4 blur, applied to the ambient light in the patched materials; toggle in the options menu, F2, quality presets); `GI.js` + `GIField.js` baked probe GI (replaces the hemisphere ambient, relit for the time of day; finer interior volumes declared by assets, `gi.volumes`) + auto exposure, docs/GI.md; `LensFlare.js` sun lens flare (16 occlusion queries on the sun disc right after the main pass, clouds included, read back 2-3 frames later without stalling; one additive draw, skipped when the sun is hidden; options menu, F2, `?flare=0`); `Glows.js` light halos of asset parts with `glow` (lamps, fires, beacons: one draw, faded in at dusk, occluded through the SSAO depth); `layers.js` (STATIC/DYNAMIC cast shadows, DETAIL/FX don't, EDITOR only in the editor).
-- `src/engine/world/` terrain (data, generator, chunk renderer), `Water.js`, `Vegetation.js` + `VegetationScatter.js`, `Grass.js`, `Entities.js` (entity registry + manager; props → `render/StaticBatch.js`), `World.js` (loads everything).
+- `src/engine/world/` terrain (data, generator, chunk renderer), `Water.js`, `Vegetation.js` + `VegetationScatter.js` (drawn by `render/InstancedField.js`: sector culling, shader LOD cross-fades `LodFade.js`, far impostors `Impostors.js`), `Grass.js`, `Entities.js` (entity registry + manager; props → `render/StaticBatch.js`), `World.js` (loads everything).
 - `src/engine/physics/Physics.js` shapes + grid; `collideCylinder`, `groundAt`, `raycast`, `visible`.
 - `src/engine/assets/ModelBuilder.js` (asset JSON → geometry with normals, metric uvs, per-vertex `surface`; format in docs/ASSETS.md), `generators.js` (textured trees / palms / plants: leaf cards, frond strips), `surfaces.js` (surface name → layer id, shared with the Node tools).
 - `src/engine/anim/Characters.js` Quaternius characters (merged mesh, UAL retargeting, hitboxes, palettes).

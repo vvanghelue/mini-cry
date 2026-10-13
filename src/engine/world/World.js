@@ -63,6 +63,7 @@ export class World {
     this.entities.load(this.data.entities ?? []);
     await colors;
     await S._loading;
+    this.vegetation.bakeImpostors(this.engine.renderer); // far tree LODs (render/Impostors.js)
     // after the colour worker: the splatting texture reads every vertex's resolved material
     this.terrainRenderer = new TerrainRenderer(this.terrain, this.lighting);
     this.scene.add(this.terrainRenderer.group);
