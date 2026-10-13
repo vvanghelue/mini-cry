@@ -154,7 +154,7 @@ export class ViewArms {
     this.reach = cfg.reach ?? 0.1; // how far a shoulder can move toward a grip out of reach (m, scapula protraction)
     this.mesh = mesh;
     const v = () => new THREE.Vector3(), q = () => new THREE.Quaternion();
-    this._t = { T: v(), fingers: v(), thumb: v(), S: v(), E: v(), W: v(), n: v(), m: v(), dU: v(), dF: v(), bend: v(), fwd0: v(), along: v(), t0: v(), rootQ: q(), wq: q(), g: q(), g2: q() };
+    this._t = { T: v(), fingers: v(), thumb: v(), S: v(), E: v(), W: v(), n: v(), m: v(), dU: v(), dF: v(), bend: v(), fwd0: v(), along: v(), t0: v(), rootQ: q(), camQ: q(), wq: q(), g: q(), g2: q() };
   }
 
   set visible(v) { this.root.visible = v; }
@@ -170,18 +170,20 @@ export class ViewArms {
     this.root.updateMatrixWorld(true);
     this.model.getWorldQuaternion(t.rootQ);
     weapon.getWorldQuaternion(t.wq);
+    // camera space -> world (the view-model camera follows the world camera): pole, offsets
+    this.root.parent.getWorldQuaternion(t.camQ);
     for (const side of Object.values(this.sides)) {
       const grip = side.s === 'R' ? hands?.right : hands?.left;
       if (grip) {
         t.T.fromArray(grip.pos).applyMatrix4(weapon.matrixWorld);
         t.fingers.fromArray(grip.fingers).applyQuaternion(t.wq).normalize();
         t.thumb.fromArray(grip.thumb).applyQuaternion(t.wq);
-        if (leftAway > 0 && side.s === 'L' && awayOffset) t.T.addScaledVector(awayOffset, leftAway);
+        if (leftAway > 0 && side.s === 'L' && awayOffset) t.T.addScaledVector(_a.copy(awayOffset).applyQuaternion(t.camQ), leftAway);
       } else {
         // no grip: hang the arm down out of the view
-        side.upper.getWorldPosition(t.T).add(_a.set(0.05 * side.sign, -0.5, 0.05));
-        t.fingers.set(0, -1, 0);
-        t.thumb.set(0, 0, -1);
+        side.upper.getWorldPosition(t.T).add(_a.set(0.05 * side.sign, -0.5, 0.05).applyQuaternion(t.camQ));
+        t.fingers.set(0, -1, 0).applyQuaternion(t.camQ);
+        t.thumb.set(0, 0, -1).applyQuaternion(t.camQ);
       }
       this._solve(side, t);
       this._curl(side, grip);
@@ -189,7 +191,7 @@ export class ViewArms {
   }
 
   _solve(side, t) {
-    const { T, fingers, thumb, rootQ, S, E, W, n, m, dU, dF, bend, fwd0, along, t0, g, g2 } = t;
+    const { T, fingers, thumb, rootQ, camQ, S, E, W, n, m, dU, dF, bend, fwd0, along, t0, g, g2 } = t;
     const scale = this.model.scale.x;
     const a = side.lenU * scale, b = side.lenF * scale;
     // shoulder: at rest, or moved toward a grip that the straight arm can't reach (up to `reach`)
@@ -205,6 +207,7 @@ export class ViewArms {
     n.normalize();
     m.copy(this.pole);
     if (side.sign < 0) m.x = -m.x;
+    m.applyQuaternion(camQ);
     m.addScaledVector(n, -m.dot(n)).normalize();
     const cosA = (a * a + d * d - b * b) / (2 * a * d);
     E.copy(S).addScaledVector(n, a * cosA).addScaledVector(m, a * Math.sqrt(Math.max(0, 1 - cosA * cosA)));

@@ -42,7 +42,7 @@ export class Engine {
     this.elapsed = 0;
     this.maxFps = 0; // frame rate cap (0 = one frame per display refresh)
     this._nextFrame = 0;
-    // optional overlay pass (first-person weapon): { scene, camera } rendered after clearing depth
+    // optional overlay pass (first-person weapon): { scene, camera, beforeRender? } rendered after clearing depth
     this.overlay = null;
     this.clock = new THREE.Timer();
     this._raf = 0;
@@ -146,6 +146,7 @@ export class Engine {
       if (this.overlay?.scene && this.overlay.visible !== false) {
         renderer.autoClear = false;
         renderer.clearDepth();
+        this.overlay.beforeRender?.();
         this.overlay.scene.matrixWorldAutoUpdate = true;
         renderer.render(this.overlay.scene, this.overlay.camera);
         renderer.autoClear = true;
