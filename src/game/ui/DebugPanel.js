@@ -195,6 +195,7 @@ export class DebugPanel {
       get shadows() { return L.sun.enabled; }, set shadows(v) { L.sun.setEnabled(v); },
       get ao() { return L.ao.enabled; }, set ao(v) { L.ao.setEnabled(v); },
       get flare() { return L.flare.enabled; }, set flare(v) { if (game) game.saveSettings({ flare: v }); else L.flare.setEnabled(v); },
+      get ssr() { return L.ssr.enabled; }, set ssr(v) { if (game) game.saveSettings({ ssr: v }); else L.ssr.setEnabled(v); },
       get stats() { return overlay?.visible ?? false; }, set stats(v) { overlay?.setVisible(v); },
       get maxFps() { return engine.maxFps; }, set maxFps(v) { if (game) game.saveSettings({ fpsLimit: v }); else engine.maxFps = v; },
       wireframe: false,
@@ -214,6 +215,14 @@ export class DebugPanel {
     fa.add(ao.uniforms.aoDirect, 'value', 0, 1, 0.01).name('on direct light');
     fa.add({ get v() { return ao.uniforms.aoDebug.value > 0.5; }, set v(x) { ao.uniforms.aoDebug.value = x ? 1 : 0; } }, 'v').name('AO only view');
     fa.close();
+    // screen-space reflections on the water (ultra preset only; values live in lighting.env.ssr)
+    const fr = f.addFolder('Water reflections (SSR)');
+    const ssrKey = (key) => ({ get v() { return L.env.ssr[key]; }, set v(x) { L.env.ssr[key] = x; L.ssr.set({ [key]: x }); } });
+    fr.add(gfx, 'ssr').name('enabled (ultra)');
+    fr.add(ssrKey('intensity'), 'v', 0, 1.5, 0.01).name('intensity');
+    fr.add(ssrKey('distance'), 'v', 40, 400, 5).name('depth range (m)');
+    fr.add(ssrKey('ray'), 'v', 10, 400, 5).name('max ray (m)');
+    fr.close();
     // sun lens flare + light halos (values live in lighting.env.flare / glows, saved by the editor)
     const fl = f.addFolder('Lens flare & halos');
     const envKey = (group, key) => ({ get v() { return L.env[group][key]; }, set v(x) { L.env[group][key] = x; } });

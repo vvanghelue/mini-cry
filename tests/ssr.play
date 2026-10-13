@@ -1,0 +1,17 @@
+# spawn: -120,1.6,677,0
+# query: quality=ultra
+# Screen-space reflections on the water (render/SSR.js), ultra only: on the village dock looking
+# at the huts across the water, the water traces through the SSAO depth pre-pass (stretched to the
+# SSR range) and blends in the previous frame; the options toggle and the other presets turn it off.
+wait 2
+eval (()=>{ const L = app.engine.lighting, s = L.ssr; window.__ssr = { active: s.active, on: s.uniforms.ssrOn.value, valid: s.valid, far: Math.round(L.ao.cam.far) }; return window.__ssr })()
+expect window.__ssr.active && window.__ssr.on === 1 && window.__ssr.valid && window.__ssr.far >= 250
+shot ssr_dock
+eval game.saveSettings({ ssr: false })
+wait 0.5
+eval (()=>{ const s = app.engine.lighting.ssr; window.__ssr.off = s.uniforms.ssrOn.value; return window.__ssr })()
+expect window.__ssr.off === 0
+eval game.saveSettings({ ssr: true, quality: 'high' })
+wait 0.5
+eval (()=>{ const L = app.engine.lighting, s = L.ssr; window.__ssr.high = { active: s.active, on: s.uniforms.ssrOn.value, far: Math.round(L.ao.cam.far) }; return window.__ssr })()
+expect !window.__ssr.high.active && window.__ssr.high.on === 0 && window.__ssr.high.far < 100

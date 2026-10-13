@@ -152,6 +152,8 @@ export class Engine {
         renderer.autoClear = true;
       }
       this.lighting.flare.render(camera);
+      // last: the finished frame feeds next frame's water reflections (SSR.js)
+      this.lighting.ssr.grab(camera);
     } finally {
       scene.matrixWorldAutoUpdate = auto;
     }

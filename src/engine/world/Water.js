@@ -8,9 +8,12 @@
 // Fresnel between the body colour (absorbed with depth, lit by the sun / sky) and the reflected
 // sky (gradient + the cloud layer), a sharp sun glint, light scattered through the wave crests.
 // Rivers: ribbon meshes along the river polylines, ripples scrolling with the flow.
+// Ultra quality: screen-space reflections of the shore, trees, boats... in place of the sky
+// reflection where a ray finds them on screen (render/SSR.js).
 import * as THREE from 'three';
 import { LAYERS } from '../render/layers.js';
 import { CLOUDS_GLSL } from '../render/clouds.js';
+import { SSR_GLSL } from '../render/SSR.js';
 
 const WATER_VERT = /* glsl */ `
   uniform float uTime, waveAmp, flowSpeed;
@@ -65,6 +68,7 @@ const WATER_FRAG = /* glsl */ `
   varying float vCrest;
   #include <logdepthbuf_pars_fragment>
   ${CLOUDS_GLSL}
+  ${SSR_GLSL}
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
@@ -128,6 +132,24 @@ const WATER_FRAG = /* glsl */ `
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
+    // screen-space reflections (ultra): the previous frame is tone mapped already, so it replaces
+    // the reflected share of the shaded colour here, in display space
+    if (ssrOn > 0.5 && F > 0.025) {
+      vec3 Pv = (viewMatrix * vec4(vWorld, 1.0)).xyz;
+      // calmer normal than the shading one: at grazing angles the full ripples would send most
+      // rays to the sky or under the surface; never below the horizon (nothing to hit there)
+      vec3 nS = normalize(vWaveN + rp * rk * 0.25);
+      vec3 Rw = reflect(-V, nS);
+      Rw.y = max(Rw.y, 0.005);
+      vec3 Rv = normalize((viewMatrix * vec4(Rw, 0.0)).xyz);
+      vec4 s = ssrTrace(Pv, Rv, ssrIgn(gl_FragCoord.xy));
+      float w = s.a * F * ssrIntensity * (1.0 - f * 0.8) * (1.0 - fogF);
+      // the reflected share is not see-through: out = (1 - w) * (water over the bed) + w * reflection
+      w = clamp(w, 0.0, 1.0);
+      float a2 = 1.0 - (1.0 - w) * (1.0 - gl_FragColor.a);
+      gl_FragColor = vec4(((1.0 - w) * gl_FragColor.a * gl_FragColor.rgb + w * s.rgb) / max(a2, 1e-4), a2);
+      if (ssrDebug > 0.5) gl_FragColor = vec4(s.rgb * s.a, 1.0);
+    }
   }`;
 
 export class Water {
@@ -178,6 +200,7 @@ export class Water {
       rippleScale: { value: river ? 1.6 : 1 },
       cloudCoverage: L.skyU.cloudCoverage,
       cloudSpeed: L.skyU.cloudSpeed,
+      ...L.ssr.uniforms,
     };
   }
 
