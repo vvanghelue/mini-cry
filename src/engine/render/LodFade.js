@@ -9,9 +9,9 @@
 // twice. The threshold is interleaved gradient noise shifted by a per-instance hash: continuous
 // (pixels drop out one by one, not 1/16 of the tree at once as with a 4x4 Bayer matrix), no
 // regular screen-door grid, and two overlapping trees in their bands don't share a pattern. The
-// bands are wide (LOD_BLEND of the switch distance, at least LOD_MIN_WIDTH): ~1.5 s or more at a
-// run. Depth-only passes (sun cascades, SSAO pre-pass) switch hard at the middle of the band:
-// stipple in a shadow map would only add noise.
+// bands are wide (LOD_BLEND of the switch distance, at least LOD_MIN_WIDTH): a near switch takes
+// ~1 s at a sprint, ~2 s walking (medium preset: 8 m). Depth-only passes (sun cascades, SSAO
+// pre-pass) switch hard at the middle of the band: stipple in a shadow map would only add noise.
 //
 // Merged static props (render/StaticBatch.js) are not instanced: their vertices carry `lodProp`
 // (world x, z of the prop's origin, LOD + 2) and the ranges of their two LODs are uniforms
