@@ -61,7 +61,7 @@ export class Game {
     this.engine.maxFps = fps !== null ? Number(fps) || 0 : this.settings.fpsLimit;
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
     if (this.settings.flare === false) this.engine.lighting.flare.setEnabled(false);
-    // water reflections: off | low | medium | high (`?ssr=` overrides the saved choice)
+    // water reflections: off | ultralow | low | medium | high (`?ssr=` overrides the saved choice)
     if (params.get('ssr')) this.settings.ssr = params.get('ssr');
     this.engine.lighting.ssr.setLevel(this.settings.ssr);
     this.difficulty = DIFFICULTY[this.settings.difficulty] ?? DIFFICULTY.normal;

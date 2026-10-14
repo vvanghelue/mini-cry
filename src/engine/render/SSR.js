@@ -1,5 +1,5 @@
 // Screen-space reflections on the water (ocean + rivers). Their own setting, independent of the
-// quality preset: off (default), low, medium or high (SSR_LEVELS: steps per ray, depth range,
+// quality preset: off (default), ultra low, low, medium or high (SSR_LEVELS: steps per ray, depth range,
 // longest ray), plus a blur (glossy reflections, wider the farther the hit).
 //
 // Built to cost as little as possible on top of what the frame already does:
@@ -28,6 +28,8 @@ export const SSR_DEFAULTS = {
 
 // steps / refine: depth fetches per ray; distance: depth range of the pre-pass (m), ray: longest ray (m)
 export const SSR_LEVELS = {
+  // ultra low: about the AO's own depth range (no extra pre-pass cost while the AO is on), no blur taps
+  ultralow: { steps: 8, refine: 2, distance: 90, ray: 100, noBlur: true },
   low: { steps: 12, refine: 3, distance: 140, ray: 150 },
   medium: { steps: 20, refine: 4, distance: 220, ray: 230 },
   high: { steps: 32, refine: 6, distance: 300, ray: 320 },
@@ -114,8 +116,9 @@ export class SSR {
   constructor(renderer, ao) {
     this.renderer = renderer;
     this.ao = ao;
-    this.level = 'off'; // off | low | medium | high (settings, debug panel, ?ssr=<level>)
+    this.level = 'off'; // off | ultralow | low | medium | high (settings, debug panel, ?ssr=<level>)
     this.distance = 0;
+    this.blur = SSR_DEFAULTS.ssr.blur;
     this.camera = null;
     this.valid = false; // a previous frame exists in colorTex
     this.colorTex = new THREE.FramebufferTexture(1, 1);
@@ -142,7 +145,7 @@ export class SSR {
 
   get active() { return this.level !== 'off'; }
 
-  /** 'off' | 'low' | 'medium' | 'high' (anything else = off; true = medium for old settings). */
+  /** 'off' | 'ultralow' | 'low' | 'medium' | 'high' (anything else = off; true = medium for old settings). */
   setLevel(name) {
     if (name === true) name = 'medium';
     const L = SSR_LEVELS[name];
@@ -152,13 +155,14 @@ export class SSR {
     u.ssrSteps.value = L.steps;
     u.ssrRefine.value = L.refine;
     u.ssrRay.value = L.ray;
+    u.ssrBlur.value = L.noBlur ? 0 : this.blur;
     this.distance = L.distance;
   }
 
   /** Tuning (environment.json `ssr`): { intensity, blur (0..1) }; distance / ray (m) override the level's until the next setLevel. */
   set({ intensity, blur, distance, ray } = {}) {
     if (intensity != null) this.uniforms.ssrIntensity.value = intensity;
-    if (blur != null) this.uniforms.ssrBlur.value = blur;
+    if (blur != null) { this.blur = blur; this.uniforms.ssrBlur.value = SSR_LEVELS[this.level]?.noBlur ? 0 : blur; }
     if (distance != null) this.distance = distance;
     if (ray != null) this.uniforms.ssrRay.value = ray;
   }

@@ -219,7 +219,7 @@ export class DebugPanel {
     const fr = f.addFolder('Water reflections (SSR)');
     const ssrKey = (key) => ({ get v() { return L.env.ssr[key]; }, set v(x) { L.env.ssr[key] = x; L.ssr.set({ [key]: x }); } });
     const ssrU = L.ssr.uniforms;
-    fr.add(gfx, 'ssr', ['off', 'low', 'medium', 'high']).name('level').listen();
+    fr.add(gfx, 'ssr', { off: 'off', 'ultra low': 'ultralow', low: 'low', medium: 'medium', high: 'high' }).name('level').listen();
     fr.add(ssrKey('intensity'), 'v', 0, 1.5, 0.01).name('intensity');
     fr.add(ssrKey('blur'), 'v', 0, 1, 0.01).name('blur');
     // live overrides of the level's values (reset when the level changes)

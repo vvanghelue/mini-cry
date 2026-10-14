@@ -6,10 +6,14 @@
 wait 2
 eval (()=>{ const L = app.engine.lighting, s = L.ssr; window.__ssr = { def: s.level, on: s.uniforms.ssrOn.value, far: Math.round(L.ao.cam.far) }; return window.__ssr })()
 expect window.__ssr.def === 'off' && window.__ssr.on === 0 && window.__ssr.far < 100
+eval game.saveSettings({ ssr: 'ultralow' })
+wait 0.5
+eval (()=>{ const s = app.engine.lighting.ssr; window.__ssr.ulow = { on: s.uniforms.ssrOn.value, steps: s.uniforms.ssrSteps.value, blur: s.uniforms.ssrBlur.value }; return window.__ssr })()
+expect window.__ssr.ulow.on === 1 && window.__ssr.ulow.steps === 8 && window.__ssr.ulow.blur === 0
 eval game.saveSettings({ ssr: 'low' })
 wait 0.5
-eval (()=>{ const L = app.engine.lighting, s = L.ssr; window.__ssr.low = { on: s.uniforms.ssrOn.value, steps: s.uniforms.ssrSteps.value, far: Math.round(L.ao.cam.far) }; return window.__ssr })()
-expect window.__ssr.low.on === 1 && window.__ssr.low.steps === 12 && window.__ssr.low.far >= 130
+eval (()=>{ const L = app.engine.lighting, s = L.ssr; window.__ssr.low = { on: s.uniforms.ssrOn.value, steps: s.uniforms.ssrSteps.value, blur: s.uniforms.ssrBlur.value, far: Math.round(L.ao.cam.far) }; return window.__ssr })()
+expect window.__ssr.low.on === 1 && window.__ssr.low.steps === 12 && window.__ssr.low.blur > 0 && window.__ssr.low.far >= 130
 eval game.saveSettings({ ssr: 'high' })
 wait 0.5
 eval (()=>{ const L = app.engine.lighting, s = L.ssr; window.__ssr.high = { on: s.uniforms.ssrOn.value, steps: s.uniforms.ssrSteps.value, far: Math.round(L.ao.cam.far) }; return window.__ssr })()
