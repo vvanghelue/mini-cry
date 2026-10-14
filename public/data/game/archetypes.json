@@ -2,8 +2,12 @@
   "archetypes": {
     "merc_rifle": {
       "label": "Mercenary (rifle)",
-      "model": "punk",
-      "palette": "merc_green",
+      "models": [
+        "soldier_goggles",
+        "soldier_nvg",
+        "soldier_woman",
+        "soldier_cap"
+      ],
       "health": 100,
       "armor": 0,
       "weapon": "rifle_ak",
@@ -43,8 +47,11 @@
     },
     "merc_smg": {
       "label": "Mercenary (SMG)",
-      "model": "hoodie",
-      "palette": "merc_khaki",
+      "models": [
+        "soldier_cap_b",
+        "soldier_woman_b",
+        "soldier_goggles"
+      ],
       "health": 90,
       "armor": 0,
       "weapon": "smg",
@@ -84,8 +91,10 @@
     },
     "merc_shotgun": {
       "label": "Mercenary (shotgun)",
-      "model": "hoodie",
-      "palette": "merc_dark",
+      "models": [
+        "soldier_cap_c",
+        "soldier_nvg"
+      ],
       "health": 120,
       "armor": 0,
       "weapon": "shotgun",
@@ -121,8 +130,10 @@
     },
     "merc_sniper": {
       "label": "Sniper",
-      "model": "punk",
-      "palette": "merc_camo",
+      "models": [
+        "soldier_cap",
+        "soldier_cap_b"
+      ],
       "health": 80,
       "armor": 0,
       "weapon": "sniper",
@@ -159,7 +170,10 @@
     },
     "merc_heavy": {
       "label": "Heavy mercenary",
-      "model": "punk",
+      "models": [
+        "soldier_shades",
+        "soldier_nvg"
+      ],
       "palette": "merc_heavy",
       "scale": 1.12,
       "health": 260,
@@ -201,8 +215,9 @@
     },
     "merc_rocket": {
       "label": "Mercenary (rocket launcher)",
-      "model": "hoodie",
-      "palette": "merc_dark",
+      "models": [
+        "soldier_shades"
+      ],
       "health": 130,
       "armor": 0.1,
       "weapon": "rpg",
@@ -238,8 +253,7 @@
     },
     "boss_vargas": {
       "label": "Colonel Vargas (boss)",
-      "model": "businessman",
-      "palette": "boss",
+      "model": "officer",
       "scale": 1.05,
       "health": 900,
       "armor": 0.3,
@@ -277,8 +291,11 @@
     },
     "villager": {
       "label": "Villager",
-      "model": "adventurer",
-      "palette": "villager",
+      "models": [
+        "villager_polo",
+        "villager_denim",
+        "villager_woman"
+      ],
       "civilian": true,
       "health": 60,
       "weapon": null,
@@ -289,8 +306,7 @@
     },
     "scientist": {
       "label": "Scientist (hostage)",
-      "model": "businessman",
-      "palette": "scientist",
+      "model": "scientist_labcoat",
       "civilian": true,
       "health": 80,
       "weapon": null,
@@ -301,52 +317,10 @@
     }
   },
   "palettes": {
-    "merc_green": {
-      "Red": "#4a5a2e",
-      "Red_Dark": "#36421f",
-      "LightBlue": "#4d4a38",
-      "White": "#6b6b58",
-      "Earrings": "#3a3a30"
-    },
-    "merc_camo": {
-      "Red": "#5a6a38",
-      "Red_Dark": "#3e4a26",
-      "LightBlue": "#5d5a40",
-      "White": "#7a7558",
-      "Earrings": "#3a3a30"
-    },
     "merc_heavy": {
-      "Red": "#2e2e2a",
-      "Red_Dark": "#22221e",
-      "LightBlue": "#3d3d36",
-      "White": "#55554b",
-      "Purple": "#2a2a26",
-      "Earrings": "#3a3a30"
-    },
-    "merc_khaki": {
-      "White": "#8f7d55",
-      "Purple": "#4d4232",
-      "LightBlue": "#3d3a2c"
-    },
-    "merc_dark": {
-      "White": "#3d3d36",
-      "Purple": "#24221c",
-      "LightBlue": "#2f3428"
-    },
-    "boss": {
-      "Suit": "#d9d2bb",
-      "Tie": "#8a1a1a",
-      "Black": "#2a2520"
-    },
-    "scientist": {
-      "Suit": "#e2e2de",
-      "Tie": "#2a4a8a"
-    },
-    "villager": {
-      "Green": "#9a4a2a",
-      "LightGreen": "#d8b884",
-      "Brown": "#7a5a3a",
-      "Brown2": "#5a4a30"
+      "body": "#8a8a84",
+      "helmet": "#6a6a64",
+      "equipment": "#5c5c56"
     }
   }
 }

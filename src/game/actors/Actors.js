@@ -1,9 +1,10 @@
-// NPC bodies: an animated Quaternius character (+ held weapon), health / damage / death, loot,
+// NPC bodies: an animated character (+ held weapon), health / damage / death, loot,
 // movement with collision, animation selection, and distance LODs (animation rate, visibility,
 // sleeping AI far away). The brain lives in AI.js.
 import * as THREE from 'three';
 import { AIBrain } from './AI.js';
 import { LAYERS } from '../../engine/render/layers.js';
+import { archetypeModel } from '../../engine/anim/Characters.js';
 
 const _v = new THREE.Vector3(), _ray = new THREE.Ray();
 let actorSeq = 0;
@@ -17,7 +18,8 @@ export class Actor {
     this.group = data.group;
     this.team = arch.civilian ? 'civilian' : data.team ?? 'merc';
     const lib = game.characters;
-    const tpl = arch.palette && game.data.archetypes.palettes?.[arch.palette] ? lib.variant(arch.model, game.data.archetypes.palettes[arch.palette], arch.palette) : arch.model;
+    const model = data.model ?? archetypeModel(arch, this.id); // story NPCs pick theirs
+    const tpl = arch.palette && game.data.archetypes.palettes?.[arch.palette] ? lib.variant(model, game.data.archetypes.palettes[arch.palette], arch.palette) : model;
     this.character = lib.create(tpl);
     this.root = this.character.root;
     if (arch.scale) this.character.model.scale.multiplyScalar(arch.scale);
@@ -29,7 +31,7 @@ export class Actor {
     this.root.updateMatrixWorld = (force) => { if (!this.frozen || this._thaw) baseUpdate.call(this.root, force); };
     this.pos.fromArray(data.pos ?? [0, 0, 0]);
     this.pos.y = game.world.physics.groundAt(this.pos.x, this.pos.z, 0.3, this.pos.y + 1);
-    this.heading = ((data.rot?.[1] ?? 0) * Math.PI) / 180 + Math.PI; // Quaternius models face +Z
+    this.heading = ((data.rot?.[1] ?? 0) * Math.PI) / 180 + Math.PI; // the character models face +Z
     this.root.rotation.y = this.heading;
     this.vel = new THREE.Vector3();
     this.health = this.maxHealth = arch.health ?? 100;
@@ -63,7 +65,7 @@ export class Actor {
     const holder = this.character.attachToHand(mesh);
     if (!holder) return;
     holder.quaternion.copy(this.character.solveGrip('Pistol_Aim_Neutral'));
-    holder.position.set(0, 0.0, 0);
+    holder.position.copy(this.character.grip.R);
     const def = assets.get(w.asset);
     this.muzzleLocal = new THREE.Vector3(...(def.muzzle ?? [0, 0.05, b.bounds.min.z]));
     this.weaponMesh = mesh;
@@ -291,7 +293,9 @@ export class ActorManager {
   }
 
   update(dt) {
-    const cam = this.game.engine.camera.position;
+    const camera = this.game.engine.camera, cam = camera.position;
+    // body LOD distance: the camera distance over the zoom (through a scope, distant actors are big)
+    const zoom = Math.tan(((this.game.player?.cfg?.fov ?? camera.fov) * Math.PI) / 360) / Math.tan((camera.fov * Math.PI) / 360);
     this.grid.clear();
     for (const a of this.list) {
       const k = Math.floor(a.pos.x / 16) * 4096 + Math.floor(a.pos.z / 16);
@@ -301,7 +305,9 @@ export class ActorManager {
     }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const a = this.list[i];
-      a.update(dt, a.pos.distanceTo(cam));
+      const d = a.pos.distanceTo(cam);
+      a.character.setLodDistance(d / zoom);
+      a.update(dt, d);
       if (a.removeMe) this.remove(a);
     }
   }

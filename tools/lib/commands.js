@@ -14,6 +14,7 @@ import { voiceCommands } from './voice-commands.js';
 import { giCommands } from './gi-commands.js';
 import { textureCommands } from './texture-commands.js';
 import { viewmodelCommands } from './viewmodel-commands.js';
+import { characterCommands } from './character-commands.js';
 import { setSurfaceManifest } from '../../src/engine/assets/surfaces.js';
 
 /** Areas kept free of vegetation: building sites, roads, and entity footprints. */
@@ -311,6 +312,7 @@ export const commands = {
   ...giCommands,
   ...textureCommands,
   ...viewmodelCommands,
+  ...characterCommands,
 };
 
 let _build = null;

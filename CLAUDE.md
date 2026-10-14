@@ -11,13 +11,14 @@ character names stay French.
   (via `npm run mc`) over code. Every write through `mc` or the editor keeps a backup in
   `.mc-backup/`.
 - **Look at what you change.** After a visual change: `npm run mc -- asset shot <name>` (assets;
-  `--lineup` = every variant at every LOD side by side; first-person weapons + arms: `npm run mc -- viewmodel shot <weapon> [--ads 1]`),
+  `--lineup` = every variant at every LOD side by side; first-person weapons + arms: `npm run mc -- viewmodel shot <weapon> [--ads 1]`;
+  NPC bodies: `npm run mc -- character shot <body|archetype,…> [--clip Walk_Aim] [--face 140 --yaw 140]`),
   `npm run shot -- --cam x,y,z,yaw,pitch` or `--at <entityId>` (world), `npm run play -- ...` (gameplay).
   Read the PNGs with the Read tool. Check `errors` in the JSON the tools print.
 - **Validate.** `npm run mc -- validate` must report `ok: true` (it checks assets, entity schemas,
   every mission / dialogue / entity reference).
 - **Regression tests.** `npm test` runs every `tests/*.play` scenario headless on the production
-  build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, flying the plane (take-off, turn, crash) and landing it, AI fight, enemy lethality on normal, birds, water reflections (SSR levels), first-person models (every weapon's realistic model, both wrists on its grips),
+  build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, flying the plane (take-off, turn, crash) and landing it, AI fight, enemy lethality on normal, NPC bodies (every soldier body: hitboxes, death, LODs), birds, water reflections (SSR levels), first-person models (every weapon's realistic model, both wrists on its grips),
   frame pacing while driving / flying fast). Add a scenario with `expect <js>` assertions when you add
   gameplay. Each report has `lateShaders` (programs compiled after the loading warm-up = hitches):
   keep it at 0 — if a new material / object type shows up late, make `World.warmUp` cover it.
@@ -57,7 +58,7 @@ character names stay French.
 - `src/engine/world/` terrain (data, generator, chunk renderer), `Water.js`, `Vegetation.js` + `VegetationScatter.js` (drawn by `render/InstancedField.js`: sector culling, shader LOD cross-fades `LodFade.js`, far impostors `Impostors.js`), `Grass.js`, `Entities.js` (entity registry + manager; props → `render/StaticBatch.js`), `World.js` (loads everything).
 - `src/engine/physics/Physics.js` shapes + grid; `collideCylinder`, `groundAt`, `raycast`, `visible`.
 - `src/engine/assets/ModelBuilder.js` (asset JSON → geometry with normals, metric uvs, per-vertex `surface`; format in docs/ASSETS.md), `generators.js` (textured trees / palms / plants: leaf cards, frond strips), `surfaces.js` (surface name → layer id, shared with the Node tools).
-- `src/engine/anim/Characters.js` Quaternius characters (merged mesh, UAL retargeting, hitboxes, palettes).
+- `src/engine/anim/Characters.js` NPC bodies: realistic Rocketbox bodies of `public/models/characters` (built by `mc character build` from `characters.json`: one skinned mesh on the game rig, photo atlas, distance LODs = index ranges, `setLodDistance`) and the older flat-coloured Quaternius models (merged mesh); UAL retargeting (once per rig, shared), clip aliases, hitboxes, palettes (part tints), weapon grip. Archetypes pick `model` / `models` (one per actor), entities can set `model`.
 - `src/game/Game.js` game rules + live commands; `player/` (Player, Weapons, ViewModels = loads the realistic first-person weapons / arms of `public/models/fp` (built by `mc viewmodel build` from `viewmodels.json`), ViewArms = realistic skinned arms (Rocketbox) on the weapon grips by two-bone IK, grips = weapon asset `hands`, config `player.json` `arms`, ViewLight = light of the view-model pass: its camera follows the world camera, the materials get the world sun + cascaded shadows and the probe GI, a procedural sky PMREM for reflections; no SSAO), `actors/` (Actors, AI, Nav), `missions/` (Missions runtime, Dialogue), `entities/index.js` (game entity types & schemas), `vehicles/`, `fx/Effects.js`, `fx/Birds.js` (flocks around the camera: perched on tree crowns / beaches, soaring, Bezier flights between the two; startled by gunshots and the player, can be shot; wings flapped in the vertex shader; `?birds=0` off), `ui/` (HUD, Menus, PerfOverlay = stats graphs bottom right, F3; DebugPanel = lil-gui cheats / toggles, F2; both on by default, `?stats=0` / `?debug=0` hide them, off with `?bot` / `?bench` / `?nohud`; in debug mode settings are never read from / written to localStorage, so a reload restores the defaults).
 - `src/editor/core.js` editor logic (signals `S`, selection, gizmo, brushes, undo, save, live commands), `ui/`, `panels/`.
 
@@ -71,7 +72,8 @@ character names stay French.
 | `textures.json` + `public/textures/*` | texture layers (Poly Haven / ambientCG CC0 sources, scales, means) and the packed arrays (docs/TEXTURES.md) | edit JSON, `mc textures fetch|build|info` |
 | `world.json` | player start + entities (props, enemies, npcs, pickups, outposts, alarms, zones, markers, paths, vehicles…) | `mc entity list|add|set|move|remove|types` |
 | `game/missions.json`, `game/dialogue.json` | story (docs/MISSIONS.md) | `mc mission list|show`, `mc data set`, editor 🎯 / 💬 |
-| `game/weapons.json`, `archetypes.json`, `items.json`, `player.json`, `birds.json` | gameplay tuning (birds: species → asset, flight, habitat, flocks, calls) | `mc data get|set`, editor 📊 |
+| `game/weapons.json`, `archetypes.json`, `items.json`, `player.json`, `birds.json` | gameplay tuning (archetypes: body `model` / `models`, palette, stats; birds: species → asset, flight, habitat, flocks, calls) | `mc data get|set`, editor 📊 |
+| `characters.json` + `public/models/characters/*.glb` | NPC bodies: Rocketbox avatars (MIT, credits in `models/characters/CREDITS.md`), texture scales, LODs, camouflage `recolor`, insignia `erase` | `mc character fetch|build|shot|list` (docs/ASSETS.md) |
 | `viewmodels.json` + `public/models/fp/*.glb` | first-person arms (Rocketbox, MIT) and realistic weapons (CC0 / CC-BY, credits in `models/fp/CREDITS.md`): sources, import parameters; the weapon points (`muzzle`, `sight`, `hands`) stay in the weapon assets | `mc viewmodel fetch|build|shot|list` (docs/ASSETS.md) |
 | `environment.json` | time of day, light, SSAO (`ao`), GI / auto exposure (`gi`, `autoExposure`), lens flare (`flare`), light halos (`glows`), water reflections (`ssr`), fog, sky / ocean colours | `mc data set`, editor ☀ |
 | `gi/probes.json` + `gi/probes.bin` | baked GI probes (derived: re-bake after terrain / vegetation / prop / asset / sunTilt edits; `mc validate` warns when stale) | `mc gi bake|info` (docs/GI.md) |
@@ -94,6 +96,11 @@ npm run shot -- --at 120,340 --dist 20 --tod 15
 npm run mc -- viewmodel shot rifle_ak
 npm run mc -- viewmodel shot rifle_ak --ads 1
 npm run mc -- viewmodel shot rifle_ak --orbit 270,15,0.8 --grips
+
+# NPC bodies: rebuild after editing characters.json, then look at them (armed archetypes, a clip)
+npm run mc -- character build soldier_cap
+npm run mc -- character shot merc_rifle,merc_heavy --face 140 --yaw 140
+npm run mc -- character shot merc_rocket --clip Walk_Aim --time 0.4 --yaw 230 --face 140
 
 # play-test a mission headless
 npm run play -- --mission m03 --steps "live teleport {\"to\":\"mk_antenna\"}; wait 3; state; shot antenna"

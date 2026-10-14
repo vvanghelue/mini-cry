@@ -179,6 +179,47 @@ npm run mc -- viewmodel shot rifle_ak [--ads 1] [--reload 0.5] [--orbit 270,15,0
                                                    # first-person view (?mode=viewmodel) -> shots/, gripError per hand
 ```
 
+## Characters (`public/models/characters`)
+
+The NPC bodies (soldiers, villagers, story characters) are Microsoft Rocketbox avatars (MIT),
+listed in `public/data/characters.json` and credited in `public/models/characters/CREDITS.md`.
+`game/archetypes.json` picks them: `model` (one) or `models` (one per actor, picked from its id,
+so a squad mixes faces and outfits); an `enemy` / `npc` entity can set its own `model` (story
+NPCs). `palettes.<name>` tints parts of a body (keys: part names, `body`, `head`, `helmet`,
+`equipment`…; the colour multiplies the texture: `#ffffff` keeps it). Models that
+`characters.json` doesn't list load from `public/models/<name>.glb` (flat-coloured Quaternius
+models, palettes keyed by material name).
+
+Each `characters.<name>` gives the `avatar` folder in the library, the texture `prefix` and the
+`parts` (material `<prefix>_<part>`: texture suffix, e.g. `"body": "_acu"` for
+`<prefix>_body_color_acu.tga`). `defaults` apply to every character:
+- `scale.<part>`: texel scale of the part's texture in the atlas (`default` 0.375: a 2048 body
+  texture -> 768). Each part is cropped to its uv rectangle first.
+- `drop`: regexp of parts left out (`opacity`: the alpha-cut hair / eyelash cards).
+- `lods`: `[{ ratio, error, distance }]`, simplified index ranges (meshoptimizer) drawn from
+  `distance` m (divided by the scope zoom).
+- `recolor`: a preset of `recolor` or `{ preset, ...overrides }`. The texels of the `parts`
+  regexp whose saturation is under `saturation` take the colour of the `palette` ramp at their
+  brightness (`range`): grey ACU camouflage -> jungle greens, a black uniform -> olive.
+  `regions.<part>` limits it to rectangles of the source texture (the cap in a head texture).
+- `erase.<part>`: `[x, y, w, h, dx, dy]` rectangles of source texels covered with the texels
+  at `(x + dx, y + dy)`, on the colour, normal and specular maps (flags, name tapes, unit
+  patches).
+
+The build merges the parts into one skinned mesh and swaps the Biped skeleton for the game rig
+(the bone names of `Characters.js`: `Body`, `Hips`, `Abdomen`… `Wrist.R`, `Index2.R`…, every
+bone at rest with the identity rotation). The UAL clips are retargeted once at load and shared
+by every body; `Idle`, `Walk`, `Run`, `Idle_Gun`, `HitRecieve`, `Death`… are aliases of UAL
+clips. The scene extras carry the `grip` (palm point of each hand where a held weapon goes).
+
+```bash
+npm run mc -- character list                       # bodies, avatars, archetypes using them
+npm run mc -- character fetch [name...]            # download the avatars (FBX + TGA) into .vm-cache/
+npm run mc -- character build [name...]            # -> public/models/characters/*.glb + CREDITS.md
+npm run mc -- character shot soldier_cap,merc_rifle [--clip Walk_Aim --time 0.4] [--face 140 --yaw 140] [--lod 1]
+                                                   # lineup (?mode=characters): bodies / archetypes (palette, weapon)
+```
+
 ## Vehicles
 
 Vehicle bodies (category `vehicle`, listed in `VEHICLE_KINDS` of `src/game/entities/index.js`;

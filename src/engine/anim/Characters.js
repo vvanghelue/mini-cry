@@ -1,4 +1,10 @@
-// Rigged characters (Quaternius GLBs) — ported from three-rigged-game/src/main.js:
+// Rigged characters — two kinds of models share the code below:
+//   * realistic bodies (public/models/characters/*.glb, built by `mc character build` from the
+//     Rocketbox avatars of data/characters.json: one skinned mesh, photo texture atlas, the game
+//     rig with identity rest rotations, scene extras { rig, grip }): PBR material with their own
+//     colour / normal / roughness maps + the lighting patch; part ranges for palette tints;
+//     distance LODs = index ranges of the shared vertices (setLodDistance)
+//   * flat-coloured Quaternius GLBs (public/models/*.glb) — ported from three-rigged-game/src/main.js:
 //   - the 10–15 skinned parts of a character are merged into ONE skinned mesh (1 draw call,
 //     1 bone texture), part colours baked into vertex colours, the shared textured PBR material
 //     (clothes in a woven fabric layer, uvs boxed from the bind pose)
@@ -13,9 +19,17 @@ import { surfaceInfo } from '../assets/surfaces.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { LAYERS } from '../render/layers.js';
+import { Data } from '../core/Data.js';
 
 export const CHAR_HEIGHT = 1.8;
 const BASE = (import.meta.env?.BASE_URL ?? '/') + 'models/';
+/** Rig of the realistic bodies (tools/lib/import-character.js RIG_VERSION). */
+const REALISTIC_RIG = 'mc-human-1';
+/** Clip names the game asks for (the Quaternius pack's) -> the UAL clips realistic bodies play. */
+const REALISTIC_ALIASES = {
+  Idle: 'Idle_Loop', Idle_Gun: 'Idle_Rifle', Walk: 'Walk_Loop', Run: 'Jog_Fwd_Loop', Run_Shoot: 'Jog_Aim',
+  HitRecieve: 'Hit_Chest', HitRecieve_2: 'Hit_Head', Death: 'Death01',
+};
 
 // ---------------------------------------------------------------------------------------------
 // Mesh preparation
@@ -165,8 +179,10 @@ function mergeCharacterMeshes(root, lighting) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// UAL retargeting (Rigify DEF skeleton facing -Z -> Quaternius CharacterArmature facing +Z)
+// UAL retargeting (Rigify DEF skeleton facing -Z -> Quaternius CharacterArmature / the realistic
+// bodies' rig, facing +Z)
 export const UAL_CLIPS = [
+  'Idle_Loop', 'Sword_Idle',
   'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Sprint_Loop', 'Crouch_Idle_Loop', 'Crouch_Fwd_Loop',
   'Pistol_Idle_Loop', 'Pistol_Aim_Neutral', 'Pistol_Aim_Up', 'Pistol_Aim_Down', 'Pistol_Shoot', 'Pistol_Reload',
   'Swim_Fwd_Loop', 'Swim_Idle_Loop', 'Driving_Loop', 'Idle_Talking_Loop', 'Sitting_Idle_Loop', 'Interact',
@@ -233,10 +249,11 @@ function retargetClips(srcGltf, tgtScene, clipNames, fps = 30) {
     (legLen(sBone('DEF-thigh.L'), sBone('DEF-shin.L')) + legLen(sBone('DEF-shin.L'), sBone('DEF-foot.L')));
   const sHipsBind = wp(sHips), tBodyBind = wp(tBody);
   const rootInv = tRoot.matrixWorld.clone().invert();
+  // feet parented to the root (Quaternius IK-style rig): their position follows the shin
   const feet = ['L', 'R'].map((s) => {
     const foot = tBone(`Foot.${s}`), shin = tBone(`LowerLeg.${s}`);
     return { foot, shin, offset: shin.worldToLocal(wp(foot)), pos: [] };
-  });
+  }).filter((f) => f.foot.parent !== f.shin);
   const bodyPos = [];
   const mixer = new THREE.AnimationMixer(src);
   const out = [];
@@ -290,8 +307,60 @@ function retargetClips(srcGltf, tgtScene, clipNames, fps = 30) {
   return out;
 }
 
+/**
+ * Clips retargeted onto one realistic body, for another one (same rig and rest rotations, other
+ * proportions): only the hip position track changes (rest height, stride scaled by leg length).
+ */
+function refitClips(clips, fromScene, toScene) {
+  const info = (scene) => {
+    const b = (n) => scene.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n));
+    const p = (n) => b(n).position;
+    return { body: p('Body').clone(), leg: p('LowerLeg.L').length() + p('Foot.L').length() };
+  };
+  const a = info(fromScene), b = info(toScene), k = b.leg / a.leg;
+  return clips.map((c) => {
+    const i = c.tracks.findIndex((t) => t.name === 'Body.position');
+    if (i < 0) return c;
+    const t = c.tracks[i].clone(), v = t.values;
+    for (let j = 0; j < v.length; j += 3) {
+      v[j] = (v[j] - a.body.x) * k + b.body.x;
+      v[j + 1] = (v[j + 1] - a.body.y) * k + b.body.y;
+      v[j + 2] = (v[j + 2] - a.body.z) * k + b.body.z;
+    }
+    const tracks = c.tracks.slice();
+    tracks[i] = t;
+    return new THREE.AnimationClip(c.name, c.duration, tracks, c.blendMode);
+  });
+}
+
 const UPPER_BONES = /^(Abdomen|Torso|Chest|Neck|Head|Shoulder|UpperArm|LowerArm|Wrist|Index|Middle|Ring|Pinky|Thumb)/;
 const isUpper = (track) => UPPER_BONES.test(track.name.split('.')[0]);
+
+/**
+ * Upper-body rotation tracks between clip a (stretched to b's duration) and clip b: slerp by k,
+ * resampled at 30 fps over b.
+ */
+function blendUpper(a, b, k, fps = 30) {
+  const names = new Set([...a.tracks, ...b.tracks].filter((t) => isUpper(t) && t.name.endsWith('.quaternion')).map((t) => t.name));
+  const n = Math.max(2, Math.round(b.duration * fps) + 1);
+  const times = Float32Array.from({ length: n }, (_, i) => (i / (n - 1)) * b.duration);
+  const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
+  const out = [];
+  for (const name of names) {
+    const ta = a.tracks.find((t) => t.name === name), tb = b.tracks.find((t) => t.name === name);
+    const ia = ta?.createInterpolant(new Float32Array(4)), ib = tb?.createInterpolant(new Float32Array(4));
+    const v = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      const t = times[i];
+      if (ia) qa.fromArray(ia.evaluate((t / b.duration) * a.duration)); else qa.identity();
+      if (ib) qb.fromArray(ib.evaluate(t)); else qb.copy(qa);
+      if (!ia) qa.copy(qb);
+      qa.slerp(qb, k).toArray(v, i * 4);
+    }
+    out.push(new THREE.QuaternionKeyframeTrack(name, times, v));
+  }
+  return out;
+}
 
 /** Aim layers + combined clips built from the retargeted ones. */
 function deriveClips(clips) {
@@ -310,6 +379,10 @@ function deriveClips(clips) {
     const k = legs.duration / neutral.duration;
     out.push(new THREE.AnimationClip(n, legs.duration, [...legs.tracks.filter((t) => !isUpper(t)), ...upperOf(neutral, k)]));
   }
+  // armed, not aiming (realistic bodies' Idle_Gun): standing idle, the weapon held low ("low
+  // ready": the upper body halfway between the pistol ready stance and the relaxed idle)
+  const idle = get('Idle_Loop'), ready = get('Pistol_Idle_Loop');
+  if (idle && ready) out.push(new THREE.AnimationClip('Idle_Rifle', idle.duration, [...idle.tracks.filter((t) => !isUpper(t)), ...blendUpper(ready, idle, 0.25)]));
   for (const [n, src] of [['Aim_Up_Add', 'Pistol_Aim_Up'], ['Aim_Down_Add', 'Pistol_Aim_Down']]) {
     const s = get(src);
     if (!s) continue;
@@ -368,7 +441,36 @@ function updateSkeletonOncePerFrame() {
 }
 export function nextCharacterFrame() { renderFrame++; }
 
+/** A geometry sharing the buffers (attributes, index) of `src`, with its own attribute set. */
+function geometryView(src) {
+  const g = new THREE.BufferGeometry();
+  for (const [k, a] of Object.entries(src.attributes)) g.setAttribute(k, a);
+  g.setIndex(src.index);
+  g.setDrawRange(src.drawRange.start, src.drawRange.count);
+  g.boundingBox = src.boundingBox;
+  g.boundingSphere = src.boundingSphere;
+  g.userData = src.userData;
+  return g;
+}
+
 // ---------------------------------------------------------------------------------------------
+/**
+ * Character model of an actor (game/archetypes.json): the archetype's `models` (one picked per actor id, stable across
+ * reloads: a squad of the same archetype mixes faces and outfits) or its `model`.
+ */
+export function archetypeModel(arch, id = '') {
+  const list = arch.models?.length ? arch.models : null;
+  if (!list) return arch.model;
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return list[(h >>> 0) % list.length];
+}
+
+/** Every character model the archetypes use (loaded at start). */
+export function archetypeModels(archetypes) {
+  return [...new Set(Object.values(archetypes).flatMap((a) => (a.models?.length ? a.models : [a.model])).filter(Boolean))];
+}
+
 export class CharacterLibrary {
   constructor(lighting) {
     this.lighting = lighting;
@@ -377,27 +479,69 @@ export class CharacterLibrary {
     this.shared = [];
   }
 
-  /** Load character models + retarget the UAL clips onto them (all share one rig). */
+  /**
+   * Load character models + retarget the UAL clips onto them. Names listed in data/characters.json
+   * are realistic bodies (models/characters/<name>.glb), the others Quaternius models
+   * (models/<name>.glb). The clips are retargeted once per rig and shared by its models.
+   */
   async load(names, { ual = 'ual_base.glb' } = {}) {
     const t0 = performance.now();
-    const [ualGltf, ...gltfs] = await Promise.all([this.loader.loadAsync(BASE + ual), ...names.map((n) => this.loader.loadAsync(`${BASE}${n}.glb`))]);
+    const realistic = (await Data.jsonOr('characters.json', {})).characters ?? {};
+    const url = (n) => (realistic[n] ? `${BASE}characters/${n}.glb` : `${BASE}${n}.glb`);
+    const [ualGltf, ...gltfs] = await Promise.all([this.loader.loadAsync(BASE + ual), ...names.map((n) => this.loader.loadAsync(url(n)))]);
     names.forEach((name, i) => {
       const g = gltfs[i];
       g.scene.name = name;
+      if (g.scene.userData.rig === REALISTIC_RIG) { this.templates[name] = this._realistic(g.scene); return; }
       g.scene.traverse((o) => { if (o.isMesh && o.geometry.attributes.position) smoothGeometryNormals(o.geometry, CREASE); });
       g.scene.updateMatrixWorld(true);
       mergeCharacterMeshes(g.scene, this.lighting);
       g.scene.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(g.scene, true);
       const h = box.max.y - box.min.y || 1;
-      this.templates[name] = { scene: g.scene, animations: g.animations.map((c) => { c.name = c.name.split('|').pop(); return c; }), scale: CHAR_HEIGHT / h, minY: box.min.y };
+      this.templates[name] = { scene: g.scene, animations: g.animations.map((c) => { c.name = c.name.split('|').pop(); return c; }), scale: CHAR_HEIGHT / h, minY: box.min.y, rig: 'quaternius' };
     });
-    const first = this.templates[names[0]];
-    const baked = retargetClips(ualGltf, first.scene, UAL_CLIPS);
-    baked.push(...deriveClips(baked));
-    for (const n of names) this.templates[n].animations.push(...baked);
+    // one retargeting per rig; realistic bodies differ in proportions only (identity rest
+    // rotations): the others get the first one's clips with their own hip height / stride
+    const rigs = new Map();
+    for (const n of names) { const r = this.templates[n].rig; if (!rigs.has(r)) rigs.set(r, []); rigs.get(r).push(n); }
+    for (const [rig, list] of rigs) {
+      const first = this.templates[list[0]];
+      const baked = retargetClips(ualGltf, first.scene, UAL_CLIPS);
+      baked.push(...deriveClips(baked));
+      for (const n of list) {
+        const t = this.templates[n];
+        t.animations.push(...(rig === REALISTIC_RIG && t !== first ? refitClips(baked, first.scene, t.scene) : baked));
+      }
+    }
     this.loadMs = performance.now() - t0;
     return this;
+  }
+
+  /** Template of a realistic body (see the file header): material, vertex colours, part ranges. */
+  _realistic(scene) {
+    let lods = null;
+    scene.traverse((o) => {
+      if (!o.isSkinnedMesh) return;
+      const g = o.geometry, n = g.attributes.position.count;
+      g.userData.parts = o.userData.parts ?? [];
+      // the index holds every LOD one after the other: the full mesh unless an instance picks one
+      lods = o.userData.lods?.length > 1 ? o.userData.lods : null;
+      if (lods) g.setDrawRange(lods[0].start, lods[0].count);
+      // white vertex colours: palettes tint parts (variant())
+      g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(n * 3).fill(255), 3, true));
+      const src = o.material;
+      const mat = new THREE.MeshStandardMaterial({
+        name: 'character', vertexColors: true, map: src.map, normalMap: src.normalMap, normalScale: src.normalScale,
+        roughnessMap: src.roughnessMap, roughness: 1, metalness: 0,
+      });
+      src.dispose();
+      o.material = this.lighting.patch(mat);
+    });
+    scene.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(scene, true);
+    const { grip } = scene.userData;
+    return { scene, animations: [], scale: 1, minY: box.min.y, rig: REALISTIC_RIG, aliases: REALISTIC_ALIASES, grip, lods };
   }
 
   /**
@@ -413,9 +557,10 @@ export class CharacterLibrary {
     const col = new THREE.Color();
     scene.traverse((o) => {
       if (!o.isSkinnedMesh) return;
+      // own colours, every other buffer shared with the template
+      o.geometry = geometryView(o.geometry);
+      o.geometry.setAttribute('color', o.geometry.attributes.color.clone());
       const parts = o.geometry.userData.parts ?? [];
-      o.geometry = o.geometry.clone();
-      o.geometry.userData.parts = parts;
       const c = o.geometry.attributes.color;
       for (const r of parts) {
         const hex = palette?.[r.name];
@@ -462,9 +607,22 @@ export class Character {
       if (o.isSkinnedMesh && !this.skeletons.has(o.skeleton)) { this.skeletons.add(o.skeleton); o.skeleton.update = updateSkeletonOncePerFrame; }
     });
     this.material = this.meshes[0]?.material;
+    // distance LODs (realistic bodies): each instance draws its own index range of the shared
+    // geometry, set right before each of its draws (main view, shadow cascades, SSAO pre-pass)
+    this.lods = t.lods ?? null;
+    this.lod = 0;
+    if (this.lods) {
+      for (const m of this.meshes) {
+        const range = m.geometry.drawRange;
+        m.onBeforeRender = m.onBeforeShadow = () => { const l = this.lods[this.lod]; range.start = l.start; range.count = l.count; };
+      }
+    }
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = {};
     for (const clip of t.animations) this.actions[clip.name] = this.mixer.clipAction(clip);
+    for (const [name, clip] of Object.entries(t.aliases ?? {})) if (this.actions[clip]) this.actions[name] = this.actions[clip];
+    /** Where a held object's origin goes, in hand-bone space (realistic bodies: in the palm). */
+    this.grip = { R: new THREE.Vector3(...(t.grip?.R ?? [0, 0, 0])), L: new THREE.Vector3(...(t.grip?.L ?? [0, 0, 0])) };
     this.current = null;
     this.bone = (n) => this.model.getObjectByName(THREE.PropertyBinding.sanitizeNodeName(n)) ?? this.model.getObjectByName(n);
     this.headBone = this.bone('Head');
@@ -479,6 +637,19 @@ export class Character {
   }
 
   get position() { return this.root.position; }
+
+  /** Draw LOD i (0 = full mesh) of a realistic body. */
+  setLod(i) {
+    if (this.lods) this.lod = THREE.MathUtils.clamp(i, 0, this.lods.length - 1);
+  }
+
+  /** LOD from the camera distance (m, scaled by the zoom), with 1 m of hysteresis. */
+  setLodDistance(d) {
+    if (!this.lods) return;
+    let i = 0;
+    while (i + 1 < this.lods.length && d > this.lods[i + 1].distance + (i + 1 > this.lod ? 1 : -1)) i++;
+    this.setLod(i);
+  }
 
   _cullingSphere() {
     this.root.updateMatrixWorld(true);
