@@ -1,11 +1,11 @@
-// Characters: preview every archetype (model + palette + held weapon) animated, browse / play all
+// Characters: preview every archetype (model(s) + palette + held weapon) animated, browse / play all
 // clips (pack + retargeted UAL), aim pitch, and edit palettes live (game/archetypes.json).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Data } from '../../engine/core/Data.js';
 import { Lighting } from '../../engine/render/Lighting.js';
-import { CharacterLibrary } from '../../engine/anim/Characters.js';
+import { CharacterLibrary, archetypeModels } from '../../engine/anim/Characters.js';
 import { AssetLibrary } from '../../engine/assets/AssetLibrary.js';
 import { Row, ColorField, NumberField } from '../ui/Fields.jsx';
 
@@ -34,17 +34,18 @@ class CharPreview {
 
   async init() {
     const arch = await Data.json('game/archetypes.json', { fresh: true });
-    const models = [...new Set(Object.values(arch.archetypes).map((a) => a.model))];
+    const models = archetypeModels(arch.archetypes);
     this.lib = await new CharacterLibrary(this.lighting).load(models);
     this.assets = await new AssetLibrary(this.lighting).load();
     this.weapons = (await Data.json('game/weapons.json')).weapons;
     return arch;
   }
 
-  show(arch, key, palette) {
+  show(arch, key, palette, model) {
     if (this.char) this.char.dispose();
     const a = arch.archetypes[key];
-    const tpl = palette ? this.lib.variant(a.model, palette, `${key}_${JSON.stringify(palette)}`) : a.model;
+    model ??= a.models?.[0] ?? a.model;
+    const tpl = palette ? this.lib.variant(model, palette, `${key}_${JSON.stringify(palette)}`) : model;
     const c = (this.char = this.lib.create(tpl));
     if (a.scale) c.model.scale.multiplyScalar(a.scale);
     this.scene.add(c.root);
@@ -54,6 +55,7 @@ class CharPreview {
       const mesh = new THREE.Mesh(b.geometry, this.assets.material(b));
       const holder = c.attachToHand(mesh);
       holder?.quaternion.copy(c.solveGrip('Pistol_Aim_Neutral'));
+      holder?.position.copy(c.grip.R);
     }
     c.root.rotation.y = Math.PI * 0.15;
     this.play(a.weapon ? 'Idle_Gun' : 'Idle');
@@ -103,6 +105,7 @@ export function CharactersPanel({ ed }) {
   const pv = useRef(null);
   const [arch, setArch] = useState(null);
   const [sel, setSel] = useState(null);
+  const [model, setModel] = useState(null); // one of the archetype's `models`
   const [clips, setClips] = useState([]);
   const [cur, setCur] = useState(null);
   const [q, setQ] = useState('');
@@ -116,8 +119,8 @@ export function CharactersPanel({ ed }) {
   const pal = (a, k) => (a.archetypes[k].palette ? a.palettes?.[a.archetypes[k].palette] : null);
   useEffect(() => {
     if (!arch || !sel || !pv.current?.lib) return;
-    setClips(pv.current.show(arch, sel, pal(arch, sel)));
-  }, [arch, sel]);
+    setClips(pv.current.show(arch, sel, pal(arch, sel), model ?? undefined));
+  }, [arch, sel, model]);
   if (!arch) {
     // same tree as below so the preview canvas element is kept when the data arrives
     return (
@@ -129,6 +132,7 @@ export function CharactersPanel({ ed }) {
     );
   }
   const a = arch.archetypes[sel] ?? {};
+  const shown = model ?? a.models?.[0] ?? a.model;
   const palName = a.palette;
   const palette = palName ? arch.palettes?.[palName] ?? {} : null;
   const setPalette = (slot, hex) => {
@@ -142,23 +146,23 @@ export function CharactersPanel({ ed }) {
     <div class="panel chars">
       <div class="side narrow">
         <h2>Characters</h2>
-        <div class="list tall">{Object.entries(arch.archetypes).map(([k, x]) => <div class={'it' + (k === sel ? ' sel' : '')} onClick={() => setSel(k)}>{x.label}<small>{k}</small></div>)}</div>
+        <div class="list tall">{Object.entries(arch.archetypes).map(([k, x]) => <div class={'it' + (k === sel ? ' sel' : '')} onClick={() => { setSel(k); setModel(null); }}>{x.label}<small>{k}</small></div>)}</div>
         <p class="hint">Stats (health, accuracy, vision…): 📊 Gameplay tab → Enemies & NPCs.</p>
       </div>
       <div class="main charmain">
         <canvas ref={cv} class="charcv" />
         <div class="charbar">
-          <span>{a.label} — model <b>{a.model}</b>{a.weapon ? <> · weapon <b>{a.weapon}</b></> : null} · animation <b>{cur ?? '—'}</b></span>
+          <span>{a.label} — model {a.models?.length > 1 ? a.models.map((m) => <button class={m === shown ? 'on' : ''} onClick={() => setModel(m)}>{m}</button>) : <b>{shown}</b>}{a.weapon ? <> · weapon <b>{a.weapon}</b></> : null} · animation <b>{cur ?? '—'}</b></span>
           <Row label="Speed"><input type="range" min="0" max="2" step="0.05" value={pv.current?.speed ?? 1} onInput={(e) => { pv.current.speed = +e.target.value; force((x) => x + 1); }} /></Row>
           <Row label="Aim up/down"><input type="range" min="-1" max="1" step="0.05" value={pv.current?.pitch ?? 0} onInput={(e) => { pv.current.pitch = +e.target.value; force((x) => x + 1); }} /></Row>
         </div>
       </div>
       <div class="side">
         <h4>Palette {palName ? `"${palName}"` : '(none)'}</h4>
-        {palette ? pv.current.slots(a.model).map((slot) => (
+        {palette ? pv.current.slots(shown).map((slot) => (
           <Row label={slot}><ColorField value={palette[slot] ?? '#888888'} onChange={(v) => setPalette(slot, v)} /></Row>
         )) : <p class="hint">This archetype keeps the model's original colours. Add a palette in 📊 Gameplay.</p>}
-        {palette && <button onClick={() => setClips(pv.current.show(arch, sel, arch.palettes[palName]))}>Apply to preview</button>}
+        {palette && <button onClick={() => setClips(pv.current.show(arch, sel, arch.palettes[palName], shown))}>Apply to preview</button>}
         <h4>Animations ({clips.length})</h4>
         <input class="search" placeholder="Filter…" value={q} onInput={(e) => setQ(e.target.value)} />
         <div class="list">

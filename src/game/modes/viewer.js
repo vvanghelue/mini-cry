@@ -2,6 +2,7 @@
 //   ?mode=view   free camera over the world (?cam=x,y,z,yaw,pitch  ?at=entityId|x,z  ?tod=h)
 //   ?mode=asset  turntable view of one asset (?asset=name&variant=0&quality=1&yaw=30&dist=)
 //   ?mode=viewmodel  first-person weapon + arms (?weapon=id&ads=0..1&reload=0..1&tod=h&orbit=yaw,pitch,dist)
+//   ?mode=characters NPC bodies side by side (?show=model|archetype,…&archetypes=1&clip=&time=&yaw=&pitch=&dist=)
 import * as THREE from 'three';
 import { FlyCamera } from '../../engine/core/FlyCamera.js';
 import { AssetLibrary } from '../../engine/assets/AssetLibrary.js';
@@ -223,4 +224,79 @@ export async function startViewModelMode(app, params) {
     });
   }
   app.viewModelInfo = app.showWeapon(params.get('weapon') ?? 'rifle_ak', { ads: Number(params.get('ads') ?? 0), reload: Number(params.get('reload') ?? 0) });
+}
+
+/**
+ * ?mode=characters: NPC bodies side by side under the game lighting, facing the camera:
+ * ?show=a,b,… (character models and / or archetype ids: palette + held weapon), ?archetypes=1
+ * (every archetype; with `models`, each of its models), ?clip=Idle paused at ?time=s (default:
+ * Idle_Gun when armed, else Idle), ?yaw / ?pitch (deg) / ?dist (m) move the camera, ?face (deg)
+ * turns the characters (toward the sun). `mc character shot`.
+ */
+export async function startCharactersMode(app, params) {
+  const { engine } = app;
+  const lighting = engine.lighting;
+  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004 });
+  lighting.flare.setEnabled(false);
+  const { Data } = await import('../../engine/core/Data.js');
+  const { CharacterLibrary, nextCharacterFrame } = await import('../../engine/anim/Characters.js');
+  const [arch, weapons, manifest, assets] = await Promise.all([
+    Data.json('game/archetypes.json'), Data.json('game/weapons.json'), Data.jsonOr('characters.json', { characters: {} }), new AssetLibrary(lighting).load(),
+  ]);
+  // what to show: [{ label, model, arch }]
+  const items = [];
+  const add = (k) => {
+    const a = arch.archetypes[k];
+    if (a) for (const m of a.models?.length ? a.models : [a.model]) items.push({ label: k, model: m, arch: a });
+    else items.push({ label: k, model: k, arch: null });
+  };
+  if (params.get('archetypes') === '1') Object.keys(arch.archetypes).forEach(add);
+  for (const k of (params.get('show') ?? '').split(',').filter(Boolean)) add(k);
+  if (!items.length) Object.keys(manifest.characters ?? {}).forEach(add);
+  const lib = await new CharacterLibrary(lighting).load([...new Set(items.map((i) => i.model))]);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 48).rotateX(-Math.PI / 2), lighting.material({ vertexColors: false, color: 0x8a9a6a }));
+  ground.layers.set(LAYERS.STATIC);
+  engine.scene.add(ground);
+  const step = 0.95, total = items.length * step;
+  const chars = [], info = [];
+  items.forEach((it, i) => {
+    const a = it.arch, pal = a?.palette && arch.palettes?.[a.palette];
+    const c = lib.create(pal ? lib.variant(it.model, pal, a.palette) : it.model);
+    if (a?.scale) c.model.scale.multiplyScalar(a.scale);
+    c.root.position.set(-total / 2 + step / 2 + i * step, 0, 0);
+    c.root.rotation.y = (Number(params.get('face') ?? 0) * Math.PI) / 180;
+    engine.scene.add(c.root);
+    const w = a?.weapon && weapons.weapons[a.weapon];
+    if (w && assets.has(w.asset)) {
+      const b = assets.build(w.asset, { quality: 1 });
+      const holder = c.attachToHand(new THREE.Mesh(b.geometry, assets.material(b)));
+      holder?.quaternion.copy(c.solveGrip('Pistol_Aim_Neutral'));
+      holder?.position.copy(c.grip.R);
+    }
+    const clip = params.get('clip') ?? (w ? 'Idle_Gun' : 'Idle');
+    c.play(clip, { fade: 0 });
+    c.update(Number(params.get('time') ?? 0.5));
+    chars.push(c);
+    let tris = 0;
+    c.model.traverse((o) => { if (o.isMesh) tris += (o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; });
+    info.push({ label: it.label, model: it.model, tris, clip, playing: !!c.actions[clip], height: +(lib.templates[it.model].scene.userData.height ?? 0) });
+  });
+  // camera: framed by width from the front (?yaw / ?pitch / ?dist override)
+  const D2R = Math.PI / 180, fov = 24;
+  const frame = () => {
+    const cam = engine.camera, t = Math.tan((fov * D2R) / 2);
+    const dist = Number(params.get('dist') ?? Math.max(2.2, (total * 0.55) / (t * cam.aspect)));
+    const yaw = Number(params.get('yaw') ?? 0) * D2R, pitch = Number(params.get('pitch') ?? 4) * D2R;
+    cam.fov = fov;
+    cam.near = 0.05;
+    cam.far = dist * 6 + 50;
+    cam.updateProjectionMatrix();
+    cam.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, 1.0 + Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
+    cam.lookAt(0, 1.0, 0);
+  };
+  frame();
+  lighting.sun.setCascades([{ radius: Math.max(4, total * 0.7), res: 4096, every: 1 }]);
+  engine.addSystem({ update: (dt) => { nextCharacterFrame(); lighting.update(dt, { advanceDay: false }); frame(); } });
+  app.characters = chars;
+  app.charactersInfo = { characters: info, loadMs: Math.round(lib.loadMs) };
 }

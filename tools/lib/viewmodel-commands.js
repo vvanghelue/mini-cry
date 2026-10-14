@@ -11,7 +11,7 @@ export const CACHE = path.join(ROOT, '.vm-cache');
 const OUT = path.join(ROOT, 'public', 'models', 'fp');
 const FBX2GLTF = 'fbx2gltf@0.9.7-p1'; // npm package with the FBX2glTF binaries (BSD), used at build time only
 
-async function download(url, file) {
+export async function download(url, file) {
   if (fs.existsSync(file) && fs.statSync(file).size > 0) return false;
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const r = await fetch(url);
@@ -43,7 +43,7 @@ function blender() {
 }
 
 /** Source file -> glTF the importers read: .gltf / .glb as is, .fbx with FBX2glTF, .blend / .obj with Blender (cached). */
-function converted(file, { via } = {}) {
+export function converted(file, { via } = {}) {
   const ext = path.extname(file).toLowerCase();
   if (ext === '.gltf' || ext === '.glb') return file;
   const out = path.join(path.dirname(file), path.basename(file, path.extname(file)) + '.converted.glb');

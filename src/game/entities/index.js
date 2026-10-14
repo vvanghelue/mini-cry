@@ -43,6 +43,7 @@ const ACTOR_SCHEMA = {
   ...COMMON_SCHEMA,
   rot: { type: 'vec3', label: 'Rotation (°)' },
   archetype: { type: 'archetype', label: 'Archetype', required: true },
+  model: { type: 'string', label: "Character model (default: one of the archetype's)" },
   patrol: { type: 'entity', ref: 'path', label: 'Patrol path' },
   pose: { type: 'enum', label: 'Idle pose', options: ['stand', 'sit', 'talk', 'work', 'dance'] },
   dormant: { type: 'bool', label: 'Dormant (woken by script)' },

@@ -1089,7 +1089,8 @@
         0,
         180,
         0
-      ]
+      ],
+      "model": "rebel_woman"
     },
     {
       "id": "npc_abuelo",
@@ -1111,7 +1112,8 @@
         0,
         180,
         0
-      ]
+      ],
+      "model": "villager_elder"
     },
     {
       "type": "npc",
@@ -2585,7 +2587,8 @@
         0,
         0,
         0
-      ]
+      ],
+      "model": "farmer"
     },
     {
       "type": "pickup",
@@ -3929,7 +3932,8 @@
           "mission": "m05",
           "id": "val"
         }
-      }
+      },
+      "model": "journalist"
     },
     {
       "id": "path_lab_a",

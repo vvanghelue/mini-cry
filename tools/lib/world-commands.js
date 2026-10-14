@@ -161,7 +161,7 @@ export const worldCommands = {
       // data
       const weapons = readJSON('game/weapons.json'), arch = readJSON('game/archetypes.json'), items = readJSON('game/items.json');
       for (const [id, w] of Object.entries(weapons.weapons)) { if (!assets[w.asset]) warnings.push(`weapon ${id}: asset ${w.asset} missing`); if (w.ammo && !weapons.ammoTypes[w.ammo]) errors.push(`weapon ${id}: unknown ammo ${w.ammo}`); }
-      for (const [id, a] of Object.entries(arch.archetypes)) { if (a.weapon && !weapons.weapons[a.weapon]) errors.push(`archetype ${id}: unknown weapon ${a.weapon}`); for (const l of a.loot ?? []) if (!items.items[l.item]) errors.push(`archetype ${id}: unknown loot item ${l.item}`); if (a.palette && !arch.palettes?.[a.palette]) warnings.push(`archetype ${id}: palette ${a.palette} missing`); if (!fs.existsSync(path.join(ROOT, 'public', 'models', `${a.model}.glb`))) warnings.push(`archetype ${id}: model ${a.model}.glb not found`); }
+      for (const [id, a] of Object.entries(arch.archetypes)) { if (a.weapon && !weapons.weapons[a.weapon]) errors.push(`archetype ${id}: unknown weapon ${a.weapon}`); for (const l of a.loot ?? []) if (!items.items[l.item]) errors.push(`archetype ${id}: unknown loot item ${l.item}`); if (a.palette && !arch.palettes?.[a.palette]) warnings.push(`archetype ${id}: palette ${a.palette} missing`); for (const m of a.models?.length ? a.models : [a.model]) if (!fs.existsSync(path.join(ROOT, 'public', 'models', `${m}.glb`)) && !fs.existsSync(path.join(ROOT, 'public', 'models', 'characters', `${m}.glb`))) warnings.push(`archetype ${id}: model ${m}.glb not found`); if (!a.model && !a.models?.length) errors.push(`archetype ${id}: no model`); }
       for (const [id, it] of Object.entries(items.items)) { if (it.asset && !assets[it.asset]) warnings.push(`item ${id}: asset ${it.asset} missing`); if (it.weapon && !weapons.weapons[it.weapon]) errors.push(`item ${id}: unknown weapon ${it.weapon}`); }
       const birds = readJSON('game/birds.json', { species: {} }), sounds = readJSON('sounds.json', { sounds: {} }).sounds ?? {};
       const vegIds = new Set((readJSON('vegetation.json', { species: [] }).species ?? []).map((s) => s.id));
@@ -192,6 +192,7 @@ export const worldCommands = {
         for (const x of validateEntity(e)) errors.push(`entity ${e.id}: ${x}`);
         if (e.asset && !assets[e.asset]) errors.push(`entity ${e.id}: unknown asset ${e.asset}`);
         if (e.archetype && !arch.archetypes[e.archetype]) errors.push(`entity ${e.id}: unknown archetype ${e.archetype}`);
+        if (e.model && !fs.existsSync(path.join(ROOT, 'public', 'models', 'characters', `${e.model}.glb`)) && !fs.existsSync(path.join(ROOT, 'public', 'models', `${e.model}.glb`))) errors.push(`entity ${e.id}: unknown character model ${e.model}`);
         if (e.item && !items.items[e.item]) errors.push(`entity ${e.id}: unknown item ${e.item}`);
       }
       const refOk = (r) => !r || Array.isArray(r) || r === 'player' || ids.has(r);

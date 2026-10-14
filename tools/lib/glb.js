@@ -85,21 +85,27 @@ export class GLBBuilder {
     this.length = 0;
   }
 
-  _view(bytes, target) {
+  _view(bytes, target, byteStride) {
     const off = this.length;
     const b = pad4(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength), 0);
     this.chunks.push(b);
     this.length += b.length;
     const view = { buffer: 0, byteOffset: off, byteLength: bytes.byteLength };
     if (target) view.target = target;
+    if (byteStride) view.byteStride = byteStride;
     this.json.bufferViews.push(view);
     return this.json.bufferViews.length - 1;
   }
 
-  /** typed array -> accessor index (type: SCALAR / VEC2 / VEC3 / VEC4 / MAT4). */
-  accessor(arr, type, { normalized = false, minmax = false, target } = {}) {
+  /**
+   * typed array -> accessor index (type: SCALAR / VEC2 / VEC3 / VEC4 / MAT4). byteStride: the
+   * array holds padded elements (e.g. int8 VEC3 normals stored 4 bytes apart, vertex attributes
+   * must be 4-byte aligned).
+   */
+  accessor(arr, type, { normalized = false, minmax = false, target, byteStride } = {}) {
     const n = SIZE[type];
-    const acc = { bufferView: this._view(arr, target), componentType: COMPONENT[arr.constructor.name], count: arr.length / n, type };
+    const per = byteStride ? byteStride / arr.BYTES_PER_ELEMENT : n;
+    const acc = { bufferView: this._view(arr, target, byteStride), componentType: COMPONENT[arr.constructor.name], count: arr.length / per, type };
     if (normalized) acc.normalized = true;
     if (minmax) {
       const mn = new Array(n).fill(Infinity), mx = new Array(n).fill(-Infinity);

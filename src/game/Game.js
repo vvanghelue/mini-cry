@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { Data } from '../engine/core/Data.js';
 import { loadViewModels } from './player/ViewModels.js';
 import { VOICE_MANIFEST } from './missions/voice.js';
-import { CharacterLibrary, nextCharacterFrame } from '../engine/anim/Characters.js';
+import { CharacterLibrary, nextCharacterFrame, archetypeModels } from '../engine/anim/Characters.js';
 import { Player } from './player/Player.js';
 import { Weapons } from './player/Weapons.js';
 import { Effects } from './fx/Effects.js';
@@ -82,7 +82,8 @@ export class Game {
     ]);
     this.data = { player, weapons, archetypes, items, missions, dialogue, sounds, birds };
     // characters (all archetype models)
-    const models = [...new Set(Object.values(archetypes.archetypes).map((a) => a.model))];
+    // + the models story NPCs pick themselves (entity `model`)
+    const models = [...new Set([...archetypeModels(archetypes.archetypes), ...(this.world.data.entities ?? []).map((e) => e.model).filter(Boolean)])];
     this.app.onLoadProgress?.(0.85, 'Characters and animations');
     // + the first-person arms and weapons (public/models/fp)
     [this.characters, this.viewModels] = await Promise.all([
@@ -145,12 +146,13 @@ export class Game {
   }
 
   // --- flow ----------------------------------------------------------------------------------
-  /** Objects for the loading-time shader warm-up: a skinned character, every weapon's view model. */
+  /** Objects for the loading-time shader warm-up: a skinned character of each rig, every weapon's view model. */
   warmUpExtras() {
     const out = [];
     try {
-      const name = Object.keys(this.characters?.templates ?? {})[0];
-      if (name) out.push(this.characters.create(name).root);
+      const rigs = new Map();
+      for (const [name, t] of Object.entries(this.characters?.templates ?? {})) if (!rigs.has(t.rig)) rigs.set(t.rig, name);
+      for (const name of rigs.values()) out.push(this.characters.create(name).root);
       for (const id of Object.keys(this.weapons?.defs ?? {})) this.weapons._vmFor(id);
     } catch (e) { console.warn('warm-up extras', e); }
     return out;

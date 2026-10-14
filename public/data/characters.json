@@ -1,0 +1,27 @@
+{
+  "source": {"author": "Microsoft", "license": "MIT", "url": "https://github.com/microsoft/Microsoft-Rocketbox", "base": "https://raw.githubusercontent.com/microsoft/Microsoft-Rocketbox/0943055db6ec570bcef9f2c8b41c9e5467c808f9/Assets/Avatars/"},
+  "defaults": {"scale": {"default": 0.375, "head": 0.1875, "helmet": 0.1875, "combat_knife": 0.25, "pistol": 0.25}, "roughness": [0.9, 0.4], "quality": 86, "drop": "opacity"},
+  "recolor": {
+    "jungle": {"parts": "body|helmet|equipment", "palette": ["#434b35", "#66714b", "#87895c", "#b0a982"], "range": [0.15, 0.85], "saturation": [0.12, 0.24]},
+    "olive_dress": {"parts": "body", "palette": ["#56603d", "#626c48", "#6e7852", "#b0aa88", "#d8d2b6"], "range": [0.02, 0.6], "saturation": [0.2, 0.35]}
+  },
+  "characters": {
+    "soldier_goggles": {"label": "Soldier: helmet, goggles, assault vest", "avatar": "Professions/Military_Male_01", "prefix": "sm002", "parts": {"body": "_acu", "head": "", "helmet": "_acu", "equipment": "_acu", "combat_knife": ""}, "recolor": "jungle", "erase": {"body": [[268, 1072, 160, 216, -160, 0], [1628, 1080, 156, 206, 156, 0]]}},
+    "soldier_cap": {"label": "Soldier: patrol cap, fatigues", "avatar": "Professions/Military_Male_02", "prefix": "sm024", "parts": {"body": "_acu", "head": "_acu"}, "recolor": {"preset": "jungle", "parts": "body|head", "regions": {"head": [[620, 960, 1428, 1088], [300, 960, 320, 720]]}}, "erase": {"body": [[268, 1076, 156, 200, -160, 0], [1624, 1076, 162, 200, 162, 0]]}},
+    "soldier_shades": {"label": "Soldier: helmet, sunglasses, rolled-up sleeves, vest", "avatar": "Professions/Military_Male_03", "prefix": "sm004", "parts": {"body": "_acu", "head": "", "helmet": "_acu", "equipment": "_acu", "pistol": ""}, "recolor": "jungle", "erase": {"body": [[275, 1018, 158, 196, -158, 0], [1585, 958, 162, 256, 166, 0]]}},
+    "soldier_nvg": {"label": "Soldier: helmet with night-vision mount, vest", "avatar": "Professions/Military_Male_04", "prefix": "sm005", "parts": {"body": "_acu", "head": "", "helmet": "_acu", "equipment": "_acu"}, "recolor": "jungle", "erase": {"body": [[270, 1078, 150, 218, -150, 0], [1622, 1078, 112, 204, 120, 0]]}},
+    "soldier_cap_b": {"label": "Soldier: patrol cap, fatigues (2)", "avatar": "Professions/Military_Male_05", "prefix": "sm022", "parts": {"body": "_acu", "head": "_acu"}, "recolor": {"preset": "jungle", "parts": "body|head", "regions": {"head": [[620, 960, 1428, 1088], [300, 960, 320, 720]]}}, "erase": {"body": [[288, 1038, 130, 222, -136, 0], [1622, 1042, 118, 214, 126, 0]]}},
+    "soldier_cap_c": {"label": "Soldier: patrol cap, fatigues (3)", "avatar": "Professions/Military_Male_06", "prefix": "sm021", "parts": {"body": "_acu", "head": "_acu"}, "recolor": {"preset": "jungle", "parts": "body|head", "regions": {"head": [[620, 960, 1428, 1088], [300, 960, 320, 720]]}}, "erase": {"body": [[282, 1078, 136, 198, -142, 0], [1622, 1078, 114, 214, 122, 0]]}},
+    "soldier_woman": {"label": "Soldier (woman): helmet, vest", "avatar": "Professions/Military_Female_01", "prefix": "sf003", "parts": {"body": "_acu", "head": "", "helmet": "_acu", "equipment": "_acu"}, "recolor": "jungle", "erase": {"body": [[283, 1074, 148, 212, -150, 0], [1622, 1088, 154, 194, 154, 0]]}},
+    "soldier_woman_b": {"label": "Soldier (woman): helmet, vest (2)", "avatar": "Professions/Military_Female_02", "prefix": "sf004", "parts": {"body": "_acu", "head": "", "helmet": "_acu", "equipment": "_acu"}, "recolor": "jungle", "erase": {"body": [[283, 1074, 148, 212, -150, 0], [1622, 1088, 154, 194, 154, 0]]}},
+    "officer": {"label": "Officer: peaked cap, olive dress uniform", "avatar": "Professions/Pilot_Male_01", "prefix": "m150", "parts": {"body": "", "head": ""}, "recolor": "olive_dress"},
+    "scientist_labcoat": {"label": "Scientist: lab coat", "avatar": "Professions/Medical_Male_01", "prefix": "m152", "parts": {"body": "", "head": "", "opacity": ""}},
+    "villager_polo": {"label": "Villager: polo shirt, shorts", "avatar": "Adults/Male_Adult_01", "prefix": "m002", "parts": {"body": "", "head": "", "opacity": ""}},
+    "villager_denim": {"label": "Villager: denim shirt, cap", "avatar": "Professions/Wood_Male_01", "prefix": "m110", "parts": {"body": "", "head": ""}},
+    "rebel_woman": {"label": "Mara: leather jacket, cargo trousers, boots", "avatar": "Adults/Female_Adult_04", "prefix": "f004", "parts": {"body": "", "head": "", "opacity": ""}},
+    "journalist": {"label": "Val\u00e9rie: blazer, jeans", "avatar": "Adults/Female_Adult_05", "prefix": "f005", "parts": {"body": "", "head": "", "opacity": ""}},
+    "villager_elder": {"label": "Abuelo Tom\u00e1s: old man, sweater, jeans", "avatar": "Adults/Male_Adult_13", "prefix": "m010", "parts": {"body": "", "head": ""}},
+    "farmer": {"label": "Pedro: work jacket, rubber boots", "avatar": "Professions/Gardener_Male_01", "prefix": "m106", "parts": {"body": "", "head": "", "opacity": ""}},
+    "villager_woman": {"label": "Villager (woman): shirt, jeans", "avatar": "Adults/Female_Adult_01", "prefix": "f001", "parts": {"body": "", "head": "", "opacity": ""}}
+  }
+}
