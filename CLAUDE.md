@@ -24,7 +24,7 @@ character names stay French.
 - **Performance budget**: 120 fps on a MacBook Air M1 ≈ 8.3 ms per frame. Check with
   `npm run bench -- --mode play --prod --m1 --repeat 3 --fresh` (CPU throttled 2x, GPU time x1.9,
   median of 3, new page per view: every view must say OK / worst ≥ 120; the low-poly version made
-  ≥ 164, the textured one 21 on 2026-10-14) and `npm run profile -- --spawn x,y,z`. Break a slow
+  ≥ 164, the textured one 21, 52 after the GPU work of 2026-10-14) and `npm run profile -- --spawn x,y,z`. Break a slow
   view down with `--views <name> --breakdown`: GPU ms each system costs, measured by switching it
   off and on in pairs (`--only a,b`; `--veg` = per vegetation LOD / species; `res 50%` tells
   fill-rate from geometry cost) and `--veg-stats` (instances, screen height, triangles per
@@ -43,9 +43,11 @@ character names stay French.
   load from 8x8 hemisphere views into albedo / normal atlases, one lit camera-facing quad per tree;
   vegetation geometry is drawn indexed). Vegetation shaders may discard (LOD dithering),
   which turns off the tile GPU's hidden surface removal (near LODs are drawn first so hidden far
-  ones fail the depth test). Measured 2026-10-14: vegetation ≈ 60 % of the GPU frame, the far
-  LOD (lod2) alone 25–43 % (trees 17–30 px tall with 100–180 triangles: micro-triangles, so it
-  barely gets cheaper at half resolution); terrain ~20 %, SSAO 13–20 %, shadows ~16 %.
+  ones fail the depth test). Measured 2026-10-14, after impostors / indexing: vegetation ≈ 45 % of
+  the GPU frame (near / mid LOD crowns, ~2.3 shaded layers per covered pixel), terrain ~20 %,
+  SSAO ~17 %, shadows ~12 %. On Apple GPUs (ANGLE / Metal) per-pixel loops over local arrays or
+  over uniform arrays / samplers picked by index compile badly: the terrain splat loop alone cost
+  ~4.5 ms — write such code out (TerrainMaterial.js, SunShadows.js).
 - The dev server (`npm run dev`, port 5190) hot-reloads pages on any source change; tools start it
   if needed. Use `--prod` for stable benchmarks (builds + serves `dist/` on 5191).
 

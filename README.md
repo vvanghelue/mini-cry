@@ -135,9 +135,14 @@ The figures below were measured on the previous, flat-shaded low-poly version; t
 (PBR, splatting, alpha-cut foliage, more triangles up close) costs more GPU time and has not been
 re-benchmarked on an M1 yet (there is no dynamic resolution any more: lower the quality preset if
 it misses the budget). First measurement of the textured version (2026-10-14, MacBook Air M4,
-medium preset): 20–25 ms of GPU per frame on most views, i.e. ~21–37 estimated fps on an M1.
-`--breakdown` puts vegetation at ~60 % of it, the far tree LOD alone 25–43 % (crowns 17–30 px tall
-drawn with 100–180 triangles each), then terrain (~20 %), SSAO (13–20 %) and shadows (~16 %).
+medium preset): 20–25 ms of GPU per frame on most views, i.e. ~21–37 estimated fps on an M1
+(worst view 21). After the GPU work of 2026-10-14 (indexed vegetation, far-tree impostors, terrain
+splatting and shadow / SSAO shaders without per-pixel loops, near cascade every other frame,
+FXAA instead of 4x MSAA on medium): 5–10 ms with a weapon in hand, **52–101 estimated fps on an
+M1** (worst: the river outpost; sun_flare 176). Still under 120: vegetation is ~45 % of the
+frame (near / mid LOD crowns: ~2.3 shaded layers per covered pixel), then terrain (~20 %), SSAO
+(~17 %), shadows (~12 %); the flyover of `tests/stream_smooth.play` has p50 ~8 ms, p99 ~13 ms
+(main before: 13 / 33 ms).
 
 Measurement (`npm run bench -- --mode play --prod --m1 --repeat 3 --fresh`): 9 viewpoints in the
 real game (enemies, AI, HUD), 1440×900, a fresh page per measurement. The `--m1` mode is a
