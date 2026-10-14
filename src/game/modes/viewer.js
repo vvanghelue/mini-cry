@@ -279,7 +279,7 @@ export async function startCharactersMode(app, params) {
     c.update(Number(params.get('time') ?? 0.5));
     chars.push(c);
     let tris = 0;
-    c.model.traverse((o) => { if (o.isMesh) tris += Math.min(o.geometry.drawRange.count, o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; });
+    c.model.traverse((o) => { if (o.isMesh) tris += (c.lods ? c.lods[c.lod].count : o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; });
     info.push({ label: it.label, model: it.model, tris, clip, playing: !!c.actions[clip], height: +(lib.templates[it.model].scene.userData.height ?? 0) });
   });
   // camera: framed by width from the front (?yaw / ?pitch / ?dist override)

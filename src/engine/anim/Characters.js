@@ -441,7 +441,7 @@ function updateSkeletonOncePerFrame() {
 }
 export function nextCharacterFrame() { renderFrame++; }
 
-/** A geometry sharing the buffers (attributes, index) of `src`, with its own draw range / attribute set. */
+/** A geometry sharing the buffers (attributes, index) of `src`, with its own attribute set. */
 function geometryView(src) {
   const g = new THREE.BufferGeometry();
   for (const [k, a] of Object.entries(src.attributes)) g.setAttribute(k, a);
@@ -607,10 +607,16 @@ export class Character {
       if (o.isSkinnedMesh && !this.skeletons.has(o.skeleton)) { this.skeletons.add(o.skeleton); o.skeleton.update = updateSkeletonOncePerFrame; }
     });
     this.material = this.meshes[0]?.material;
-    // distance LODs (realistic bodies): each instance draws its own index range of the shared mesh
+    // distance LODs (realistic bodies): each instance draws its own index range of the shared
+    // geometry, set right before each of its draws (main view, shadow cascades, SSAO pre-pass)
     this.lods = t.lods ?? null;
     this.lod = 0;
-    if (this.lods) for (const m of this.meshes) m.geometry = geometryView(m.geometry);
+    if (this.lods) {
+      for (const m of this.meshes) {
+        const range = m.geometry.drawRange;
+        m.onBeforeRender = m.onBeforeShadow = () => { const l = this.lods[this.lod]; range.start = l.start; range.count = l.count; };
+      }
+    }
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = {};
     for (const clip of t.animations) this.actions[clip.name] = this.mixer.clipAction(clip);
@@ -634,12 +640,7 @@ export class Character {
 
   /** Draw LOD i (0 = full mesh) of a realistic body. */
   setLod(i) {
-    if (!this.lods) return;
-    i = THREE.MathUtils.clamp(i, 0, this.lods.length - 1);
-    if (i === this.lod) return;
-    this.lod = i;
-    const l = this.lods[i];
-    for (const m of this.meshes) m.geometry.setDrawRange(l.start, l.count);
+    if (this.lods) this.lod = THREE.MathUtils.clamp(i, 0, this.lods.length - 1);
   }
 
   /** LOD from the camera distance (m, scaled by the zoom), with 1 m of hysteresis. */
