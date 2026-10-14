@@ -228,7 +228,8 @@ export async function startViewModelMode(app, params) {
 
 /**
  * ?mode=characters: NPC bodies side by side under the game lighting, facing the camera:
- * ?show=a,b,… (character models and / or archetype ids: palette + held weapon), ?archetypes=1
+ * ?show=a,b,… (character models and / or archetype ids: palette + held weapon; archetype@model
+ * for one of its models), ?archetypes=1
  * (every archetype; with `models`, each of its models), ?clip=Idle paused at ?time=s (default:
  * Idle_Gun when armed, else Idle), ?yaw / ?pitch (deg) / ?dist (m) move the camera, ?face (deg)
  * turns the characters (toward the sun), ?lod=i draws LOD i of the realistic bodies. `mc character shot`.
@@ -245,9 +246,10 @@ export async function startCharactersMode(app, params) {
   ]);
   // what to show: [{ label, model, arch }]
   const items = [];
-  const add = (k) => {
+  const add = (key) => {
+    const [k, only] = key.split('@'); // archetype@model: that one of its models
     const a = arch.archetypes[k];
-    if (a) for (const m of a.models?.length ? a.models : [a.model]) items.push({ label: k, model: m, arch: a });
+    if (a) for (const m of only ? [only] : a.models?.length ? a.models : [a.model]) items.push({ label: k, model: m, arch: a });
     else items.push({ label: k, model: k, arch: null });
   };
   if (params.get('archetypes') === '1') Object.keys(arch.archetypes).forEach(add);

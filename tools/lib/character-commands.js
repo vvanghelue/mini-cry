@@ -133,7 +133,7 @@ export const characterCommands = {
   },
   'character shot': {
     usage: '[name|archetype...] [--archetypes] [--clip Idle] [--time s] [--yaw deg] [--pitch deg] [--dist m] [--face deg] [--lod i] [--tod h] [--size 1600x700] [--out shots/characters.png]',
-    help: 'Render NPC bodies side by side under the game lighting (?mode=characters) to a PNG: characters.json names and / or archetype ids (with their palette and held weapon); --archetypes = every archetype. --clip plays an animation (default: Idle_Gun when armed, else Idle) paused at --time. --dist / --yaw / --pitch move the camera closer / around (default: framed by width, from the front), --face turns the characters (e.g. toward the sun), --lod draws that distance LOD (0 = full mesh).',
+    help: 'Render NPC bodies side by side under the game lighting (?mode=characters) to a PNG: characters.json names and / or archetype ids (with their palette and held weapon; archetype@model for one of its models); --archetypes = every archetype. --clip plays an animation (default: Idle_Gun when armed, else Idle) paused at --time. --dist / --yaw / --pitch move the camera closer / around (default: framed by width, from the front), --face turns the characters (e.g. toward the sun), --lod draws that distance LOD (0 = full mesh).',
     async run(names, opts) {
       const { ensureServer, launch, openApp, frames } = await import('./browser.js');
       await ensureServer();
