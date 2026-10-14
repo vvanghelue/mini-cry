@@ -7,12 +7,19 @@
 // Smooth normals from the full-resolution heightfield (coarse LODs keep the fine shading), vertex
 // colours = per-vertex tint; the textured splatting reads the material ids from a texture
 // (render/TerrainMaterial.js).
+// Geomorphing: each tile geometry carries one relative morph target, its vertices moved onto the
+// next coarser LOD's surface (the odd rows / columns onto the coarse triangles' edges). The tile's
+// influence rises from 0 to 1 over the last MORPH of its LOD range, so at the switch distance it
+// already has the coarser shape and the switch changes nothing on screen (no pop on ridges and
+// cliffs, the whole tile at once). The texture coordinates stay on the unmorphed vertices. three.js
+// uploads the influence per mesh and morphs the depth passes (sun cascades, SSAO) the same way.
 import * as THREE from 'three';
 import { LAYERS } from '../render/layers.js';
 import { terrainMaterial } from '../render/TerrainMaterial.js';
 
 const CHUNK = 256;
 const LOD_STEPS = [1, 2, 4, 8, 16];
+const MORPH = 0.5; // share of each LOD range spent morphing toward the next one
 
 export class TerrainRenderer {
   constructor(terrain, lighting, { lodDistances = [160, 340, 700, 1100] } = {}) {
@@ -109,6 +116,26 @@ export class TerrainRenderer {
         if (h > maxY) maxY = h;
       }
     }
+    // morph targets (relative): the next coarser LOD's surface at each vertex - its own. Position
+    // and normal are interpolated on the coarse quad (2 x 2 of these quads) split along its b-c
+    // diagonal like _indices, the normal unnormalized like a varying: at influence 1 the tile
+    // shades exactly as the coarser one
+    const mPos = new Float32Array(count * 3), mNrm = new Float32Array(count * 3);
+    let maxMorph = 0;
+    if (lod < LOD_STEPS.length - 1) {
+      const at = (i, j) => (Math.min(v - 1, j) * v + Math.min(v - 1, i)) * 3;
+      for (let j = 0; j < v; j++) {
+        for (let i = 0; i < v; i++) {
+          if (!((i | j) & 1)) continue; // coarse vertices themselves
+          const ci = i & ~1, cj = j & ~1, fx = (i - ci) / 2, fz = (j - cj) / 2;
+          const a = at(ci, cj), b = at(ci + 2, cj), c = at(ci, cj + 2), d = at(ci + 2, cj + 2), o = (j * v + i) * 3;
+          const lo = fx + fz <= 1, p = lo ? a : d, wb = lo ? fx : 1 - fz, wc = lo ? fz : 1 - fx;
+          mPos[o + 1] = pos[p + 1] + (pos[b + 1] - pos[p + 1]) * wb + (pos[c + 1] - pos[p + 1]) * wc - pos[o + 1];
+          for (let k = 0; k < 3; k++) mNrm[o + k] = nrm[p + k] + (nrm[b + k] - nrm[p + k]) * wb + (nrm[c + k] - nrm[p + k]) * wc - nrm[o + k];
+          maxMorph = Math.max(maxMorph, Math.abs(mPos[o + 1]));
+        }
+      }
+    }
     const drop = 2 + step * 1.5;
     this._edgeOrder(v).forEach((edge, e) => {
       for (let k = 0; k < v; k++) {
@@ -116,6 +143,8 @@ export class TerrainRenderer {
         pos[dst] = pos[src]; pos[dst + 1] = pos[src + 1] - drop; pos[dst + 2] = pos[src + 2];
         color[dst] = color[src] * 0.7; color[dst + 1] = color[src + 1] * 0.7; color[dst + 2] = color[src + 2] * 0.7;
         nrm[dst] = nrm[src]; nrm[dst + 1] = nrm[src + 1]; nrm[dst + 2] = nrm[src + 2];
+        mPos[dst + 1] = mPos[src + 1];
+        mNrm[dst] = mNrm[src]; mNrm[dst + 1] = mNrm[src + 1]; mNrm[dst + 2] = mNrm[src + 2];
       }
     });
     const g = new THREE.BufferGeometry();
@@ -123,17 +152,21 @@ export class TerrainRenderer {
     g.setAttribute('color', new THREE.BufferAttribute(color, 3));
     g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     g.setIndex(this._indices(lod));
-    g.boundingBox = new THREE.Box3(new THREE.Vector3(pos[0], minY - drop, pos[2]), new THREE.Vector3(pos[0] + CHUNK, maxY, pos[2] + CHUNK));
+    // every LOD has the target (zero at the coarsest): one program variant for all tiles
+    g.morphAttributes.position = [new THREE.BufferAttribute(mPos, 3)];
+    g.morphAttributes.normal = [new THREE.BufferAttribute(mNrm, 3)];
+    g.morphTargetsRelative = true;
+    g.boundingBox = new THREE.Box3(new THREE.Vector3(pos[0], minY - drop - maxMorph, pos[2]), new THREE.Vector3(pos[0] + CHUNK, maxY + maxMorph, pos[2] + CHUNK));
     g.boundingSphere = g.boundingBox.getBoundingSphere(new THREE.Sphere());
     chunk.minY = minY; chunk.maxY = maxY;
     this.stats.built++;
     return g;
   }
 
-  /** Pick LODs for the camera position. Call every frame (cheap: 256 distance checks). */
+  /** Pick LODs and morph factors for the camera position. Call every frame (cheap: one distance check per tile). */
   update(camera) {
     const cp = camera.position;
-    const [d0, d1, d2, d3] = this.lodDistances;
+    const L = this.lodDistances, [d0, d1, d2, d3] = L;
     let tris = 0;
     for (const c of this.chunks) {
       const dx = Math.max(0, Math.abs(cp.x - c.cx0) - CHUNK / 2);
@@ -145,7 +178,16 @@ export class TerrainRenderer {
         c.lod = lod;
         c.geos[lod] ??= this._build(c, lod);
         c.mesh.geometry = c.geos[lod];
+        if (!c.mesh.morphTargetInfluences) c.mesh.updateMorphTargets();
       }
+      // toward the next LOD over the end of this one's range (smoothstep: no kink in the motion)
+      let m = 0;
+      if (lod < L.length) {
+        const e = L[lod], w = (e - (lod ? L[lod - 1] : 0)) * MORPH;
+        const x = Math.min(1, Math.max(0, (d - (e - w)) / w));
+        m = x * x * (3 - 2 * x);
+      }
+      c.mesh.morphTargetInfluences[0] = m;
       const s = this.cellsPerChunk / LOD_STEPS[lod];
       tris += s * s * 2;
     }

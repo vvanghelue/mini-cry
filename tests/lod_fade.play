@@ -3,10 +3,19 @@
 # distance to camPosW, the CPU only picks which sectors each LOD mesh holds. camPosW must follow
 # the camera (small plants and grass fade with it), and every instance in view must be in the
 # mesh of each LOD whose range contains it, or it shows a hole in the middle of a blend band.
+# Merged props (render/StaticBatch.js) likewise: every prop drawn by each LOD whose range contains
+# it, with the dithered material when it is inside a band (the plain one would draw it whole).
+# Terrain tiles (world/TerrainRenderer.js) geomorph toward their next LOD: fully morphed at the
+# switch distance, never morphed in the camera's own tile.
 wait 2
 eval (()=>{ const w = app.world, U = app.engine.lighting.uniforms.camPosW.value; const out = { camErr: +U.distanceTo(app.engine.camera.position).toFixed(2), near: w.vegetation.fieldNear.stats.instances, checked: 0, inBand: 0, holes: 0 }; for (const f of [w.vegetation.fieldNear, w.vegetation.fieldFar]) { const n = f.n, nn = n * n, S = f.sector, half = f.half; const vis = new Set(); for (let i = 0; i < f._vis.length; i += 3) vis.add(f._vis[i]); for (const it of f.items) { const k = f.kinds[it.kind]; if (!k.scaled) continue; const cx = Math.min(n - 1, Math.max(0, Math.floor((it.matrix[12] + half) / S))), cz = Math.min(n - 1, Math.max(0, Math.floor((it.matrix[14] + half) / S))); const sec = cz * n + cx; if (!vis.has(sec)) continue; const d = Math.hypot(it.matrix[12] - U.x, it.matrix[14] - U.z); k.scaled.forEach((r, li) => { if (d < r[0] || d >= r[3]) return; out.checked++; if (d < r[1] || d > r[2]) out.inBand++; if (!k.variants[it.variant].meshes[li].userData.blocks?.has(it.variant * nn + sec)) out.holes++; }); } } window.__lod = out; return out })()
 expect window.__lod.camErr < 2
 expect window.__lod.near > 0
 expect window.__lod.checked > 200 && window.__lod.inBand > 0
 expect window.__lod.holes === 0
+eval (()=>{ const P = app.world.entities.props, cp = app.engine.lighting.uniforms.camPosW.value; const out = { props: 0, inBand: 0, holes: 0, plainInBand: 0 }; for (const s of P.sectors.values()) for (const it of s.items) { const d = Math.hypot(it.matrix[12] - cp.x, it.matrix[14] - cp.z); P.ranges.forEach((r, l) => { if (d < r[0] || d >= r[3]) return; out.props++; const band = d < r[1] || d >= r[2]; if (band) out.inBand++; const ms = s.meshes[l] ?? []; if (!ms.length || ms.some((m) => !m.visible)) out.holes++; else if (band && ms.some((m) => m.material !== m.userData.lodMat)) out.plainInBand++; }); } window.__props = out; return out })()
+expect window.__props.props > 0
+expect window.__props.holes === 0 && window.__props.plainInBand === 0
+eval (()=>{ const T = app.world.terrainRenderer, cam = app.engine.camera, L = T.lodDistances, p = cam.position.clone(), out = { checks: 0, bad: 0, own: -1 }; for (const c of T.chunks) if (Math.abs(p.x - c.cx0) <= 128 && Math.abs(p.z - c.cz0) <= 128) out.own = c.mesh.morphTargetInfluences[0]; const c = T.chunks[T.chunks.length >> 1]; for (let l = 0; l < L.length; l++) for (const [D, lod, m] of [[L[l] - 0.01, l, 1], [L[l] + 0.01, l + 1, 0]]) { cam.position.set(c.cx0 + 128 + D, c.maxY, c.cz0); T.update(cam); out.checks++; if (c.lod !== lod || Math.abs(c.mesh.morphTargetInfluences[0] - m) > 1e-3) out.bad++; } cam.position.copy(p); T.update(cam); window.__terr = out; return out })()
+expect window.__terr.checks === 8 && window.__terr.bad === 0 && window.__terr.own === 0
 shot lod_fade

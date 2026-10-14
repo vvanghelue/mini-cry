@@ -3,9 +3,14 @@
 // directions over the upper hemisphere (hemi-octahedral layout: the border cells are the views
 // from the horizon, the centre ones from above) into an albedo atlas and a normal atlas (one
 // texture array layer per variant). A far instance is then one camera-facing quad (4 vertices
-// instead of 300-540) showing the baked view closest to its view direction, lit like the meshes:
-// sun, probe GI, fog, the per-instance leaf tint and the light through the leaves, from the
-// baked normals. Distant trees are vertex-bound (sub-pixel triangles), which this removes.
+// instead of 300-540) blending the 3 baked views around its view direction (barycentric weights
+// in the grid, each view sampled where the quad's point projects in it): no snap from one view to
+// the next as the camera moves. Lit like the meshes: sun, probe GI, fog, the per-instance leaf
+// tint and the light through the leaves, from the baked normals. The albedo is stored
+// premultiplied (cleared to 0): the mips and the bilinear filter average crown colours only, so
+// the cut-out edge has no dark fringe; the normal atlas likewise (thin trunks keep their bark
+// normals instead of the empty texels' default). Distant trees are vertex-bound (sub-pixel triangles),
+// which this removes.
 // They also cast into the sun cascades: the same quad facing the sun, cut out by the baked view
 // closest to the sun's direction (an orthographic silhouette, i.e. the tree's shadow), drawn by a
 // shadow-only twin of the impostor mesh (casterMaterials, InstancedField). A receiving impostor
@@ -30,18 +35,32 @@ const decode = (ex, ey) => {
   return new THREE.Vector3(tx, Math.max(0, 1 - Math.abs(tx) - Math.abs(tz)), tz).normalize();
 };
 
+const G = GRID.toFixed(1);
+
 const VERT_PARS = /* glsl */ `
 uniform vec4 impSphere; // local bounding sphere: centre, radius
 uniform vec3 camPosW;
-varying vec2 vImpUv;
-flat varying vec2 vImpCell;
+varying vec4 vImpUv01;
+varying vec2 vImpUv2;
+flat varying vec4 vImpCell01;
+flat varying vec2 vImpCell2;
+flat varying vec3 vImpW;
 flat varying vec3 vImpTint;
 flat varying mat3 vImpRot;
 flat varying float vImpR;
+// where offset p (from the sphere centre, asset space) lands in the view baked for grid cell c
+// (orthographic, three.js lookAt basis with +Y up, like the bake camera)
+vec2 impViewUv(vec2 c, vec3 p) {
+  vec2 e = (c + 0.5) / ${G} * 2.0 - 1.0;
+  vec2 t = vec2(e.x + e.y, e.x - e.y) * 0.5;
+  vec3 d = normalize(vec3(t.x, max(0.0, 1.0 - abs(t.x) - abs(t.y)), t.y));
+  vec3 x = normalize(cross(d.y > 0.999 ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 1.0, 0.0), d)), y = cross(d, x);
+  return vec2(dot(p, x), dot(p, y)) / impSphere.w * 0.5 + 0.5;
+}
 `;
 
 // the quad, in the tree's local space, facing direction impV (local) with the bake camera's basis
-// (three.js lookAt with +Y up), and the closest baked view
+// (three.js lookAt with +Y up); impP = the vertex's offset from the sphere centre
 const quad = (dir) => /* glsl */ `
 #ifdef USE_INSTANCING
   mat4 impM = modelMatrix * instanceMatrix;
@@ -51,17 +70,30 @@ const quad = (dir) => /* glsl */ `
 vec3 impV = ${dir};
 impV.y = max(impV.y, 0.0);
 impV = normalize(impV + vec3(0.0, 1e-4, 0.0));
-vec3 impA = impV / (abs(impV.x) + abs(impV.y) + abs(impV.z));
-vImpCell = clamp(floor((vec2(impA.x + impA.z, impA.x - impA.z) * 0.5 + 0.5) * ${GRID.toFixed(1)}), 0.0, ${(GRID - 1).toFixed(1)});
 vec3 impUp = impV.y > 0.999 ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 1.0, 0.0);
 vec3 impX = normalize(cross(impUp, impV)), impY = cross(impV, impX);
-vec3 transformed = impSphere.xyz + (impX * position.x + impY * position.y) * impSphere.w;
-vImpUv = position.xy * 0.5 + 0.5;
+vec3 impP = (impX * position.x + impY * position.y) * impSphere.w;
+vec3 transformed = impSphere.xyz + impP;
 `;
 
 // replaces begin_vertex: facing the camera
 const VERT_QUAD = /* glsl */ `${quad('(inverse(impM) * vec4(camPosW, 1.0)).xyz - impSphere.xyz')}
 vImpR = impSphere.w * length(impM[0].xyz);
+// the triangle of baked views around the view direction (cell centres at integer grid coords)
+{
+  vec3 a = impV / (abs(impV.x) + abs(impV.y) + abs(impV.z));
+  vec2 g = (vec2(a.x + a.z, a.x - a.z) * 0.5 + 0.5) * ${G} - 0.5;
+  vec2 g0 = floor(g), f = g - g0;
+  bool lo = f.x + f.y < 1.0;
+  vec2 c0 = clamp(lo ? g0 : g0 + 1.0, 0.0, ${(GRID - 1).toFixed(1)});
+  vec2 c1 = clamp(g0 + vec2(1.0, 0.0), 0.0, ${(GRID - 1).toFixed(1)});
+  vec2 c2 = clamp(g0 + vec2(0.0, 1.0), 0.0, ${(GRID - 1).toFixed(1)});
+  vImpW = lo ? vec3(1.0 - f.x - f.y, f.x, f.y) : vec3(f.x + f.y - 1.0, 1.0 - f.y, 1.0 - f.x);
+  vImpCell01 = vec4(c0, c1);
+  vImpCell2 = c2;
+  vImpUv01 = vec4(impViewUv(c0, impP), impViewUv(c1, impP));
+  vImpUv2 = impViewUv(c2, impP);
+}
 vImpRot = mat3(normalize(impM[0].xyz), normalize(impM[1].xyz), normalize(impM[2].xyz));
 // per-instance leaf tint (same hash as the foliage meshes, Lighting.patch)
 vImpTint = vec3(1.0);
@@ -80,23 +112,31 @@ const FRAG_PARS = /* glsl */ `
 uniform highp sampler2DArray impAlbedo;
 uniform highp sampler2DArray impNormal;
 uniform float impLayer, impInset, foliageTransmission; // sunDirW: declared by the sun (SunShadows.js)
-varying vec2 vImpUv;
-flat varying vec2 vImpCell;
+varying vec4 vImpUv01;
+varying vec2 vImpUv2;
+flat varying vec4 vImpCell01;
+flat varying vec2 vImpCell2;
+flat varying vec3 vImpW;
 flat varying vec3 vImpTint;
 flat varying mat3 vImpRot;
 flat varying float vImpR;
 #define SUN_RECEIVER_SHIFT vImpR
 bool impLeaf;
 vec3 impNW;
+vec3 impUv(vec2 cell, vec2 uv) { return vec3((cell + clamp(uv, vec2(impInset), vec2(1.0 - impInset))) / ${G}, impLayer); }
 `;
 
-// replaces map_fragment: albedo + cut-out from the atlas (alpha sharpened around the cut like the
-// leaf cards: crisp at every mip, smooth with alpha to coverage), leaf tint and transmission
+// replaces map_fragment: albedo + cut-out from the 3 views (written out: no per-pixel loop), alpha
+// sharpened around the cut like the leaf cards (crisp at every mip, smooth with alpha to
+// coverage), leaf tint and transmission
 const FRAG_ALBEDO = /* glsl */ `
 {
-  vec2 uv = (vImpCell + clamp(vImpUv, vec2(impInset), vec2(1.0 - impInset))) / ${GRID.toFixed(1)};
-  vec4 ta = texture(impAlbedo, vec3(uv, impLayer));
-  vec4 tn = texture(impNormal, vec3(uv, impLayer));
+  vec3 u0 = impUv(vImpCell01.xy, vImpUv01.xy), u1 = impUv(vImpCell01.zw, vImpUv01.zw), u2 = impUv(vImpCell2, vImpUv2);
+  vec4 ta = vImpW.x * texture(impAlbedo, u0) + vImpW.y * texture(impAlbedo, u1) + vImpW.z * texture(impAlbedo, u2);
+  vec4 tn = vImpW.x * texture(impNormal, u0) + vImpW.y * texture(impNormal, u1) + vImpW.z * texture(impNormal, u2);
+  // both atlases premultiplied by the coverage (same footprint): averages of the drawn texels only
+  tn /= max(ta.a, 1e-3);
+  ta.rgb /= max(ta.a, 1e-3);
   // cut a bit below 0.5: the averaged alpha of the coarse mips would erode the crowns
   float a = (ta.a - 0.4) / max(fwidth(ta.a), 1e-4) + 0.5;
   #ifdef OPAQUE
@@ -197,13 +237,17 @@ export class Impostors {
         .replace('#include <common>', '#include <common>\nuniform vec4 impSphere;\nuniform vec3 sunDirW;\nuniform vec2 sunFade;\nvarying vec2 vImpUv;\nflat varying vec2 vImpCell;')
         // past the shadow distance (+ a crown) nothing receives its shadow
         .replace('#include <begin_vertex>', `#ifdef USE_INSTANCING
-          if (lodDist() > sunFade.y + 2.0 * impSphere.w * length(instanceMatrix[0].xyz)) { gl_Position = vec4(0.0, 0.0, -2.0, 1.0); return; }
+          if (length((modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xz - camPosW.xz) > sunFade.y + 2.0 * impSphere.w * length(instanceMatrix[0].xyz)) { gl_Position = vec4(0.0, 0.0, -2.0, 1.0); return; }
           #endif
-          ${quad('inverse(mat3(impM)) * sunDirW')}`);
+          ${quad('inverse(mat3(impM)) * sunDirW')}
+          // the baked view closest to the sun's direction
+          vec3 impA = impV / (abs(impV.x) + abs(impV.y) + abs(impV.z));
+          vImpCell = clamp(floor((vec2(impA.x + impA.z, impA.x - impA.z) * 0.5 + 0.5) * ${G}), 0.0, ${(GRID - 1).toFixed(1)});
+          vImpUv = position.xy * 0.5 + 0.5;`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform highp sampler2DArray impAlbedo;\nuniform float impLayer, impInset;\nvarying vec2 vImpUv;\nflat varying vec2 vImpCell;')
         .replace('void main() {', `void main() {
-          vec2 impUvC = (vImpCell + clamp(vImpUv, vec2(impInset), vec2(1.0 - impInset))) / ${GRID.toFixed(1)};
+          vec2 impUvC = (vImpCell + clamp(vImpUv, vec2(impInset), vec2(1.0 - impInset))) / ${G};
           if (texture(impAlbedo, vec3(impUvC, impLayer)).a < 0.4) discard;`);
     };
     m.customProgramCacheKey = () => 'impostor-caster';
@@ -266,7 +310,8 @@ export class Impostors {
       cam.left = cam.bottom = -R; cam.right = cam.top = R;
       cam.near = 0.01; cam.far = 4 * R;
       cam.updateProjectionMatrix();
-      for (const [t, mat, clear] of [[this.albedo, albedoMat, [0.06, 0.09, 0.035, 0]], [this.normal, normalMat, [0.5, 1, 0.5, 1]]]) {
+      // premultiplied: (colour, 1) / (normal, leaf flag) where drawn, 0 elsewhere
+      for (const [t, mat, clear] of [[this.albedo, albedoMat, [0, 0, 0, 0]], [this.normal, normalMat, [0, 0, 0, 0]]]) {
         mesh.material = mat;
         t.viewport.set(0, 0, size, size);
         t.scissorTest = false;

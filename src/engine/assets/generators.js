@@ -324,12 +324,13 @@ function buildPalm(p, R, q) {
   // fronds: textured strips (rachis + leaflets in the palm_frond layer), V-folded
   const segs = hi ? 8 : mid ? 4 : 3;
   for (const f of fronds) {
-    // the short upright spears and the oldest hanging fronds: little silhouette away from the tree
-    if (mid && (f.age < 0.1 || f.age > 0.93)) continue;
+    // the short upright spears: little silhouette away from the tree (mid keeps the oldest hanging
+    // fronds and the dead ones: their brown, drooping shapes would vanish at the LOD switch)
+    if (mid && f.age < 0.1) continue;
     if (!hi && !mid && (f.age < 0.15 || f.age > 0.88)) continue;
     parts.push({ shape: 'frond', surface: 'palm_frond', base: [top[0], top[1] + f.dy, top[2]], yaw: f.yaw, pitch: f.pitch, length: f.length, width: p.frondWidth * 1.05, droop: f.droop, segs, fold: p.fold * 0.8, twist: (f.age - 0.5) * 20, color: f.color, wind: 1, jitter: 0.07, ...leaf });
   }
-  for (const d of dead) parts.push({ shape: 'frond', surface: 'palm_frond', base: [top[0], top[1] - 0.25, top[2]], yaw: d.yaw, pitch: -72, length: d.len, width: p.frondWidth * 0.55, droop: 0.15, segs: 3, fold: 0.9, color: p.deadColor, wind: 0.5, minQuality: 0.6 });
+  for (const d of dead) parts.push({ shape: 'frond', surface: 'palm_frond', base: [top[0], top[1] - 0.25, top[2]], yaw: d.yaw, pitch: -72, length: d.len, width: p.frondWidth * 0.55, droop: 0.15, segs: hi ? 3 : 2, fold: 0.9, color: p.deadColor, wind: 0.5, minQuality: 0.4 });
   for (const n of nuts) parts.push({ shape: 'sphere', radius: 0.15, detail: 0, pos: [top[0] + Math.cos(n.a) * n.d, top[1] - n.y, top[2] + Math.sin(n.a) * n.d], color: n.c, wind: 0.25, minQuality: 0.6, surface: 'plain' });
   return parts;
 }

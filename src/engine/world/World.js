@@ -121,6 +121,10 @@ export class World {
   async warmUp(camera = this.engine.camera, extras = []) {
     const e = this.engine, r = e.renderer, scene = this.scene;
     const t0 = performance.now(), p0 = r.info.programs.length;
+    // terrain tiles get their geometry (with its morph targets: another program variant) and the
+    // props their sectors in view, as on the first frame
+    this.terrainRenderer?.update(camera);
+    this.entities?.props?.update(camera);
     const stand = new THREE.Group();
     stand.name = 'WarmUp';
     const geo = new THREE.BufferGeometry();
@@ -150,7 +154,9 @@ export class World {
     };
     for (const m of this.lighting.materials.values()) add(m, true);
     for (const m of fadeMaterial.cache?.values() ?? []) add(m, false); // instanced only (reads instanceMatrix)
-    for (const m of lodMaterial.cache?.values() ?? []) add(m, false);
+    // dithered LOD materials: instanced (vegetation) and plain (prop batches across a blend band)
+    const propLod = this.entities?.props?.lodMaterials() ?? new Set();
+    for (const m of lodMaterial.cache?.values() ?? []) add(m, propLod.has(m));
     const fol = this.lighting.material({ textured: true, cutout: false, wind: false, emissive: false, doubleSided: true, foliage: true });
     [[geo0, false], [geoN, true], [geoN, false], [geo0, true]].forEach(([g, inst], i) => {
       const b = inst ? new THREE.InstancedMesh(g, fol, 1) : new THREE.Mesh(g, fol);

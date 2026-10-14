@@ -53,7 +53,8 @@ export function terrainMaterial(lighting, terrain) {
     Object.assign(sh.uniforms, uniforms, { terAlbedo: S.uniforms.terAlbedo, terNormal: S.uniforms.terNormal, surfDetail: S.uniforms.surfDetail, surfNormalScale: S.uniforms.surfNormalScale });
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vTerrW;\nvarying vec3 vTerrN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTerrW = (modelMatrix * vec4(position, 1.0)).xyz;\nvTerrN = normalize(mat3(modelMatrix) * normal);');
+      // after the geomorph (world/TerrainRenderer.js): the texture follows the tile to the coarser LOD
+      .replace('#include <morphtarget_vertex>', '#include <morphtarget_vertex>\nvTerrW = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvTerrN = normalize(mat3(modelMatrix) * objectNormal);');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>\n${PARS}`)
       .replace('#include <map_fragment>', `#include <map_fragment>\n${SPLAT}`)

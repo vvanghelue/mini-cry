@@ -23,7 +23,7 @@ npm run dev          # http://localhost:5190  (game)   ·   /editor.html  (edito
 
 ## The game
 
-- **Island**: procedural terrain (1025² heightmap, chunked LOD) with PBR texture splatting (12
+- **Island**: procedural terrain (1025² heightmap, chunked LOD, geomorphed) with PBR texture splatting (12
   photo-scanned layers, height-blended borders, triplanar cliffs, anti-tiling), ocean and rivers
   with a swell, ripples, Fresnel sky / cloud reflections and sun glints, ~145,000 instanced plants
   (palms with textured fronds, jungle giants and broadleaf trees with leaf-cluster crowns, bamboo,
@@ -118,11 +118,19 @@ tools/        mc CLI + headless tools (shot, play, bench, profile) + content/see
 **Performance** (target: 120 fps+ on a MacBook Air M1): textures live in a few 2D texture arrays
 indexed per vertex, so a whole prop sector or every instance of a plant still draws with one
 material in one call (no per-texture batch splits); chunked LOD terrain, vegetation instanced per sector with LOD (far LODs of small plants
-share a geometry), props merged per sector (static batching), shadows in 2–3 cascades with
+share a geometry, far trees as impostors), props merged per sector (static batching), shadows in 2–3 cascades with
 decreasing refresh rate, half-resolution SSAO (depth pre-pass limited to the 80 m where it is
 visible, 4x4 blur, applied to the ambient light in the materials), characters merged into a
 single skinned mesh and removed from the scene graph when far away, animation rate reduced with
 distance, pooled instanced effects.
+
+**LOD transitions** (no popping): every vegetation instance and every prop cross-fades between its
+two LODs on its own, over a band of 15 % of the switch distance (at least 10 m), with a
+per-instance dither (interleaved gradient noise: pixels drop out one by one, no screen-door grid;
+`render/LodFade.js`); far-tree impostors blend the 3 baked views around the view direction (no
+snapping as the camera moves) from premultiplied atlases (no dark fringe); terrain tiles
+geomorph toward the next coarser LOD (positions and normals) and have its exact shape when they
+switch (`world/TerrainRenderer.js`).
 
 Hitch-free streaming: instances (vegetation, grass) are uploaded to the GPU **in sector / tile
 blocks** (`render/InstanceBlocks.js`): only the blocks that come in or go out are transferred (a
