@@ -35,6 +35,9 @@ export class Input {
     this.mouseDX = 0;
     this.mouseDY = 0;
     this.wheel = 0;
+    // analog move axes from a virtual stick (touch controls), -1..1: x = right, y = forward
+    this.moveX = 0;
+    this.moveY = 0;
     this.sensitivity = 0.0022;
     this.invertY = false;
     this.enabled = true;
@@ -93,6 +96,23 @@ export class Input {
   down(action) { return this.bindings[action]?.some((c) => this.keys.has(c)) ?? false; }
   hit(action) { return this.bindings[action]?.some((c) => this.pressed.has(c)) ?? false; }
   up(action) { return (this.bindings[action]?.some((c) => this.released.has(c)) ?? false) && !this.down(action); }
+  /** Move axes { f: forward, s: right }, -1..1: keys, or the analog stick when it is pushed. */
+  move() {
+    const f = (this.down('forward') ? 1 : 0) - (this.down('back') ? 1 : 0);
+    const s = (this.down('right') ? 1 : 0) - (this.down('left') ? 1 : 0);
+    if (f || s || (!this.moveX && !this.moveY)) return { f, s };
+    return { f: this.moveY, s: this.moveX };
+  }
+
+  /** Virtual button (touch controls): presses / releases the 'Touch:<action>' code bound to an action. */
+  setVirtual(action, on) {
+    const c = 'Touch:' + action;
+    const b = this.bindings[action];
+    if (b && !b.includes(c)) b.push(c);
+    if (on) { if (!this.keys.has(c)) this.pressed.add(c); this.keys.add(c); }
+    else if (this.keys.has(c)) { this.keys.delete(c); this.released.add(c); }
+  }
+
   keyHit(code) { return this.pressed.has(code); }
   keyDown(code) { return this.keys.has(code); }
 
@@ -109,7 +129,7 @@ export class Input {
     this.released.clear();
   }
 
-  clear() { this.keys.clear(); this.pressed.clear(); this.released.clear(); this.mouseDX = this.mouseDY = 0; }
+  clear() { this.keys.clear(); this.pressed.clear(); this.released.clear(); this.mouseDX = this.mouseDY = 0; this.moveX = this.moveY = 0; }
 
   dispose() {
     const h = this._h;

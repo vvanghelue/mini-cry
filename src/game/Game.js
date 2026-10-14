@@ -13,6 +13,7 @@ import { Birds } from './fx/Birds.js';
 import { ActorManager } from './actors/Actors.js';
 import { AIDirector } from './actors/AI.js';
 import { HUD } from './ui/HUD.js';
+import { TouchControls } from './ui/TouchControls.js';
 import { Menus } from './ui/Menus.js';
 import { Missions } from './missions/Missions.js';
 import { Dialogue } from './missions/Dialogue.js';
@@ -108,6 +109,7 @@ export class Game {
     this.dialogue = new Dialogue(this, dialogue, voices);
     this.vehicles = new Vehicles(this);
     this.menus = new Menus(this);
+    if (this.app.mobile) this.touch = new TouchControls(this); // phones / tablets
     // game entity types can be created now
     this.world.entities.mode = 'game';
     this.world.entities.createPending();
