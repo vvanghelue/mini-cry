@@ -1,13 +1,15 @@
 // Lighting & atmosphere: time of day (sun / moon arc), sky dome with clouds, hemisphere ambient
 // (replaced by baked probe GI where gi/probes.* exists, see GI.js), auto exposure, cascaded sun
-// shadows, half-res SSAO, sun lens flare (LensFlare.js), fog, wind, and the shared material
-// factory (textured PBR sampling the texture arrays of Surfaces.js, or plain Lambert).
+// shadows, half-res SSAO, water reflections (SSR.js), sun lens flare (LensFlare.js), fog,
+// wind, and the shared material factory (textured PBR sampling the texture arrays of Surfaces.js,
+// or plain Lambert).
 //
 // Everything is driven by an "environment" object (public/data/environment.json, editable in the
 // editor's Environment panel): call setEnvironment(env) and update(dt) every frame.
 import * as THREE from 'three';
 import { SunShadows } from './SunShadows.js';
 import { SSAO } from './SSAO.js';
+import { SSR, SSR_DEFAULTS } from './SSR.js';
 import { GI, GI_DEFAULTS } from './GI.js';
 import { LAYERS } from './layers.js';
 import { patchLodDepth } from './LodFade.js';
@@ -55,6 +57,7 @@ export const DEFAULT_ENV = {
   surface: { skySpecular: 1, normalScale: 1, detail: 1 },
   ...structuredClone(GI_DEFAULTS),
   ...structuredClone(FLARE_DEFAULTS),
+  ...structuredClone(SSR_DEFAULTS),
 };
 
 const S = THREE.MathUtils.smoothstep;
@@ -91,6 +94,10 @@ export class Lighting {
     this.sunColor = new THREE.Color();
     // half-res SSAO on the ambient light (+ a little of the sun), see SSAO.js
     this.ao = new SSAO(renderer, scene, { samples: this.Q.ao });
+    // screen-space reflections on the water (SSR.js; read by Water.js): their own setting, off
+    // by default, `?ssr=low|medium|high` (the game's settings take over from there)
+    this.ssr = new SSR(renderer, this.ao);
+    if (typeof location !== 'undefined') this.ssr.setLevel(new URLSearchParams(location.search).get('ssr'));
     // baked probe GI (loaded by World when gi/probes.json exists) + auto exposure
     this.gi = new GI(renderer);
     this.baseExposure = 1;
@@ -120,7 +127,7 @@ export class Lighting {
   }
 
   setEnvironment(env) {
-    this.env = { ...structuredClone(DEFAULT_ENV), ...env, sky: { ...DEFAULT_ENV.sky, ...env.sky }, ocean: { ...DEFAULT_ENV.ocean, ...env.ocean }, river: { ...DEFAULT_ENV.river, ...env.river }, wind: { ...DEFAULT_ENV.wind, ...env.wind }, clouds: { ...DEFAULT_ENV.clouds, ...env.clouds }, ao: { ...DEFAULT_ENV.ao, ...env.ao }, surface: { ...DEFAULT_ENV.surface, ...env.surface }, flare: { ...DEFAULT_ENV.flare, ...env.flare }, glows: { ...DEFAULT_ENV.glows, ...env.glows }, gi: { ...DEFAULT_ENV.gi, ...env.gi }, autoExposure: { ...DEFAULT_ENV.autoExposure, ...env.autoExposure } };
+    this.env = { ...structuredClone(DEFAULT_ENV), ...env, sky: { ...DEFAULT_ENV.sky, ...env.sky }, ocean: { ...DEFAULT_ENV.ocean, ...env.ocean }, river: { ...DEFAULT_ENV.river, ...env.river }, wind: { ...DEFAULT_ENV.wind, ...env.wind }, clouds: { ...DEFAULT_ENV.clouds, ...env.clouds }, ao: { ...DEFAULT_ENV.ao, ...env.ao }, surface: { ...DEFAULT_ENV.surface, ...env.surface }, flare: { ...DEFAULT_ENV.flare, ...env.flare }, glows: { ...DEFAULT_ENV.glows, ...env.glows }, ssr: { ...DEFAULT_ENV.ssr, ...env.ssr }, gi: { ...DEFAULT_ENV.gi, ...env.gi }, autoExposure: { ...DEFAULT_ENV.autoExposure, ...env.autoExposure } };
     this.gi.setConfig(this.env);
     const w = this.env.wind;
     this.uniforms.windDir.value.set(w.dir[0], w.dir[1]).normalize();
@@ -130,6 +137,7 @@ export class Lighting {
     this.skyU.cloudCoverage.value = this.env.clouds.coverage;
     this.skyU.cloudSpeed.value = this.env.clouds.speed;
     this.ao.set(this.env.ao);
+    this.ssr.set(this.env.ssr);
     const su = this.surfaces.uniforms;
     su.surfNormalScale.value = this.env.surface.normalScale;
     su.surfDetail.value = this.env.surface.detail;
@@ -401,11 +409,13 @@ export class Lighting {
     this.renderer.toneMappingExposure = this.baseExposure * this.gi.exposure * (1 - this.flare.dazzle);
   }
 
-  /** GI relight + shadow cascades + SSAO for this frame (call right before rendering the main view). */
+  /** GI relight + shadow cascades + SSAO (+ SSR depth) for this frame (call right before rendering the main view). */
   prepass(camera = this.camera) {
     this.gi.relight();
     this.sun.update(camera);
+    this.ssr.beforeDepth();
     this.ao.render(camera);
+    this.ssr.update(camera);
   }
 }
 

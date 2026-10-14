@@ -158,6 +158,8 @@ export class Engine {
       }
       this.lighting.flare.render(camera);
       if (this.aa === 'fxaa') this._fxaa();
+      // last (after FXAA): the finished frame feeds next frame's water reflections (SSR.js)
+      this.lighting.ssr.grab(camera);
     } finally {
       scene.matrixWorldAutoUpdate = auto;
     }

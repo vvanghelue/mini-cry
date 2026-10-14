@@ -16,6 +16,8 @@
 // depth-aware bilateral upsample and applied to the indirect (hemisphere) light, plus a small
 // share of the direct sun. Surfaces missing from the pre-pass (grass) take the AO of the closest
 // depth around them, i.e. the ground they stand on.
+// The water's screen-space reflections (SSR.js) march through the same depth: while they are on,
+// the pre-pass reaches `depthFar` and runs even with the AO switched off.
 import * as THREE from 'three';
 import { LAYERS } from './layers.js';
 
@@ -155,6 +157,8 @@ export class SSAO {
     this.samples = samples; // quality preset, 0 = off
     this._compiled = Math.max(1, samples);
     this.rendered = false; // the materials only read the AO once a first frame exists
+    this.depthFar = 0; // depth range another user (SSR) needs this frame, 0 = none
+    this.depthReady = false; // the depth pre-pass ran this frame
     this.size = new THREE.Vector2(1, 1);
     this._full = new THREE.Vector2(-1, -1);
     // copy of the main camera with a short far plane (see the header)
@@ -268,7 +272,8 @@ export class SSAO {
 
   /** Render the AO for `camera` (right before the main view; world matrices up to date). */
   render(camera) {
-    if (!this.active || !camera.isPerspectiveCamera) return;
+    this.depthReady = false;
+    if (!(this.active || this.depthFar > 0) || !camera.isPerspectiveCamera) return;
     const r = this.renderer, scene = this.scene;
     const full = r.getDrawingBufferSize(_v2);
     if (full.x !== this._full.x || full.y !== this._full.y) this.resize();
@@ -283,7 +288,7 @@ export class SSAO {
     cam.view = camera.view;
     cam.filmGauge = camera.filmGauge;
     cam.filmOffset = camera.filmOffset;
-    cam.far = Math.min(camera.far, this.aoMat.uniforms.fadeFar.value * 1.1);
+    cam.far = Math.min(camera.far, Math.max(this.active ? this.aoMat.uniforms.fadeFar.value * 1.1 : 0, this.depthFar));
     cam.updateProjectionMatrix();
     cam.matrixWorld.copy(camera.matrixWorld);
     cam.matrixWorldInverse.copy(camera.matrixWorldInverse);
@@ -304,6 +309,12 @@ export class SSAO {
     scene.overrideMaterial = prevOverride;
     scene.fog = prevFog;
     scene.background = prevBg;
+    this.depthReady = true;
+    if (!this.active) {
+      r.autoClear = autoClear;
+      r.setRenderTarget(prevTarget);
+      return;
+    }
 
     // 2. AO
     const u = this.aoMat.uniforms;

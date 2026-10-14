@@ -104,6 +104,7 @@ export class Menus {
       <label>Antialiasing <select name="antialias">${[['auto', 'Auto (FXAA, MSAA on high / ultra)'], ['fxaa', 'FXAA'], ['msaa', 'MSAA 4x'], ['off', 'Off']].map(([v, l]) => `<option value="${v}" ${v === (s.antialias ?? 'auto') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Ambient occlusion (SSAO) <input name="ao" type="checkbox" ${s.ao !== false ? 'checked' : ''}></label>
       <label>Sun lens flare <input name="flare" type="checkbox" ${s.flare !== false ? 'checked' : ''}></label>
+      <label>Water reflections (SSR) <select name="ssr">${[['off', 'off'], ['ultralow', 'ultra low'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']].map(([q, l]) => `<option value="${q}" ${q === (s.ssr === true ? 'medium' : s.ssr || 'off') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Difficulty <select name="difficulty">${DIFFICULTY_LABELS.map(([q, l]) => `<option value="${q}" ${q === s.difficulty ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>${g.app.mobile ? 'Look sensitivity' : 'Mouse sensitivity'} <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>
       <label>Field of view <input name="fov" type="range" min="60" max="95" step="1" value="${s.fov}"></label>

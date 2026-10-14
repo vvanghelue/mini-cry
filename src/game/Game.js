@@ -56,12 +56,15 @@ export class Game {
     this.inventory = new Set();
     this.reinforcements = new Map(); // group -> pending count
     this.zonesInside = new Set();
-    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, antialias: 'auto', fpsLimit: app.debugMode ? 60 : 0, ...(app.debugMode ? {} : loadJSON(SETTINGS_KEY)) };
+    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, antialias: 'auto', ssr: 'off', fpsLimit: app.debugMode ? 60 : 0, ...(app.debugMode ? {} : loadJSON(SETTINGS_KEY)) };
     // frame rate cap (debug panel, 0 = auto: one frame per display refresh; 60 in debug mode); ?fps=N overrides it
     const fps = params.get('fps');
     this.engine.maxFps = fps !== null ? Number(fps) || 0 : this.settings.fpsLimit;
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
     if (this.settings.flare === false) this.engine.lighting.flare.setEnabled(false);
+    // water reflections: off | ultralow | low | medium | high (`?ssr=` overrides the saved choice)
+    if (params.get('ssr')) this.settings.ssr = params.get('ssr');
+    this.engine.lighting.ssr.setLevel(this.settings.ssr);
     this.difficulty = DIFFICULTY[this.settings.difficulty] ?? DIFFICULTY.normal;
     this.paused = true;
     this.started = false;
@@ -624,6 +627,7 @@ export class Game {
     if (this.settings.quality !== this.engine.quality) this.engine.setQuality(this.settings.quality);
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
     this.engine.lighting.flare.setEnabled(this.settings.flare !== false);
+    this.engine.lighting.ssr.setLevel(this.settings.ssr);
     if ('fpsLimit' in s) this.engine.maxFps = this.settings.fpsLimit;
     if ('antialias' in s) this.hud?.notify?.('Antialiasing: applies on the next start');
   }
