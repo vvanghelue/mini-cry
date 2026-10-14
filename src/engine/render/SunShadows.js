@@ -3,7 +3,9 @@
 // cascade depth maps are sampled with hardware PCF.
 //
 // - Up to 3 cascades follow the camera, texel-snapped (no shimmering). Cascade i is re-rendered
-//   every `every[i]` frames, so the far ones cost less.
+//   every `every[i]` frames, so the far ones cost less. A cascade with every <= 2 is re-rendered
+//   every frame anyway while the camera moves fast (vehicles): what moves with the camera would
+//   otherwise see its shadow lag a frame behind.
 // - Cascade selection is by containment (smallest cascade containing the point) with a blend band
 //   at the border; past the last cascade shadows fade out.
 // - Shadow cameras only see LAYERS.STATIC + LAYERS.DYNAMIC (grass, water, FX don't cast).
@@ -43,30 +45,36 @@ float sunEdge(vec3 c) {
   if (c.z >= 1.0 || c.z <= 0.0) return -1.0;
   return min(min(c.x, 1.0 - c.x), min(c.y, 1.0 - c.y));
 }
-float sunSample(int i, vec3 c) {
-  if (i == 0) return sunPCF(sunMap0, c, sunParams[0]);
-  if (i == 1) return sunPCF(sunMap1, c, sunParams[1]);
-  return sunPCF(sunMap2, c, sunParams[2]);
+// Written out per cascade, no loop over an index (loops picking samplers / uniform arrays by
+// index compile badly on Apple GPUs, see TerrainMaterial.js). Smallest cascade containing the
+// point; across the blend band at its border, mix with the next one (or fade out after the last).
+float sunNext(int i, vec3 P, vec3 N, float NdL) {
+  if (i >= sunCascades) return 1.0;
+  vec3 c = sunCoord(i, P, N, NdL);
+  if (sunEdge(c) <= 0.0) return 1.0;
+  return i == 1 ? sunPCF(sunMap1, c, sunParams[1]) : sunPCF(sunMap2, c, sunParams[2]);
 }
 float sunShadow(vec3 P, vec3 N, float NdL) {
-  if (sunShadowOn < 0.5) return 1.0;
-  for (int i = 0; i < ${MAX}; i++) {
-    if (i >= sunCascades) break;
-    vec3 c = sunCoord(i, P, N, NdL);
-    float e = sunEdge(c);
-    if (e > 0.0) {
-      float s = sunSample(i, c);
-      float f = smoothstep(0.0, 0.06, e);
-      if (f < 1.0) {
-        float s2 = 1.0;
-        if (i + 1 < sunCascades) {
-          vec3 c2 = sunCoord(i + 1, P, N, NdL);
-          if (sunEdge(c2) > 0.0) s2 = sunSample(i + 1, c2);
-        }
-        s = mix(s2, s, f);
-      }
-      return s;
-    }
+  if (sunShadowOn < 0.5 || sunCascades < 1) return 1.0;
+  vec3 c = sunCoord(0, P, N, NdL);
+  float e = sunEdge(c);
+  if (e > 0.0) {
+    float s = sunPCF(sunMap0, c, sunParams[0]);
+    return e >= 0.06 ? s : mix(sunNext(1, P, N, NdL), s, smoothstep(0.0, 0.06, e));
+  }
+  if (sunCascades < 2) return 1.0;
+  c = sunCoord(1, P, N, NdL);
+  e = sunEdge(c);
+  if (e > 0.0) {
+    float s = sunPCF(sunMap1, c, sunParams[1]);
+    return e >= 0.06 ? s : mix(sunNext(2, P, N, NdL), s, smoothstep(0.0, 0.06, e));
+  }
+  if (sunCascades < 3) return 1.0;
+  c = sunCoord(2, P, N, NdL);
+  e = sunEdge(c);
+  if (e > 0.0) {
+    float s = sunPCF(sunMap2, c, sunParams[2]);
+    return e >= 0.06 ? s : mix(1.0, s, smoothstep(0.0, 0.06, e));
   }
   return 1.0;
 }
@@ -180,12 +188,15 @@ export class SunShadows {
   update(camera, force = false) {
     if (!this.enabled || this.dir.y < -0.05) return;
     this.frame++;
+    const fast = (this._lastCam ??= camera.position.clone()).distanceToSquared(camera.position) > 0.03 * 0.03;
+    this._lastCam.copy(camera.position);
     camera.getWorldDirection(_cfwd);
     _cfwd.y = 0;
     if (_cfwd.lengthSq() < 1e-4) _cfwd.set(0, 0, -1);
     _cfwd.normalize();
     this.cascades.forEach((c, i) => {
-      if (!force && c.rendered && (this.frame + i) % c.every !== 0) return;
+      const every = fast && c.every <= 2 ? 1 : c.every;
+      if (!force && c.rendered && (this.frame + i) % every !== 0) return;
       _center.copy(camera.position).addScaledVector(_cfwd, c.radius * 0.5);
       this._place(c, _center);
       this._render(c, i);

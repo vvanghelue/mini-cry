@@ -4,15 +4,20 @@
 // A "system" is any object with update(dt, engine) (and optionally lateUpdate(dt, engine) after
 // every system updated, before rendering). Systems run in the order they were added.
 import * as THREE from 'three';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import { Lighting, QUALITY } from '../render/Lighting.js';
 import { LAYERS } from '../render/layers.js';
 import { Perf } from './Perf.js';
 import { TONE_MAPPING } from '../render/Grade.js';
 
 export class Engine {
-  constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600 } = {}) {
+  /** antialias: 'msaa' (4x MSAA canvas, fixed when the WebGL context is created), 'fxaa' (a post pass
+   *  on the final image, ~20-30 % less GPU time than MSAA with this much vegetation), 'off' */
+  constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600, antialias = 'msaa' } = {}) {
     this.container = container;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', stencil: false });
+    this.aa = antialias === true ? 'msaa' : antialias === false ? 'off' : antialias;
+    const renderer = new THREE.WebGLRenderer({ antialias: this.aa === 'msaa', powerPreference: 'high-performance', stencil: false });
     this.quality = QUALITY[quality] ? quality : 'medium';
     this.maxDpr = Math.min(devicePixelRatio, QUALITY[this.quality].dpr * Math.max(1, devicePixelRatio / 2));
     this.resScale = 1; // resolution factor (x maxDpr, debug panel)
@@ -152,9 +157,27 @@ export class Engine {
         renderer.autoClear = true;
       }
       this.lighting.flare.render(camera);
+      if (this.aa === 'fxaa') this._fxaa();
+      // last (after FXAA): the finished frame feeds next frame's water reflections (SSR.js)
+      this.lighting.ssr.grab(camera);
     } finally {
       scene.matrixWorldAutoUpdate = auto;
     }
+  }
+
+  /** FXAA over the finished (tone-mapped, sRGB) canvas: copy it, filter it back onto it. */
+  _fxaa() {
+    const r = this.renderer, size = r.getDrawingBufferSize(_size);
+    const f = (this._fx ??= { quad: new FullScreenQuad(new THREE.ShaderMaterial({ ...FXAAShader, uniforms: THREE.UniformsUtils.clone(FXAAShader.uniforms), depthTest: false, depthWrite: false })), tex: null });
+    if (!f.tex || f.tex.image.width !== size.x || f.tex.image.height !== size.y) {
+      f.tex?.dispose();
+      f.tex = new THREE.FramebufferTexture(size.x, size.y);
+      f.quad.material.uniforms.tDiffuse.value = f.tex;
+      f.quad.material.uniforms.resolution.value.set(1 / size.x, 1 / size.y);
+    }
+    r.setRenderTarget(null);
+    r.copyFramebufferToTexture(f.tex);
+    f.quad.render(r);
   }
 
   /** Screen-space -> world ray through the main camera (ndc in [-1, 1]). */
@@ -172,5 +195,7 @@ export class Engine {
     this.canvas.remove();
   }
 }
+
+const _size = new THREE.Vector2();
 
 export { LAYERS };

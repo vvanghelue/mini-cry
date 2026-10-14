@@ -16,6 +16,8 @@
 // depth-aware bilateral upsample and applied to the indirect (hemisphere) light, plus a small
 // share of the direct sun. Surfaces missing from the pre-pass (grass) take the AO of the closest
 // depth around them, i.e. the ground they stand on.
+// The water's screen-space reflections (SSR.js) march through the same depth: while they are on,
+// the pre-pass reaches `depthFar` and runs even with the AO switched off.
 import * as THREE from 'three';
 import { LAYERS } from './layers.js';
 
@@ -68,8 +70,9 @@ void main() {
   vec3 N = normalize(cross(dx, dy));
 
   // 4x4 interleaved rotation (Bayer order so neighbours differ a lot)
-  const int BAYER[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-  int bayer = BAYER[(ip.x & 3) + ((ip.y & 3) << 2)];
+  // (computed: a constant array indexed per pixel is slow on Apple GPUs)
+  int bx = ip.x & 3, by = ip.y & 3;
+  int bayer = (((bx ^ by) & 1) << 1 | (by & 1)) << 2 | ((((bx ^ by) >> 1) & 1) << 1 | ((by >> 1) & 1));
   float ang = float(bayer) * (6.2831853 / 16.0);
   float jit = float(bayer) / 16.0;
 
@@ -127,18 +130,22 @@ float ssaoSample(float z) {
   vec2 f = hp - fb;
   ivec2 b = ivec2(fb);
   ivec2 mx = ivec2(aoSize) - 1;
-  float s = 0.0, w = 0.0, best = 1.0, bestD = 1e9;
   float tol = z * 0.05 + 0.02;
-  for (int k = 0; k < 4; k++) {
-    ivec2 o = ivec2(k & 1, k >> 1);
-    vec2 t = texelFetch(aoTex, clamp(b + o, ivec2(0), mx), 0).rg;
-    vec2 bl = mix(1.0 - f, f, vec2(o));
-    float dd = abs(t.y - z);
-    float wt = bl.x * bl.y * max(1.0 - dd / tol, 0.0);
-    s += t.x * wt; w += wt;
-    if (dd < bestD) { bestD = dd; best = t.x; }
-  }
-  return w > 1e-4 ? s / w : best;
+  // the 4 texels around, written out (no loop: runs in every lit pixel within aoFar)
+  vec2 t0 = texelFetch(aoTex, clamp(b, ivec2(0), mx), 0).rg;
+  vec2 t1 = texelFetch(aoTex, clamp(b + ivec2(1, 0), ivec2(0), mx), 0).rg;
+  vec2 t2 = texelFetch(aoTex, clamp(b + ivec2(0, 1), ivec2(0), mx), 0).rg;
+  vec2 t3 = texelFetch(aoTex, clamp(b + ivec2(1, 1), ivec2(0), mx), 0).rg;
+  vec4 d = abs(vec4(t0.y, t1.y, t2.y, t3.y) - z);
+  vec4 wt = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y) * max(1.0 - d / tol, 0.0);
+  float w = wt.x + wt.y + wt.z + wt.w;
+  if (w > 1e-4) return dot(vec4(t0.x, t1.x, t2.x, t3.x), wt) / w;
+  // no texel at this depth: the closest one
+  float best = t0.x, bestD = d.x;
+  if (d.y < bestD) { bestD = d.y; best = t1.x; }
+  if (d.z < bestD) { bestD = d.z; best = t2.x; }
+  if (d.w < bestD) best = t3.x;
+  return best;
 }
 `;
 
@@ -150,6 +157,8 @@ export class SSAO {
     this.samples = samples; // quality preset, 0 = off
     this._compiled = Math.max(1, samples);
     this.rendered = false; // the materials only read the AO once a first frame exists
+    this.depthFar = 0; // depth range another user (SSR) needs this frame, 0 = none
+    this.depthReady = false; // the depth pre-pass ran this frame
     this.size = new THREE.Vector2(1, 1);
     this._full = new THREE.Vector2(-1, -1);
     // copy of the main camera with a short far plane (see the header)
@@ -263,7 +272,8 @@ export class SSAO {
 
   /** Render the AO for `camera` (right before the main view; world matrices up to date). */
   render(camera) {
-    if (!this.active || !camera.isPerspectiveCamera) return;
+    this.depthReady = false;
+    if (!(this.active || this.depthFar > 0) || !camera.isPerspectiveCamera) return;
     const r = this.renderer, scene = this.scene;
     const full = r.getDrawingBufferSize(_v2);
     if (full.x !== this._full.x || full.y !== this._full.y) this.resize();
@@ -278,7 +288,7 @@ export class SSAO {
     cam.view = camera.view;
     cam.filmGauge = camera.filmGauge;
     cam.filmOffset = camera.filmOffset;
-    cam.far = Math.min(camera.far, this.aoMat.uniforms.fadeFar.value * 1.1);
+    cam.far = Math.min(camera.far, Math.max(this.active ? this.aoMat.uniforms.fadeFar.value * 1.1 : 0, this.depthFar));
     cam.updateProjectionMatrix();
     cam.matrixWorld.copy(camera.matrixWorld);
     cam.matrixWorldInverse.copy(camera.matrixWorldInverse);
@@ -299,6 +309,12 @@ export class SSAO {
     scene.overrideMaterial = prevOverride;
     scene.fog = prevFog;
     scene.background = prevBg;
+    this.depthReady = true;
+    if (!this.active) {
+      r.autoClear = autoClear;
+      r.setRenderTarget(prevTarget);
+      return;
+    }
 
     // 2. AO
     const u = this.aoMat.uniforms;

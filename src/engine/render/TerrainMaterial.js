@@ -120,42 +120,49 @@ surfSpecK = 0.35; // rough ground: little sky reflection, even at grazing angles
   vec2 g = (vTerrW.xz - terGrid.xy) * terGrid.z;
   vec2 f = fract(g);
   ivec2 c0 = clamp(ivec2(floor(g)), ivec2(0), ivec2(int(terGrid.w) - 2));
-  int ids[4];
-  ids[0] = int(texelFetch(terIds, c0, 0).r * 255.0 + 0.5);
-  ids[1] = int(texelFetch(terIds, c0 + ivec2(1, 0), 0).r * 255.0 + 0.5);
-  ids[2] = int(texelFetch(terIds, c0 + ivec2(0, 1), 0).r * 255.0 + 0.5);
-  ids[3] = int(texelFetch(terIds, c0 + ivec2(1, 1), 0).r * 255.0 + 0.5);
-  float ws[4];
-  ws[0] = (1.0 - f.x) * (1.0 - f.y); ws[1] = f.x * (1.0 - f.y); ws[2] = (1.0 - f.x) * f.y; ws[3] = f.x * f.y;
-  for (int i = 1; i < 4; i++) for (int j = 0; j < i; j++) if (ws[i] > 0.0 && ids[i] == ids[j]) { ws[j] += ws[i]; ws[i] = 0.0; }
+  int i0 = int(texelFetch(terIds, c0, 0).r * 255.0 + 0.5);
+  int i1 = int(texelFetch(terIds, c0 + ivec2(1, 0), 0).r * 255.0 + 0.5);
+  int i2 = int(texelFetch(terIds, c0 + ivec2(0, 1), 0).r * 255.0 + 0.5);
+  int i3 = int(texelFetch(terIds, c0 + ivec2(1, 1), 0).r * 255.0 + 0.5);
   // projection: top on gentle ground, triplanar on slopes
   bool tri = Nw.y < 0.78;
   vec3 bw = pow(abs(Nw), vec3(4.0));
   bw /= bw.x + bw.y + bw.z;
   float dist = length(vTerrW - cameraPosition);
   float far = tri ? 0.0 : smoothstep(12.0, 90.0, dist);
-  vec4 alb[4];
-  vec3 nws[4];
-  float rs[4];
-  bool on[4];
-  float hmax = -1.0;
-  for (int i = 0; i < 4; i++) {
-    alb[i] = vec4(0.0); nws[i] = vec3(0.0); rs[i] = 1.0;
-    on[i] = ws[i] > 0.0;
-    if (!on[i]) continue;
-    terLayer(ids[i], vTerrW, Nw, bw, tri, far, alb[i], nws[i], rs[i]);
-    // height-blend: the higher texel (stone, tuft) wins near the border
-    ws[i] = ws[i] + alb[i].a * 0.55;
-    hmax = max(hmax, ws[i]);
+  vec3 col, nAcc;
+  float rAcc;
+  vec4 a0;
+  vec3 n0;
+  float r0;
+  terLayer(i0, vTerrW, Nw, bw, tri, far, a0, n0, r0);
+  // Written out without arrays or loops: the generic 4-layer loop (local arrays indexed in a
+  // loop) cost ~4.5 ms more per frame on Apple GPUs than this.
+  if (i0 == i1 && i0 == i2 && i0 == i3) {
+    // inside a material (most pixels): one layer
+    col = a0.rgb; nAcc = n0; rAcc = r0;
+  } else {
+    // border: corners sharing a material add up, then the layers height-blend (the higher
+    // texel, stone or tuft, wins near the border)
+    float w0 = (1.0 - f.x) * (1.0 - f.y), w1 = f.x * (1.0 - f.y), w2 = (1.0 - f.x) * f.y, w3 = f.x * f.y;
+    if (i1 == i0) { w0 += w1; w1 = 0.0; }
+    if (i2 == i0) { w0 += w2; w2 = 0.0; } else if (i2 == i1) { w1 += w2; w2 = 0.0; }
+    if (i3 == i0) { w0 += w3; w3 = 0.0; } else if (i3 == i1) { w1 += w3; w3 = 0.0; } else if (i3 == i2) { w2 += w3; w3 = 0.0; }
+    vec4 a1 = vec4(0.0), a2 = vec4(0.0), a3 = vec4(0.0);
+    vec3 n1 = vec3(0.0), n2 = vec3(0.0), n3 = vec3(0.0);
+    float r1 = 1.0, r2 = 1.0, r3 = 1.0;
+    if (w1 > 0.0) terLayer(i1, vTerrW, Nw, bw, tri, far, a1, n1, r1);
+    if (w2 > 0.0) terLayer(i2, vTerrW, Nw, bw, tri, far, a2, n2, r2);
+    if (w3 > 0.0) terLayer(i3, vTerrW, Nw, bw, tri, far, a3, n3, r3);
+    float h0 = w0 > 0.0 ? w0 + a0.a * 0.55 : -1.0, h1 = w1 > 0.0 ? w1 + a1.a * 0.55 : -1.0;
+    float h2 = w2 > 0.0 ? w2 + a2.a * 0.55 : -1.0, h3 = w3 > 0.0 ? w3 + a3.a * 0.55 : -1.0;
+    float hmax = max(max(h0, h1), max(h2, h3));
+    float b0 = max(h0 - hmax + 0.22, 0.0), b1 = max(h1 - hmax + 0.22, 0.0), b2 = max(h2 - hmax + 0.22, 0.0), b3 = max(h3 - hmax + 0.22, 0.0);
+    float bs = max(b0 + b1 + b2 + b3, 1e-4);
+    col = (a0.rgb * b0 + a1.rgb * b1 + a2.rgb * b2 + a3.rgb * b3) / bs;
+    nAcc = (n0 * b0 + n1 * b1 + n2 * b2 + n3 * b3) / bs;
+    rAcc = (r0 * b0 + r1 * b1 + r2 * b2 + r3 * b3) / bs;
   }
-  vec3 col = vec3(0.0), nAcc = vec3(0.0);
-  float wsum = 0.0, rAcc = 0.0;
-  for (int i = 0; i < 4; i++) {
-    if (!on[i]) continue;
-    float w = max(ws[i] - hmax + 0.22, 0.0);
-    col += alb[i].rgb * w; nAcc += nws[i] * w; rAcc += rs[i] * w; wsum += w;
-  }
-  col /= max(wsum, 1e-4); nAcc /= max(wsum, 1e-4); rAcc /= max(wsum, 1e-4);
   // normal detail fades out with distance (mip noise), surfaces.normalScale from the environment
   float nk = surfNormalScale * surfDetail * (1.0 - smoothstep(60.0, 250.0, dist));
   tN = normalize(Nw + nAcc * nk);

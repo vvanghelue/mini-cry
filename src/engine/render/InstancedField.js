@@ -1,6 +1,7 @@
 // Generic sector-culled, LOD'd instance renderer (vegetation, static props).
 //
-// kinds:  [{ id, asset, variants, lods: [{ distance, quality }], castShadow (m), fade (bool), blend, shareVariantsFrom }]
+// kinds:  [{ id, asset, variants, lods: [{ distance, quality }], castShadow (m), fade (bool), blend, shareVariantsFrom,
+//           impostor: { cell } (the last LOD is a camera-facing impostor, render/Impostors.js) }]
 // Instances are added with add(kindIndex, variant, matrix). They are bucketed in SECTOR m
 // sectors; every frame the visible sectors (frustum + a ring around the camera so shadow casters
 // behind it still cast) go to every LOD whose distance range (blend bands included) overlaps them,
@@ -8,9 +9,11 @@
 // (kind, variant, LOD). The exact LOD of each instance, and the dithered cross-fade between two
 // LODs, are decided in the shader (render/LodFade.js).
 import * as THREE from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LAYERS } from './layers.js';
 import { syncBlocks, liveCount } from './InstanceBlocks.js';
 import { lodRanges, lodGeometry, setLodRange, disposeLodGeometry, lodMaterial } from './LodFade.js';
+import { Impostors } from './Impostors.js';
 
 const _frustum = new THREE.Frustum(), _pm = new THREE.Matrix4(), _box = new THREE.Box3(), _v = new THREE.Vector3();
 
@@ -38,18 +41,35 @@ export class InstancedField {
     if (k.empty) { kind.variants = Array.from({ length: k.variants ?? 1 }, () => ({ meshes: [] })); kind.maxDist = 0; return kind; }
     const fade = k.fade ?? kind.maxDist < 160;
     kind.ranges = lodRanges(lods, { blend: k.blend, shrink: fade });
+    // the last LOD as an impostor, baked from each variant's build at the quality of the LOD before
+    // it (same crown volumes on both sides of the cross-fade; bakeImpostors)
+    const impLod = k.impostor && lods.length > 1 ? lods.length - 1 : -1;
+    if (impLod >= 0) {
+      const builds = Array.from({ length: k.variants ?? 1 }, (_, v) => this.assets.build(k.asset, { quality: lods[impLod - 1].quality ?? 1, variant: v }));
+      kind.impostor = new Impostors(this.lighting, builds, { cell: k.impostor.cell ?? 64 });
+      this.unbaked = true;
+    }
     for (let v = 0; v < (k.variants ?? 1); v++) {
       const meshes = lods.map((lod, li) => {
         // far LODs (from `shareVariantsFrom`, default LOD 2): every variant draws with variant 0's
         // mesh (variations don't read at distance). LOD 1 keeps them: a cross-fade between two
         // different variants would show two ghost trees.
         if (v > 0 && li >= (k.shareVariantsFrom ?? 2)) return kind.variants[0].meshes[li];
-        const b = this.assets.build(k.asset, { quality: lod.quality ?? 1, variant: v });
-        kind.height = Math.max(kind.height, b.bounds.max.y);
-        kind.radius = Math.max(kind.radius ?? 0, b.geometry.boundingSphere.radius);
-        let mat = this.assets.material(b);
-        if (fade) { mat = fadeMaterial(mat, this.lighting, kind.maxDist); kind.fadeRange = mat.userData.fadeRange; }
-        const mesh = new THREE.InstancedMesh(lodGeometry(b.geometry, kind.ranges[li]), lodMaterial(mat, this.lighting), 16);
+        let geo, mat, tris;
+        if (li === impLod) {
+          geo = kind.impostor.geometry;
+          mat = kind.impostor.materials[v];
+          tris = kind.impostor.triangles;
+        } else {
+          const b = this.assets.build(k.asset, { quality: lod.quality ?? 1, variant: v });
+          kind.height = Math.max(kind.height, b.bounds.max.y);
+          kind.radius = Math.max(kind.radius ?? 0, b.geometry.boundingSphere.radius);
+          geo = indexedGeometry(b.geometry);
+          mat = this.assets.material(b);
+          tris = b.triangles;
+          if (fade) { mat = fadeMaterial(mat, this.lighting, kind.maxDist); kind.fadeRange = mat.userData.fadeRange; }
+        }
+        const mesh = new THREE.InstancedMesh(lodGeometry(geo, kind.ranges[li]), lodMaterial(mat, this.lighting), 16);
         // may discard (bands): after the opaque world, for tile GPUs' hidden surface removal; near
         // LODs first, so the far instances they hide fail the early depth test
         mesh.renderOrder = 1 + li * 0.01;
@@ -62,7 +82,7 @@ export class InstancedField {
         mesh.name = `${this.name}_${k.id}_${v}_lod${li}`;
         mesh.userData.lod = li;
         mesh.userData.capacity = 16;
-        mesh.userData.tris = b.triangles;
+        mesh.userData.tris = tris;
         this.group.add(mesh);
         return mesh;
       });
@@ -116,7 +136,14 @@ export class InstancedField {
     for (const k of this.kinds) for (const v of k.variants) for (const m of v.meshes) { m.userData.repack = true; }
   }
 
+  /** Render the impostor atlases (once the surface textures are loaded; World.load). */
+  bakeImpostors(renderer) {
+    for (const k of this.kinds) if (k.impostor && !k.impostor.baked) k.impostor.bake(renderer);
+    this.unbaked = false;
+  }
+
   update(camera) {
+    if (this.unbaked && this.lighting.surfaces.ready) this.bakeImpostors(this.lighting.renderer);
     if (this.dirty) this._bucket();
     const cp = camera.position;
     _pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
@@ -209,6 +236,51 @@ export class InstancedField {
     this.stats.triangles = tris;
   }
 
+  /**
+   * Draw statistics per (kind, LOD) for the camera of the last update (benchmarks, debug), over its
+   * variant meshes: submitted = instances drawn (zeroed holes included: they still run the vertex
+   * shader), inRange = instances inside the LOD's distance range (the others collapse in the vertex
+   * shader), medianPx = median height on screen of those (`viewHeight` px viewport), tiny = how many
+   * are under `tinyPx` px, vertexInvocations = sum of submitted x vertices, triangles = sum of
+   * in-range x triangles (what is really rasterized).
+   */
+  lodStats(camera, viewHeight, tinyPx = 12) {
+    const cp = camera.position, f = viewHeight / 2 / Math.tan((camera.fov * Math.PI) / 360);
+    const rows = [];
+    for (const k of this.kinds) {
+      if (!k.scaled) continue;
+      for (let li = 0; li < k.lods.length; li++) {
+        const meshes = new Set(k.variants.map((v) => v.meshes[li]).filter((m) => m?.count));
+        if (!meshes.size) continue;
+        const [inA, , , outB] = k.scaled[li], px = [];
+        const row = { kind: k.def.id, lod: li, meshes: meshes.size, submitted: 0, inRange: 0, tiny: 0, medianPx: 0, vertexInvocations: 0, triangles: 0, shadow: false };
+        for (const m of meshes) {
+          const a = m.instanceMatrix.array, g = m.geometry;
+          const verts = g.attributes.position.count, tris = (g.index ? g.index.count : verts) / 3;
+          let inRange = 0;
+          for (let i = 0; i < m.count; i++) {
+            const o = i * 16, s = Math.hypot(a[o], a[o + 1], a[o + 2]);
+            if (!s) continue;
+            const d = Math.hypot(a[o + 12] - cp.x, a[o + 14] - cp.z);
+            if (d < inA || d >= outB) continue;
+            inRange++;
+            px.push((k.height * s * f) / Math.max(d, 1));
+          }
+          row.submitted += m.count;
+          row.inRange += inRange;
+          row.vertexInvocations += m.count * verts;
+          row.triangles += inRange * tris;
+          row.shadow ||= m.layers.isEnabled(LAYERS.STATIC);
+        }
+        px.sort((a, b) => a - b);
+        row.medianPx = Math.round(px[px.length >> 1] ?? 0);
+        row.tiny = px.filter((p) => p < tinyPx).length;
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+
   /** Nearest item hit by a ray, using each kind's bounding sphere (editor picking). */
   pick(ray, maxDist = 2000) {
     let best = null, bd = maxDist;
@@ -225,6 +297,7 @@ export class InstancedField {
 
   dispose() {
     const seen = new Set();
+    for (const k of this.kinds) k.impostor?.dispose();
     for (const k of this.kinds) for (const v of k.variants) for (const m of v.meshes) {
       if (seen.has(m)) continue;
       seen.add(m);
@@ -233,6 +306,24 @@ export class InstancedField {
     }
     this.group.removeFromParent();
   }
+}
+
+/** Indexed copy of an asset build's geometry (cached): the builds are triangle soups, and the
+ *  vertices they repeat (shared by neighbour triangles, both triangles of a leaf card) would be
+ *  shaded again for every instance in every pass. Vertex work, not pixels, is most of the cost of
+ *  distant vegetation. */
+const _indexed = new WeakMap();
+function indexedGeometry(g) {
+  let ig = _indexed.get(g);
+  if (!ig) {
+    ig = mergeVertices(g);
+    ig.computeBoundingBox();
+    ig.computeBoundingSphere();
+    _indexed.set(g, ig);
+    // the asset library disposes its builds when an asset changes (editor)
+    g.addEventListener('dispose', () => { ig.dispose(); _indexed.delete(g); });
+  }
+  return ig;
 }
 
 /** Clone of a lit material whose vertices shrink to nothing between 75% and 100% of maxDist. */

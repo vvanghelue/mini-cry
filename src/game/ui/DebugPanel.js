@@ -195,13 +195,17 @@ export class DebugPanel {
       get shadows() { return L.sun.enabled; }, set shadows(v) { L.sun.setEnabled(v); },
       get ao() { return L.ao.enabled; }, set ao(v) { L.ao.setEnabled(v); },
       get flare() { return L.flare.enabled; }, set flare(v) { if (game) game.saveSettings({ flare: v }); else L.flare.setEnabled(v); },
+      get ssr() { return L.ssr.level; }, set ssr(v) { if (game) game.saveSettings({ ssr: v }); else L.ssr.setLevel(v); },
       get stats() { return overlay?.visible ?? false; }, set stats(v) { overlay?.setVisible(v); },
       get maxFps() { return engine.maxFps; }, set maxFps(v) { if (game) game.saveSettings({ fpsLimit: v }); else engine.maxFps = v; },
+      // fixed when the WebGL context is created: reload with ?aa=
+      get aa() { return engine.aa; }, set aa(v) { const u = new URL(location.href); u.searchParams.set('aa', v); location.href = u.href; },
       wireframe: false,
     };
     f.add(gfx, 'stats').name('stats (F3)');
     f.add(gfx, 'maxFps', { auto: 0, '30 fps': 30, '60 fps': 60, '90 fps': 90, '120 fps': 120, '144 fps': 144 }).name('FPS limit');
     f.add(gfx, 'quality', ['low', 'medium', 'high', 'ultra']).name('quality');
+    f.add(gfx, 'aa', ['fxaa', 'msaa', 'off']).name('antialias (reloads)');
     f.add(gfx, 'resScale', 0.3, 1, 0.01).name('resolution scale');
     f.add(gfx, 'shadows').name('sun shadows');
     const ao = L.ao, aoU = ao.aoMat.uniforms;
@@ -214,6 +218,19 @@ export class DebugPanel {
     fa.add(ao.uniforms.aoDirect, 'value', 0, 1, 0.01).name('on direct light');
     fa.add({ get v() { return ao.uniforms.aoDebug.value > 0.5; }, set v(x) { ao.uniforms.aoDebug.value = x ? 1 : 0; } }, 'v').name('AO only view');
     fa.close();
+    // screen-space reflections on the water (level = settings; intensity / blur live in lighting.env.ssr)
+    const fr = f.addFolder('Water reflections (SSR)');
+    const ssrKey = (key) => ({ get v() { return L.env.ssr[key]; }, set v(x) { L.env.ssr[key] = x; L.ssr.set({ [key]: x }); } });
+    const ssrU = L.ssr.uniforms;
+    fr.add(gfx, 'ssr', { off: 'off', 'ultra low': 'ultralow', low: 'low', medium: 'medium', high: 'high' }).name('level').listen();
+    fr.add(ssrKey('intensity'), 'v', 0, 1.5, 0.01).name('intensity');
+    fr.add(ssrKey('blur'), 'v', 0, 1, 0.01).name('blur');
+    // live overrides of the level's values (reset when the level changes)
+    fr.add(L.ssr, 'distance', 40, 400, 5).name('depth range (m)').listen();
+    fr.add(ssrU.ssrRay, 'value', 10, 400, 5).name('max ray (m)').listen();
+    fr.add(ssrU.ssrSteps, 'value', 4, 32, 1).name('steps per ray').listen();
+    fr.add({ get v() { return ssrU.ssrDebug.value > 0.5; }, set v(x) { ssrU.ssrDebug.value = x ? 1 : 0; } }, 'v').name('reflections only view');
+    fr.close();
     // sun lens flare + light halos (values live in lighting.env.flare / glows, saved by the editor)
     const fl = f.addFolder('Lens flare & halos');
     const envKey = (group, key) => ({ get v() { return L.env[group][key]; }, set v(x) { L.env[group][key] = x; } });
