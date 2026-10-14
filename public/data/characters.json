@@ -1,9 +1,9 @@
 {
   "source": {"author": "Microsoft", "license": "MIT", "url": "https://github.com/microsoft/Microsoft-Rocketbox", "base": "https://raw.githubusercontent.com/microsoft/Microsoft-Rocketbox/0943055db6ec570bcef9f2c8b41c9e5467c808f9/Assets/Avatars/"},
-  "defaults": {"scale": {"default": 0.375, "head": 0.1875, "helmet": 0.1875, "combat_knife": 0.25, "pistol": 0.25}, "roughness": [0.9, 0.4], "quality": 86, "drop": "opacity"},
+  "defaults": {"scale": {"default": 0.375, "head": 0.1875, "helmet": 0.1875, "combat_knife": 0.25, "pistol": 0.25}, "roughness": [0.9, 0.4], "quality": 86, "drop": "opacity", "lods": [{"ratio": 0.4, "error": 0.006, "distance": 14}, {"ratio": 0.15, "error": 0.02, "distance": 35}]},
   "recolor": {
-    "jungle": {"parts": "body|helmet|equipment", "palette": ["#434b35", "#66714b", "#87895c", "#b0a982"], "range": [0.15, 0.85], "saturation": [0.12, 0.24]},
-    "olive_dress": {"parts": "body", "palette": ["#56603d", "#626c48", "#6e7852", "#b0aa88", "#d8d2b6"], "range": [0.02, 0.6], "saturation": [0.2, 0.35]}
+    "jungle": {"parts": "body|helmet|equipment", "palette": ["#2c3322", "#4b5733", "#6e6f45", "#9a9068"], "range": [0.15, 0.85], "saturation": [0.12, 0.24]},
+    "olive_dress": {"parts": "body", "palette": ["#353d25", "#414a2d", "#4d5735", "#a39e80", "#cfc8ab"], "range": [0.02, 0.6], "saturation": [0.2, 0.35]}
   },
   "characters": {
     "soldier_goggles": {"label": "Soldier: helmet, goggles, assault vest", "avatar": "Professions/Military_Male_01", "prefix": "sm002", "parts": {"body": "_acu", "head": "", "helmet": "_acu", "equipment": "_acu", "combat_knife": ""}, "recolor": "jungle", "erase": {"body": [[268, 1072, 160, 216, -160, 0], [1628, 1080, 156, 206, 156, 0]]}},

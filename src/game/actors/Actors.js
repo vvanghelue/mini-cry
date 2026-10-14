@@ -293,7 +293,9 @@ export class ActorManager {
   }
 
   update(dt) {
-    const cam = this.game.engine.camera.position;
+    const camera = this.game.engine.camera, cam = camera.position;
+    // body LOD distance: the camera distance over the zoom (through a scope, distant actors are big)
+    const zoom = Math.tan(((this.game.player?.cfg?.fov ?? camera.fov) * Math.PI) / 360) / Math.tan((camera.fov * Math.PI) / 360);
     this.grid.clear();
     for (const a of this.list) {
       const k = Math.floor(a.pos.x / 16) * 4096 + Math.floor(a.pos.z / 16);
@@ -303,7 +305,9 @@ export class ActorManager {
     }
     for (let i = this.list.length - 1; i >= 0; i--) {
       const a = this.list[i];
-      a.update(dt, a.pos.distanceTo(cam));
+      const d = a.pos.distanceTo(cam);
+      a.character.setLodDistance(d / zoom);
+      a.update(dt, d);
       if (a.removeMe) this.remove(a);
     }
   }

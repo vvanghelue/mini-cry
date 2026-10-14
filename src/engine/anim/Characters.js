@@ -2,7 +2,8 @@
 //   * realistic bodies (public/models/characters/*.glb, built by `mc character build` from the
 //     Rocketbox avatars of data/characters.json: one skinned mesh, photo texture atlas, the game
 //     rig with identity rest rotations, scene extras { rig, grip }): PBR material with their own
-//     colour / normal / roughness maps + the lighting patch; part ranges for palette tints
+//     colour / normal / roughness maps + the lighting patch; part ranges for palette tints;
+//     distance LODs = index ranges of the shared vertices (setLodDistance)
 //   * flat-coloured Quaternius GLBs (public/models/*.glb) — ported from three-rigged-game/src/main.js:
 //   - the 10–15 skinned parts of a character are merged into ONE skinned mesh (1 draw call,
 //     1 bone texture), part colours baked into vertex colours, the shared textured PBR material
@@ -440,6 +441,18 @@ function updateSkeletonOncePerFrame() {
 }
 export function nextCharacterFrame() { renderFrame++; }
 
+/** A geometry sharing the buffers (attributes, index) of `src`, with its own draw range / attribute set. */
+function geometryView(src) {
+  const g = new THREE.BufferGeometry();
+  for (const [k, a] of Object.entries(src.attributes)) g.setAttribute(k, a);
+  g.setIndex(src.index);
+  g.setDrawRange(src.drawRange.start, src.drawRange.count);
+  g.boundingBox = src.boundingBox;
+  g.boundingSphere = src.boundingSphere;
+  g.userData = src.userData;
+  return g;
+}
+
 // ---------------------------------------------------------------------------------------------
 /**
  * Character model of an actor (game/archetypes.json): the archetype's `models` (one picked per actor id, stable across
@@ -507,10 +520,14 @@ export class CharacterLibrary {
 
   /** Template of a realistic body (see the file header): material, vertex colours, part ranges. */
   _realistic(scene) {
+    let lods = null;
     scene.traverse((o) => {
       if (!o.isSkinnedMesh) return;
       const g = o.geometry, n = g.attributes.position.count;
       g.userData.parts = o.userData.parts ?? [];
+      // the index holds every LOD one after the other: the full mesh unless an instance picks one
+      lods = o.userData.lods?.length > 1 ? o.userData.lods : null;
+      if (lods) g.setDrawRange(lods[0].start, lods[0].count);
       // white vertex colours: palettes tint parts (variant())
       g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(n * 3).fill(255), 3, true));
       const src = o.material;
@@ -524,7 +541,7 @@ export class CharacterLibrary {
     scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(scene, true);
     const { grip } = scene.userData;
-    return { scene, animations: [], scale: 1, minY: box.min.y, rig: REALISTIC_RIG, aliases: REALISTIC_ALIASES, grip };
+    return { scene, animations: [], scale: 1, minY: box.min.y, rig: REALISTIC_RIG, aliases: REALISTIC_ALIASES, grip, lods };
   }
 
   /**
@@ -540,9 +557,10 @@ export class CharacterLibrary {
     const col = new THREE.Color();
     scene.traverse((o) => {
       if (!o.isSkinnedMesh) return;
+      // own colours, every other buffer shared with the template
+      o.geometry = geometryView(o.geometry);
+      o.geometry.setAttribute('color', o.geometry.attributes.color.clone());
       const parts = o.geometry.userData.parts ?? [];
-      o.geometry = o.geometry.clone();
-      o.geometry.userData.parts = parts;
       const c = o.geometry.attributes.color;
       for (const r of parts) {
         const hex = palette?.[r.name];
@@ -589,6 +607,10 @@ export class Character {
       if (o.isSkinnedMesh && !this.skeletons.has(o.skeleton)) { this.skeletons.add(o.skeleton); o.skeleton.update = updateSkeletonOncePerFrame; }
     });
     this.material = this.meshes[0]?.material;
+    // distance LODs (realistic bodies): each instance draws its own index range of the shared mesh
+    this.lods = t.lods ?? null;
+    this.lod = 0;
+    if (this.lods) for (const m of this.meshes) m.geometry = geometryView(m.geometry);
     this.mixer = new THREE.AnimationMixer(this.model);
     this.actions = {};
     for (const clip of t.animations) this.actions[clip.name] = this.mixer.clipAction(clip);
@@ -609,6 +631,24 @@ export class Character {
   }
 
   get position() { return this.root.position; }
+
+  /** Draw LOD i (0 = full mesh) of a realistic body. */
+  setLod(i) {
+    if (!this.lods) return;
+    i = THREE.MathUtils.clamp(i, 0, this.lods.length - 1);
+    if (i === this.lod) return;
+    this.lod = i;
+    const l = this.lods[i];
+    for (const m of this.meshes) m.geometry.setDrawRange(l.start, l.count);
+  }
+
+  /** LOD from the camera distance (m, scaled by the zoom), with 1 m of hysteresis. */
+  setLodDistance(d) {
+    if (!this.lods) return;
+    let i = 0;
+    while (i + 1 < this.lods.length && d > this.lods[i + 1].distance + (i + 1 > this.lod ? 1 : -1)) i++;
+    this.setLod(i);
+  }
 
   _cullingSphere() {
     this.root.updateMatrixWorld(true);

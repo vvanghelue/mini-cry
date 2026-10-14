@@ -231,7 +231,7 @@ export async function startViewModelMode(app, params) {
  * ?show=a,b,… (character models and / or archetype ids: palette + held weapon), ?archetypes=1
  * (every archetype; with `models`, each of its models), ?clip=Idle paused at ?time=s (default:
  * Idle_Gun when armed, else Idle), ?yaw / ?pitch (deg) / ?dist (m) move the camera, ?face (deg)
- * turns the characters (toward the sun). `mc character shot`.
+ * turns the characters (toward the sun), ?lod=i draws LOD i of the realistic bodies. `mc character shot`.
  */
 export async function startCharactersMode(app, params) {
   const { engine } = app;
@@ -273,12 +273,13 @@ export async function startCharactersMode(app, params) {
       holder?.quaternion.copy(c.solveGrip('Pistol_Aim_Neutral'));
       holder?.position.copy(c.grip.R);
     }
+    if (params.has('lod')) c.setLod(Number(params.get('lod')));
     const clip = params.get('clip') ?? (w ? 'Idle_Gun' : 'Idle');
     c.play(clip, { fade: 0 });
     c.update(Number(params.get('time') ?? 0.5));
     chars.push(c);
     let tris = 0;
-    c.model.traverse((o) => { if (o.isMesh) tris += (o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; });
+    c.model.traverse((o) => { if (o.isMesh) tris += Math.min(o.geometry.drawRange.count, o.geometry.index?.count ?? o.geometry.attributes.position.count) / 3; });
     info.push({ label: it.label, model: it.model, tris, clip, playing: !!c.actions[clip], height: +(lib.templates[it.model].scene.userData.height ?? 0) });
   });
   // camera: framed by width from the front (?yaw / ?pitch / ?dist override)

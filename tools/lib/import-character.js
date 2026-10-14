@@ -9,6 +9,8 @@
 //     part), packed into one atlas (colour, normal, roughness from the specular map); `erase`
 //     covers insignia with nearby texels, `recolor` maps the low-saturation texels (camouflage,
 //     fabric) of some parts through a colour ramp (e.g. grey ACU camo -> jungle greens)
+//   - distance LODs: simplified index ranges (meshoptimizer) after the full one, sharing the
+//     vertices (mesh extras `lods`: start, count, distance)
 //   - compact vertex data (KHR_mesh_quantization: int8 normals, uint16 uvs, uint8 joints / weights)
 import fs from 'node:fs';
 import * as THREE from 'three';
@@ -77,7 +79,8 @@ function bindPose(mesh, scene) {
   scene.updateMatrixWorld(true);
 }
 
-const hexRGB = (h) => { const c = new THREE.Color(h); return [c.r * 255, c.g * 255, c.b * 255]; };
+/** '#rrggbb' -> [r, g, b] 0-255 sRGB (the texels' space; THREE.Color would convert to linear). */
+const hexRGB = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 
 /**
  * Camouflage / fabric recolour of an RGBA image in place: texels below the saturation threshold
@@ -147,7 +150,8 @@ function pack(rects, width) {
  * drop (material name regexp: parts left out), scale ({ <part>: texel scale, default }),
  * recolor ({ parts: regexp, palette, range, saturation, strength, regions: { <part>: [[x, y, w, h]] } }), erase ({ <part>: [[x, y, w, h,
  * dx, dy]] } in source texels; applied to colour, normal and specular), roughness [at spec 0, at
- * spec 1], quality (jpeg), atlasWidth, label.
+ * spec 1], quality (jpeg), atlasWidth, lods ([{ ratio, error, distance }]: triangle ratio, max error
+ * (fraction of the size), camera distance from which it is drawn), label.
  * Returns { glb, info }.
  */
 export async function buildCharacter(opts) {
@@ -244,6 +248,23 @@ export async function buildCharacter(opts) {
     }
     vo += n;
   }
+
+  // --- LODs: simplified copies of the index buffer (same vertices; attribute seams kept, open
+  // borders such as the neck between the head and body parts locked: no cracks) --------------------
+  const { MeshoptSimplifier } = await import('meshoptimizer');
+  await MeshoptSimplifier.ready;
+  const lods = [{ start: 0, count: index.length, distance: 0 }];
+  const lodIndex = [index];
+  let at = index.length;
+  for (const l of opts.lods ?? []) {
+    const target = Math.floor((index.length * l.ratio) / 3) * 3;
+    const [ix] = MeshoptSimplifier.simplify(index, P, 3, target, l.error ?? 0.02, ['LockBorder']);
+    lods.push({ start: at, count: ix.length, distance: l.distance });
+    lodIndex.push(ix);
+    at += ix.length;
+  }
+  const allIndex = new Uint32Array(at);
+  lodIndex.reduce((o, ix) => (allIndex.set(ix, o), o + ix.length), 0);
 
   // --- textures: per part crop -> scale -> atlas --------------------------------------------------
   const scaleOf = (p) => opts.scale?.[p.name] ?? opts.scale?.default ?? 0.375;
@@ -353,11 +374,11 @@ export async function buildCharacter(opts) {
       JOINTS_0: out.accessor(J, 'VEC4', { target: 34962 }),
       WEIGHTS_0: out.accessor(W8, 'VEC4', { normalized: true, target: 34962 }),
     },
-    indices: out.accessor(nv > 65535 ? index : Uint16Array.from(index), 'SCALAR', { target: 34963 }),
+    indices: out.accessor(nv > 65535 ? allIndex : Uint16Array.from(allIndex), 'SCALAR', { target: 34963 }),
     material,
   };
   const partsOut = parts.map(({ name, start, count }) => ({ name, start, count }));
-  const meshI = out.mesh({ name: 'character', primitives: [prim], extras: { parts: partsOut } });
+  const meshI = out.mesh({ name: 'character', primitives: [prim], extras: { parts: partsOut, lods } });
   const rootI = out.node({ name: opts.label ?? 'Character', children: [] }, { root: true });
   const nodeOf = new Map();
   RIG.forEach(([name, parent]) => {
@@ -376,7 +397,7 @@ export async function buildCharacter(opts) {
   return {
     glb,
     info: {
-      tris: index.length / 3, verts: nv, bones: RIG.length, height: +(top - bottom).toFixed(3),
+      tris: lods.map((l) => l.count / 3), verts: nv, bones: RIG.length, height: +(top - bottom).toFixed(3),
       parts: Object.fromEntries(parts.map((p) => [p.name, p.count])),
       atlas: `${AW}x${AH}`, bytes: { color: colorJpg.length, normal: normalJpg.length, roughness: roughJpg.length, total: glb.length },
     },
