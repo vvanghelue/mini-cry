@@ -4,10 +4,11 @@
 // 120+ fps on a MacBook Air M1 (~8.3 ms); this machine may be faster, so compare GPU ms against
 // --budget (default 4.5 ms here ≈ 8 ms on an M1).
 //
-//   npm run bench -- [--mode play] [--m1] [--repeat N] [--fresh] [--views a,b] [--quality medium] [--size 1440x900]
+//   npm run bench -- [--mode play] [--m1] [--repeat N] [--fresh] [--views a,b] [--weapon id|none] [--quality medium] [--size 1440x900]
 //                    [--seconds 3] [--json] [--query gi=0] [--res 0.5] [--pre "<js>"]
 //                    [--breakdown [--only a,b] [--veg] [--switch "name::off::on"] [--pairs 2]] [--veg-stats]
-// --mode play runs the real game (enemies, AI, HUD, view model) with the player flown to each view.
+// --mode play runs the real game (enemies, AI, HUD, view model) with the player flown to each view,
+// holding a weapon (--weapon rifle_ak by default, --weapon none: empty hands, no view model pass).
 // --m1 estimates a MacBook Air M1 (7-core GPU) conservatively: the page's CPU is throttled 2x
 // through DevTools (M1 single core ≈ 1.6x slower than this M4) and the measured GPU time is
 // scaled by 1.9 (M4 10-core GPU ≈ 1.86x a 7-core M1). m1fps = 1000 / max(throttled frame, gpu x 1.9).
@@ -80,7 +81,7 @@ try {
       const cdp = await page.context().newCDPSession(page);
       await cdp.send('Emulation.setCPUThrottlingRate', { rate: 2 });
     }
-    if (play) await page.evaluate(() => { const g = window.__mc.game; g.player.godMode = true; g.engine.lighting.env.dayLengthMinutes = 0; });
+    if (play) await page.evaluate((weapon) => { const g = window.__mc.game; g.player.godMode = true; g.engine.lighting.env.dayLengthMinutes = 0; if (weapon !== 'none') g.weapons.give(weapon, { select: true }); }, typeof opt.weapon === 'string' ? opt.weapon : 'rifle_ak');
     if (opt.res) await run(`e.renderer.setPixelRatio(e.renderer.getPixelRatio() * ${Number(opt.res)})`);
     if (typeof opt.pre === 'string') await run(opt.pre);
   };
