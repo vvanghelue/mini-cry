@@ -6,8 +6,13 @@
 // instead of 300-540) showing the baked view closest to its view direction, lit like the meshes:
 // sun, probe GI, fog, the per-instance leaf tint and the light through the leaves, from the
 // baked normals. Distant trees are vertex-bound (sub-pixel triangles), which this removes.
+// They also cast into the sun cascades: the same quad facing the sun, cut out by the baked view
+// closest to the sun's direction (an orthographic silhouette, i.e. the tree's shadow), drawn by a
+// shadow-only twin of the impostor mesh (casterMaterials, InstancedField). A receiving impostor
+// looks its shadow up one radius toward the sun, in front of its own card.
 import * as THREE from 'three';
 import { FOLIAGE_BASE } from '../assets/surfaces.js';
+import { patchLodDepth } from './LodFade.js';
 
 export const GRID = 8;
 
@@ -32,17 +37,18 @@ varying vec2 vImpUv;
 flat varying vec2 vImpCell;
 flat varying vec3 vImpTint;
 flat varying mat3 vImpRot;
+flat varying float vImpR;
 `;
 
-// replaces begin_vertex: the quad, in the tree's local space, facing the camera with the bake
-// camera's basis (three.js lookAt with +Y up), and the closest baked view
-const VERT_QUAD = /* glsl */ `
+// the quad, in the tree's local space, facing direction impV (local) with the bake camera's basis
+// (three.js lookAt with +Y up), and the closest baked view
+const quad = (dir) => /* glsl */ `
 #ifdef USE_INSTANCING
   mat4 impM = modelMatrix * instanceMatrix;
 #else
   mat4 impM = modelMatrix;
 #endif
-vec3 impV = (inverse(impM) * vec4(camPosW, 1.0)).xyz - impSphere.xyz;
+vec3 impV = ${dir};
 impV.y = max(impV.y, 0.0);
 impV = normalize(impV + vec3(0.0, 1e-4, 0.0));
 vec3 impA = impV / (abs(impV.x) + abs(impV.y) + abs(impV.z));
@@ -51,6 +57,11 @@ vec3 impUp = impV.y > 0.999 ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 1.0, 0.0);
 vec3 impX = normalize(cross(impUp, impV)), impY = cross(impV, impX);
 vec3 transformed = impSphere.xyz + (impX * position.x + impY * position.y) * impSphere.w;
 vImpUv = position.xy * 0.5 + 0.5;
+`;
+
+// replaces begin_vertex: facing the camera
+const VERT_QUAD = /* glsl */ `${quad('(inverse(impM) * vec4(camPosW, 1.0)).xyz - impSphere.xyz')}
+vImpR = impSphere.w * length(impM[0].xyz);
 vImpRot = mat3(normalize(impM[0].xyz), normalize(impM[1].xyz), normalize(impM[2].xyz));
 // per-instance leaf tint (same hash as the foliage meshes, Lighting.patch)
 vImpTint = vec3(1.0);
@@ -73,6 +84,8 @@ varying vec2 vImpUv;
 flat varying vec2 vImpCell;
 flat varying vec3 vImpTint;
 flat varying mat3 vImpRot;
+flat varying float vImpR;
+#define SUN_RECEIVER_SHIFT vImpR
 bool impLeaf;
 vec3 impNW;
 `;
@@ -128,6 +141,7 @@ export class Impostors {
     this.normal = rt(false);
     this.geometry = QUAD;
     this.materials = builds.map((b, v) => this._material(b, v));
+    this.casterMaterials = builds.map((b, v) => this._casterMaterial(b, v));
   }
 
   get triangles() { return 2; }
@@ -160,6 +174,40 @@ export class Impostors {
     // sun, cascades, SSAO, probe GI, sky reflections (Lighting.patch chains the code above first)
     L.patch(m, {});
     return m;
+  }
+
+  /** Shadow-only material: the quad facing the sun, cut out by the closest baked view. Keeps its own
+   *  material in the depth passes (allowOverride), culls the instances outside its LOD there like
+   *  the depth override does (patchLodDepth). */
+  _casterMaterial(build, layer) {
+    const L = this.lighting, s = build.geometry.boundingSphere;
+    const m = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide });
+    m.allowOverride = false;
+    const U = {
+      impSphere: { value: new THREE.Vector4(s.center.x, s.center.y, s.center.z, s.radius * 1.04) },
+      impAlbedo: { value: this.albedo.texture },
+      impLayer: { value: layer },
+      impInset: { value: 0.5 / this.cell },
+    };
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, U);
+      sh.uniforms.sunDirW = L.sun.uniforms.sunDirW;
+      sh.uniforms.sunFade = L.sun.uniforms.sunFade;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform vec4 impSphere;\nuniform vec3 sunDirW;\nuniform vec2 sunFade;\nvarying vec2 vImpUv;\nflat varying vec2 vImpCell;')
+        // past the shadow distance (+ a crown) nothing receives its shadow
+        .replace('#include <begin_vertex>', `#ifdef USE_INSTANCING
+          if (lodDist() > sunFade.y + 2.0 * impSphere.w * length(instanceMatrix[0].xyz)) { gl_Position = vec4(0.0, 0.0, -2.0, 1.0); return; }
+          #endif
+          ${quad('inverse(mat3(impM)) * sunDirW')}`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform highp sampler2DArray impAlbedo;\nuniform float impLayer, impInset;\nvarying vec2 vImpUv;\nflat varying vec2 vImpCell;')
+        .replace('void main() {', `void main() {
+          vec2 impUvC = (vImpCell + clamp(vImpUv, vec2(impInset), vec2(1.0 - impInset))) / ${GRID.toFixed(1)};
+          if (texture(impAlbedo, vec3(impUvC, impLayer)).a < 0.4) discard;`);
+    };
+    m.customProgramCacheKey = () => 'impostor-caster';
+    return patchLodDepth(m, L.uniforms);
   }
 
   /** Render the atlases (needs the surface textures loaded). Restores the renderer state. */
@@ -264,6 +312,6 @@ export class Impostors {
   dispose() {
     this.albedo.dispose();
     this.normal.dispose();
-    for (const m of this.materials) m.dispose();
+    for (const m of [...this.materials, ...this.casterMaterials]) m.dispose();
   }
 }

@@ -19,12 +19,15 @@ import { Surfaces } from './Surfaces.js';
 
 // ao: SSAO samples per pixel (0 = off)
 export const QUALITY = {
-  // the near cascade every other frame (every frame while the camera moves fast, SunShadows.js),
-  // the next one every 4 frames: cascade i renders when (frame + i) % every == 0, never together
-  low: { dpr: 0.75, cascades: [{ radius: 22, res: 1024, every: 2 }, { radius: 90, res: 1024, every: 4 }], drawScale: 0.65, grass: 0.5, ao: 6 },
-  medium: { dpr: 1, cascades: [{ radius: 22, res: 2048, every: 2 }, { radius: 90, res: 1536, every: 4 }], drawScale: 0.8, grass: 0.8, ao: 8 },
-  high: { dpr: 1, cascades: [{ radius: 20, res: 2048, every: 1 }, { radius: 80, res: 2048, every: 2 }, { radius: 260, res: 2048, every: 4 }], drawScale: 1, grass: 1, ao: 12 },
-  ultra: { dpr: 2, cascades: [{ radius: 20, res: 4096, every: 1 }, { radius: 80, res: 4096, every: 1 }, { radius: 300, res: 4096, every: 2 }], drawScale: 1.25, grass: 1.3, ao: 12 },
+  // near / mid / far sun cascades: the near one every other frame (every frame while the camera
+  // moves fast, SunShadows.js), the mid one every 4 frames, the far one every 8: cascade i renders
+  // when (frame + i) % every == 0, so the mid and far ones never render together. shadowDistance:
+  // shadows fade out over its last 20 % (lowered to where the trees turn into impostors); the far
+  // cascade spans ~0.75 of it to each side so the whole fade ring in view is covered.
+  low: { dpr: 0.75, cascades: [{ radius: 22, res: 1024, every: 2 }, { radius: 55, res: 1024, every: 4 }, { radius: 90, res: 1024, every: 8 }], shadowDistance: 110, drawScale: 0.65, grass: 0.5, ao: 6 },
+  medium: { dpr: 1, cascades: [{ radius: 22, res: 2048, every: 2 }, { radius: 55, res: 1536, every: 4 }, { radius: 105, res: 1024, every: 8 }], shadowDistance: 140, drawScale: 0.8, grass: 0.8, ao: 8 },
+  high: { dpr: 1, cascades: [{ radius: 20, res: 2048, every: 1 }, { radius: 60, res: 2048, every: 2 }, { radius: 130, res: 2048, every: 4 }], shadowDistance: 180, drawScale: 1, grass: 1, ao: 12 },
+  ultra: { dpr: 2, cascades: [{ radius: 20, res: 4096, every: 1 }, { radius: 70, res: 4096, every: 1 }, { radius: 160, res: 4096, every: 2 }], shadowDistance: 220, drawScale: 1.25, grass: 1.3, ao: 12 },
 };
 
 export const DEFAULT_ENV = {
@@ -76,6 +79,8 @@ export class Lighting {
     this.dayness = 1;
     camera.layers.enableAll();
     camera.layers.disable(LAYERS.EDITOR);
+    // shadow-only casters (impostor cards facing the sun) live on the cascade layers alone
+    for (let i = 0; i < 3; i++) camera.layers.disable(LAYERS.CASCADE + i);
 
     // shared uniforms: every patched material references these objects
     this.uniforms = {
@@ -89,7 +94,7 @@ export class Lighting {
     };
     // texture arrays (terrain, surfaces, foliage) and their shader code; loaded by AssetLibrary / World
     this.surfaces = new Surfaces();
-    this.sun = new SunShadows(renderer, scene, this.Q.cascades);
+    this.sun = new SunShadows(renderer, scene, this.Q.cascades, { distance: this.Q.shadowDistance });
     this.sunDir = this.sun.dir;
     this.sunColor = new THREE.Color();
     // half-res SSAO on the ambient light (+ a little of the sun), see SSAO.js
@@ -122,7 +127,7 @@ export class Lighting {
     if (!QUALITY[name]) return;
     this.qualityName = name;
     this.Q = QUALITY[name];
-    this.sun.setCascades(this.Q.cascades);
+    this.sun.setCascades(this.Q.cascades, { distance: this.Q.shadowDistance });
     this.ao.setSamples(this.Q.ao);
   }
 

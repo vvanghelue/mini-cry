@@ -21,7 +21,7 @@
 import * as THREE from 'three';
 import { LAYERS } from './layers.js';
 
-const DEPTH_LAYERS = (1 << LAYERS.STATIC) | (1 << LAYERS.DYNAMIC);
+const DEPTH_LAYERS = (1 << LAYERS.STATIC) | (1 << LAYERS.DYNAMIC) | (1 << LAYERS.OCCLUDER);
 
 const QUAD_VERT = /* glsl */ `
 in vec3 position;

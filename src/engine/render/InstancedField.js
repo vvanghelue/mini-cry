@@ -2,6 +2,9 @@
 //
 // kinds:  [{ id, asset, variants, lods: [{ distance, quality }], castShadow (m), fade (bool), blend, shareVariantsFrom,
 //           impostor: { cell } (the last LOD is a camera-facing impostor, render/Impostors.js) }]
+// castShadow: the kind casts into the sun cascades up to the first one at least that wide (bushes:
+// the near one; trees: all three), each LOD mesh only into the cascades it can reach (_castLayers);
+// an impostor LOD through a shadow-only twin facing the sun (Impostors.casterMaterials).
 // Instances are added with add(kindIndex, variant, matrix). They are bucketed in SECTOR m
 // sectors; every frame the visible sectors (frustum + a ring around the camera so shadow casters
 // behind it still cast) go to every LOD whose distance range (blend bands included) overlaps them,
@@ -16,6 +19,8 @@ import { lodRanges, lodGeometry, setLodRange, disposeLodGeometry, lodMaterial } 
 import { Impostors } from './Impostors.js';
 
 const _frustum = new THREE.Frustum(), _pm = new THREE.Matrix4(), _box = new THREE.Box3(), _v = new THREE.Vector3();
+const CASCADE_BITS = 0b111 << LAYERS.CASCADE;
+const CAST_SLACK = 8; // m: crowns reaching into a cascade from an instance origin past its reach
 
 export class InstancedField {
   constructor({ name, assets, lighting, worldSize, sector = 64, kinds }) {
@@ -44,6 +49,7 @@ export class InstancedField {
     // the last LOD as an impostor, baked from each variant's build at the quality of the LOD before
     // it (same crown volumes on both sides of the cross-fade; bakeImpostors)
     const impLod = k.impostor && lods.length > 1 ? lods.length - 1 : -1;
+    kind.impLod = impLod;
     if (impLod >= 0) {
       const builds = Array.from({ length: k.variants ?? 1 }, (_, v) => this.assets.build(k.asset, { quality: lods[impLod - 1].quality ?? 1, variant: v }));
       kind.impostor = new Impostors(this.lighting, builds, { cell: k.impostor.cell ?? 64 });
@@ -77,13 +83,29 @@ export class InstancedField {
         mesh.frustumCulled = false;
         mesh.matrixAutoUpdate = false;
         mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        // sun cascades: _castLayers; the SSAO depth pre-pass takes the LODs starting within castShadow
         const start = li ? lods[li - 1].distance : 0;
-        mesh.layers.set(k.castShadow && start < k.castShadow ? LAYERS.STATIC : LAYERS.DETAIL);
+        mesh.layers.set(LAYERS.DETAIL);
+        if (k.castShadow && start < k.castShadow && li !== impLod) mesh.layers.enable(LAYERS.OCCLUDER);
         mesh.name = `${this.name}_${k.id}_${v}_lod${li}`;
         mesh.userData.lod = li;
         mesh.userData.capacity = 16;
         mesh.userData.tris = tris;
         this.group.add(mesh);
+        if (li === impLod) {
+          // shadow-only twin: the impostors as cards facing the sun, in the cascades only (it shares
+          // the instance buffer, synced in update; never disposed: that would free the buffer)
+          const c = new THREE.InstancedMesh(mesh.geometry, kind.impostor.casterMaterials[v], 1);
+          c.count = 0;
+          c.frustumCulled = false;
+          c.matrixAutoUpdate = false;
+          c.layers.mask = CASCADE_BITS; // _castLayers narrows it; until then the loading warm-up compiles it
+          c.raycast = () => {};
+          c.renderOrder = mesh.renderOrder;
+          c.name = `${mesh.name}_caster`;
+          mesh.userData.caster = c;
+          this.group.add(c);
+        }
         return mesh;
       });
       kind.variants.push({ meshes });
@@ -142,6 +164,41 @@ export class InstancedField {
     this.unbaked = false;
   }
 
+  /** Sun cascades each LOD mesh casts into (LAYERS.CASCADE + i). A kind casts into the cascades up
+   *  to the first one at least as wide as its castShadow distance: past that one's border its shadow
+   *  fades out across the blend band instead of popping at a LOD switch. A LOD mesh only goes into
+   *  the cascades whose ground it can reach (SunShadows.reach; the depth passes switch LODs at the
+   *  middle of the bands) — no vertex work for instances that can't land there. An impostor (a
+   *  camera-facing card) casts through its sun-facing twin, into the last cascade only; where the
+   *  last cascade's kinds turn into impostors is the sun's split (SunShadows.setCasterReach), or,
+   *  with sun.impostorCasters off, where the shadow distance stops. */
+  _castLayers() {
+    const sun = this.lighting.sun, cs = sun.cascades, last = cs.length - 1;
+    const reach = cs.map((c, i) => sun.reach(i) + CAST_SLACK);
+    let stop = Infinity;
+    for (const k of this.kinds) {
+      if (!k.scaled) continue;
+      const cast = k.def.castShadow ?? 0;
+      let top = -1; // last cascade the kind casts into
+      if (cast > 0) { top = cs.findIndex((c) => c.radius >= cast); if (top < 0) top = last; }
+      for (const v of k.variants) for (const m of v.meshes) {
+        const li = m.userData.lod, r = k.scaled[li], from = li ? (r[0] + r[1]) / 2 : 0;
+        m.layers.mask &= ~CASCADE_BITS;
+        if (li !== k.impLod) {
+          for (let i = 0; i <= top; i++) if (from < reach[i]) m.layers.enable(LAYERS.CASCADE + i);
+          continue;
+        }
+        // the impostor itself faces the camera: its sun-facing twin casts instead, into the last
+        // cascade only (SunShadows: past the split, the shadow comes from that one alone)
+        const caster = m.userData.caster;
+        caster.layers.mask = 0;
+        if (sun.impostorCasters && top === last && from < reach[last]) caster.layers.enable(LAYERS.CASCADE + last);
+      }
+      if (top === last && k.impLod > 0) stop = Math.min(stop, (k.scaled[k.impLod][0] + k.scaled[k.impLod][1]) / 2);
+    }
+    sun.setCasterReach(this.name, stop);
+  }
+
   update(camera) {
     if (this.unbaked && this.lighting.surfaces.ready) this.bakeImpostors(this.lighting.renderer);
     if (this.dirty) this._bucket();
@@ -164,6 +221,18 @@ export class InstancedField {
       this._bands = Float32Array.from([...t].sort((a, b) => a - b));
       this._bandsDs = ds;
     }
+    // cascades of each LOD mesh: again when the cascades, the shadow distance, the draw scale or
+    // the sun's elevation (how far the cascades stretch on the ground) change
+    const sun = this.lighting.sun, ck = (this._castKey ??= []);
+    let same = ck[0] === sun.version && ck[1] === ds;
+    ck[0] = sun.version;
+    ck[1] = ds;
+    for (let i = 0; i < sun.cascades.length; i++) {
+      const q = Math.round(sun.reach(i) / 4);
+      same &&= ck[2 + i] === q;
+      ck[2 + i] = q;
+    }
+    if (!same) this._castLayers();
     const bands = this._bands;
     let maxDist = 0;
     for (const k of this.kinds) maxDist = Math.max(maxDist, k.maxDist * ds);
@@ -227,6 +296,8 @@ export class InstancedField {
       if (m.userData.flushed === this._flushId) continue;
       m.userData.flushed = this._flushId;
       syncBlocks(m, m.userData.want, (bk, v) => { const sec = bk % nn; return v.offsets[sec + 1] - v.offsets[sec]; }, (bk, v, dst, at) => { const sec = bk % nn; dst.set(v.matrices.subarray(v.offsets[sec] * 16, v.offsets[sec + 1] * 16), at * 16); });
+      const caster = m.userData.caster;
+      if (caster) { caster.instanceMatrix = m.instanceMatrix; caster.count = m.count; }
       total += liveCount(m);
       tris += liveCount(m) * m.userData.tris;
       if (m.count) meshes++;
@@ -253,7 +324,8 @@ export class InstancedField {
         const meshes = new Set(k.variants.map((v) => v.meshes[li]).filter((m) => m?.count));
         if (!meshes.size) continue;
         const [inA, , , outB] = k.scaled[li], px = [];
-        const row = { kind: k.def.id, lod: li, meshes: meshes.size, submitted: 0, inRange: 0, tiny: 0, medianPx: 0, vertexInvocations: 0, triangles: 0, shadow: false };
+        const row = { kind: k.def.id, lod: li, meshes: meshes.size, submitted: 0, inRange: 0, tiny: 0, medianPx: 0, vertexInvocations: 0, triangles: 0, shadow: '' };
+        const cascades = new Set();
         for (const m of meshes) {
           const a = m.instanceMatrix.array, g = m.geometry;
           const verts = g.attributes.position.count, tris = (g.index ? g.index.count : verts) / 3;
@@ -270,9 +342,10 @@ export class InstancedField {
           row.inRange += inRange;
           row.vertexInvocations += m.count * verts;
           row.triangles += inRange * tris;
-          row.shadow ||= m.layers.isEnabled(LAYERS.STATIC);
+          for (let i = 0; i < 3; i++) if (m.layers.isEnabled(LAYERS.CASCADE + i)) cascades.add(i);
         }
         px.sort((a, b) => a - b);
+        row.shadow = [...cascades].sort().map((i) => 'c' + i).join(' '); // the sun cascades it casts into
         row.medianPx = Math.round(px[px.length >> 1] ?? 0);
         row.tiny = px.filter((p) => p < tinyPx).length;
         rows.push(row);
@@ -301,6 +374,7 @@ export class InstancedField {
     for (const k of this.kinds) for (const v of k.variants) for (const m of v.meshes) {
       if (seen.has(m)) continue;
       seen.add(m);
+      m.userData.caster?.removeFromParent();
       m.dispose();
       disposeLodGeometry(m.geometry);
     }

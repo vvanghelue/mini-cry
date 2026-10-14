@@ -67,6 +67,8 @@ export class World {
     // after the colour worker: the splatting texture reads every vertex's resolved material
     this.terrainRenderer = new TerrainRenderer(this.terrain, this.lighting);
     this.scene.add(this.terrainRenderer.group);
+    // the sun cascades sit on the ground (or the sea) and grow with the camera's height above it
+    this.lighting.sun.groundAt = (x, z) => Math.max(this.terrain.heightAt(x, z), this.terrain.seaLevel);
     await gi;
     this.applyQuality();
     this.engine.on('quality', () => this.applyQuality());

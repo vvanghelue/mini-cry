@@ -40,8 +40,8 @@ let SWITCHES = [
   ['ssao', 'e.lighting.ao.setEnabled(false)', 'e.lighting.ao.setEnabled(true)'],
   ['gi', 'e.lighting.gi.setEnabled(false)', 'e.lighting.gi.setEnabled(true)'],
   ['vegetation', 'w.vegetation.group.visible = false', 'w.vegetation.group.visible = true'],
-  // out of the STATIC layer: no longer in the sun cascades nor the SSAO depth pre-pass
-  ['veg shadows', 'window.__vl = []; w.vegetation.group.traverse((o) => { if (o.isMesh && o.layers.isEnabled(0)) { window.__vl.push(o); o.layers.set(2); } })', 'for (const o of window.__vl) o.layers.set(0)'],
+  // out of the sun cascade layers (7..9) and the SSAO occluder one (6): no longer in the cascades nor the SSAO depth pre-pass
+  ['veg shadows', 'window.__vl = []; w.vegetation.group.traverse((o) => { if (o.isMesh && (o.layers.mask & 0x3c0)) { window.__vl.push([o, o.layers.mask]); o.layers.mask &= ~0x3c0; } })', 'for (const [o, m] of window.__vl) o.layers.mask = m'],
   ['terrain', 'w.terrainRenderer.group.visible = false', 'w.terrainRenderer.group.visible = true'],
   ['terrain shadows', 'w.terrainRenderer.group.traverse((o) => { if (o.isMesh) o.layers.set(2); })', 'w.terrainRenderer.group.traverse((o) => { if (o.isMesh) o.layers.set(0); })'],
   ['grass', 'if (w.grass) w.grass.group.visible = false', 'if (w.grass) w.grass.group.visible = true'],
@@ -191,7 +191,7 @@ else {
     const t = s.rows.reduce((a, r) => ({ sub: a.sub + r.submitted, inr: a.inr + r.inRange, tiny: a.tiny + r.tiny, vi: a.vi + r.vertexInvocations, tris: a.tris + r.triangles }), { sub: 0, inr: 0, tiny: 0, vi: 0, tris: 0 });
     console.log(`\nvegetation at ${s.view}: ${t.sub} instances submitted, ${t.inr} in their LOD range, ${t.tiny} of them < 12 px tall; ${(t.vi / 1e6).toFixed(2)}M vertex invocations, ${(t.tris / 1e6).toFixed(2)}M triangles rasterized (per pass)`);
     console.log('  species / lod          submitted  in range  median px  < 12 px  tris/inst  M vert inv  k tris  shadow');
-    for (const r of s.rows.slice(0, Number(opt.top ?? 16))) console.log(`  ${(r.kind + ' lod' + r.lod).padEnd(22)} ${String(r.submitted).padStart(9)} ${String(r.inRange).padStart(9)} ${String(r.medianPx).padStart(10)} ${String(r.tiny).padStart(8)} ${String(Math.round(r.triangles / Math.max(1, r.inRange))).padStart(10)} ${(r.vertexInvocations / 1e6).toFixed(2).padStart(11)} ${String(Math.round(r.triangles / 1000)).padStart(7)}  ${r.shadow ? 'yes' : ''}`);
+    for (const r of s.rows.slice(0, Number(opt.top ?? 16))) console.log(`  ${(r.kind + ' lod' + r.lod).padEnd(22)} ${String(r.submitted).padStart(9)} ${String(r.inRange).padStart(9)} ${String(r.medianPx).padStart(10)} ${String(r.tiny).padStart(8)} ${String(Math.round(r.triangles / Math.max(1, r.inRange))).padStart(10)} ${(r.vertexInvocations / 1e6).toFixed(2).padStart(11)} ${String(Math.round(r.triangles / 1000)).padStart(7)}  ${r.shadow}`);
   }
   const errs = logs.filter((l) => /error/i.test(l));
   if (errs.length) console.log('\nconsole errors:\n' + errs.slice(0, 8).join('\n'));

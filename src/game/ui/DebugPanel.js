@@ -183,6 +183,75 @@ export class DebugPanel {
     f.close();
   }
 
+  // ---- Sun shadows (SunShadows.js; live only, a quality change restores the preset's cascades) --
+  _sunShadows(f, gfx) {
+    const L = this.app.engine.lighting, sun = L.sun, U = sun.uniforms;
+    const fs = f.addFolder('Sun shadows');
+    const o = {
+      get debug() { return U.sunDebug.value > 0.5; }, set debug(v) { U.sunDebug.value = v ? 1 : 0; },
+      get distance() { return Number.isFinite(sun.maxDistance) ? sun.maxDistance : 0; },
+      set distance(v) { sun.maxDistance = v > 0 ? v : Infinity; sun.refresh(); },
+      get clamp() { return sun.clampToCasters; }, set clamp(v) { sun.clampToCasters = v; sun.refresh(); },
+      get impostors() { return sun.impostorCasters; }, set impostors(v) { sun.impostorCasters = v; sun.refresh(); },
+      get scale() { return `x ${sun.scale.toFixed(2)}`; }, set scale(_) {},
+      get actual() {
+        const d = Number.isFinite(sun.distance) ? `${Math.round(sun.distance)} m` : 'far cascade border';
+        return Number.isFinite(sun.split) ? `${d}, far cascade only from ${Math.round(sun.split)} m` : d;
+      },
+      set actual(_) {},
+      get fade() { return sun.fade; }, set fade(v) { sun.fade = v; sun.refresh(); },
+      get bias() { return sun.bias; }, set bias(v) { sun.bias = v; sun.refresh(); },
+      get softness() { return sun.softness; }, set softness(v) { sun.softness = v; sun.refresh(); },
+      get levels() { return sun.cascades.length; },
+      set levels(n) {
+        // levels removed then added back come from the quality preset
+        const cur = sun.config();
+        sun.setCascades([...cur, ...L.Q.cascades.slice(cur.length)].slice(0, n), { distance: sun.maxDistance });
+      },
+    };
+    // shadows end at the last cascade's border whatever the distance: that cascade spans ~0.8 of
+    // the distance to each side (at least the preset's radius), refitted when the distance changes
+    const fit = { on: true };
+    const fitLast = () => {
+      const last = sun.cascades.length - 1, d = sun.distance / sun.scale; // at ground level
+      if (!fit.on || last < 0 || !Number.isFinite(d)) return;
+      const r = Math.max(L.Q.cascades[last]?.radius ?? 0, Math.round(d * 0.8));
+      if (r !== sun.cascades[last].radius) sun.setCascade(last, { radius: r });
+    };
+    fs.add(gfx, 'shadows').name('enabled');
+    fs.add(o, 'debug').name('cascades view (R / G / B)');
+    fs.add(o, 'distance', 0, 600, 5).name('max distance (m, 0 = ∞)').onFinishChange(fitLast).listen();
+    fs.add(o, 'impostors').name('far trees cast (impostors)').onChange(fitLast);
+    fs.add(o, 'clamp').name('no impostor shadow: stop there').onChange(fitLast);
+    fs.add(fit, 'on').name('far cascade fits distance').onChange(fitLast);
+    fs.add(o, 'actual').name('shadow distance').listen().disable();
+    fs.add(o, 'fade', 0.02, 1, 0.01).name('fade (fraction of distance)');
+    // in the air the cascades, their depth and the distance grow with the height above the ground
+    fs.add(sun.altitude, 'ref', 5, 200, 5).name('altitude: grow from (m)');
+    fs.add(sun.altitude, 'max', 1, 16, 1).name('altitude: max growth x');
+    fs.add(o, 'scale').name('altitude scale').listen().disable();
+    fs.add(U.sunBlend, 'value', 0.005, 0.25, 0.005).name('cascade blend band');
+    fs.add(o, 'bias', 0.1, 4, 0.05).name('bias x');
+    fs.add(o, 'softness', 0.25, 4, 0.05).name('softness x');
+    fs.add(o, 'levels', { '1': 1, '2': 2, '3': 3 }).name('levels').listen();
+    // per cascade: radius / resolution rebuild the cascades once the control is released
+    ['near', 'mid', 'far'].forEach((name, i) => {
+      const fc = fs.addFolder(`${name} (cascade ${i})`);
+      const rebuild = (key) => {
+        let pending = null;
+        const c = { get v() { return pending ?? sun.cascades[i]?.[key] ?? 0; }, set v(x) { pending = x; } };
+        return [c, () => { if (pending !== null) sun.setCascade(i, { [key]: pending }); pending = null; }];
+      };
+      const [radius, applyRadius] = rebuild('radius'), [res, applyRes] = rebuild('res');
+      fc.add(radius, 'v', 2, [80, 250, 600][i], 1).name('radius (m)').onFinishChange(applyRadius).listen();
+      fc.add(res, 'v', { 512: 512, 1024: 1024, 1536: 1536, 2048: 2048, 4096: 4096 }).name('resolution').onFinishChange(applyRes).listen();
+      fc.add({ get v() { return sun.cascades[i]?.every ?? 0; }, set v(x) { sun.setCascade(i, { every: x }); } }, 'v', 1, 16, 1).name('render every N frames').listen();
+      fc.add({ get v() { const c = sun.cascades[i]; return c ? `${(c.texel * 100).toFixed(1)} cm, reach ${Math.round(sun.reach(i))} m` : '-'; }, set v(_) {} }, 'v').name('texel, ground reach').listen().disable();
+      fc.close();
+    });
+    fs.close();
+  }
+
   // ---- Graphics ---------------------------------------------------------------------------
   _graphics(gui) {
     const { engine, world, game } = this.app, L = engine.lighting, cam = engine.camera, overlay = this.overlay;
@@ -207,7 +276,7 @@ export class DebugPanel {
     f.add(gfx, 'quality', ['low', 'medium', 'high', 'ultra']).name('quality');
     f.add(gfx, 'aa', ['fxaa', 'msaa', 'off']).name('antialias (reloads)');
     f.add(gfx, 'resScale', 0.3, 1, 0.01).name('resolution scale');
-    f.add(gfx, 'shadows').name('sun shadows');
+    this._sunShadows(f, gfx);
     const ao = L.ao, aoU = ao.aoMat.uniforms;
     const fa = f.addFolder('SSAO');
     fa.add(gfx, 'ao').name('enabled');
