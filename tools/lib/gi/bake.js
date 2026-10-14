@@ -26,9 +26,13 @@ const OCEAN_ALBEDO = [0.02, 0.06, 0.08];
  */
 export function giInputsHash() {
   const h = crypto.createHash('sha1');
-  for (const f of ['terrain/terrain.json', 'terrain/height.bin', 'terrain/material.bin', 'vegetation.json', 'vegetation.bin']) {
+  for (const f of ['terrain/terrain.json', 'terrain/height.bin', 'terrain/material.bin', 'vegetation.bin']) {
     try { h.update(fs.readFileSync(dataPath(f))); } catch { h.update('-'); }
   }
+  // only what the bake reads of the species (gi/scene.js): LOD distances, impostors, scatter rules
+  // don't change the light
+  const species = readJSON('vegetation.json', { species: [] }).species ?? [];
+  h.update(JSON.stringify(species.map((s) => [s.asset, s.castShadow ?? 0, s.variants ?? 1])));
   const world = readJSON('world.json', { entities: [] });
   const used = new Set((readJSON('vegetation.json', { species: [] }).species ?? []).map((s) => s.asset));
   for (const e of world.entities ?? []) {

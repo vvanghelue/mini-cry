@@ -101,6 +101,7 @@ export class Menus {
     this._show(`
       <div class="title">OPTIONS</div>
       <label>Quality <select name="quality">${['low', 'medium', 'high', 'ultra'].map((q) => `<option ${q === s.quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
+      <label>Antialiasing <select name="antialias">${[['auto', 'Auto (FXAA, MSAA on high / ultra)'], ['fxaa', 'FXAA'], ['msaa', 'MSAA 4x'], ['off', 'Off']].map(([v, l]) => `<option value="${v}" ${v === (s.antialias ?? 'auto') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Ambient occlusion (SSAO) <input name="ao" type="checkbox" ${s.ao !== false ? 'checked' : ''}></label>
       <label>Sun lens flare <input name="flare" type="checkbox" ${s.flare !== false ? 'checked' : ''}></label>
       <label>Difficulty <select name="difficulty">${DIFFICULTY_LABELS.map(([q, l]) => `<option value="${q}" ${q === s.difficulty ? 'selected' : ''}>${l}</option>`).join('')}</select></label>

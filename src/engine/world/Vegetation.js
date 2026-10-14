@@ -17,7 +17,7 @@ export class Vegetation {
     // two fields: small plants (short draw distance) use fine 24 m sectors so their LOD / culling
     // follows the camera closely; trees and rocks use 64 m sectors (fewer sectors to walk)
     this.near = def.species.map((sp) => (sp.lods?.length ? sp.lods[sp.lods.length - 1].distance : 200) < 160);
-    const kinds = def.species.map((sp) => ({ id: sp.id, asset: sp.asset, variants: sp.variants ?? 1, lods: sp.lods, castShadow: sp.castShadow, blend: sp.blend, shareVariantsFrom: sp.shareVariantsFrom }));
+    const kinds = def.species.map((sp) => ({ id: sp.id, asset: sp.asset, variants: sp.variants ?? 1, lods: sp.lods, castShadow: sp.castShadow, blend: sp.blend, shareVariantsFrom: sp.shareVariantsFrom, impostor: sp.impostor }));
     const mk = (name, sector, keep) => new InstancedField({ name, assets, lighting: world.lighting, worldSize: this.terrain.size, sector, kinds: kinds.map((k, i) => (keep(i) ? k : { ...k, lods: [{ distance: 0.001, quality: 0.25 }], castShadow: 0, empty: true })) });
     this.fieldNear = mk('VegetationNear', 24, (i) => this.near[i]);
     this.fieldFar = mk('VegetationFar', 64, (i) => !this.near[i]);
@@ -32,6 +32,10 @@ export class Vegetation {
     const a = this.fieldNear.stats, b = this.fieldFar.stats;
     return { instances: a.instances + b.instances, meshes: a.meshes + b.meshes, triangles: a.triangles + b.triangles };
   }
+  bakeImpostors(renderer) { this.fieldNear.bakeImpostors(renderer); this.fieldFar.bakeImpostors(renderer); }
+
+  /** Per species / LOD draw statistics (InstancedField.lodStats), both fields. */
+  lodStats(camera, viewHeight, tinyPx) { return [...this.fieldNear.lodStats(camera, viewHeight, tinyPx), ...this.fieldFar.lodStats(camera, viewHeight, tinyPx)]; }
   set drawScale(v) { this.fieldNear.drawScale = v; this.fieldFar.drawScale = v; }
   get drawScale() { return this.fieldFar.drawScale; }
 

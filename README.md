@@ -87,7 +87,8 @@ npm run mc -- viewmodel shot rifle_ak --ads 1     # first-person weapon + arms -
 npm run shot -- --at outpost_river --tod 17      # capture a viewpoint of the world
 npm run play -- --spawn x,y,z,yaw --steps "wait 2; key KeyW 1; click 0.5; shot test; state"
 npm run bench -- --mode play [--prod]    # performance per viewpoint (fps, CPU/GPU ms, draw calls)
-npm run profile -- --spawn x,y,z         # CPU profile aggregated per function
+npm run bench -- --mode play --views village --breakdown --veg-stats   # GPU ms per system, vegetation LOD stats
+npm run profile -- --spawn x,y,z         # CPU profile aggregated per function (--by file, --callers fn, --load)
 node tools/trace-flight.mjs --prod       # Chrome trace of a fast flyover: long frames and their cause
 npm run mc -- live state                 # drive a game / editor open in a browser
 ```
@@ -133,7 +134,15 @@ material variants not used yet) is compiled during the loading screen (`World.wa
 The figures below were measured on the previous, flat-shaded low-poly version; the textured version
 (PBR, splatting, alpha-cut foliage, more triangles up close) costs more GPU time and has not been
 re-benchmarked on an M1 yet (there is no dynamic resolution any more: lower the quality preset if
-it misses the budget).
+it misses the budget). First measurement of the textured version (2026-10-14, MacBook Air M4,
+medium preset): 20–25 ms of GPU per frame on most views, i.e. ~21–37 estimated fps on an M1
+(worst view 21). After the GPU work of 2026-10-14 (indexed vegetation, far-tree impostors, terrain
+splatting and shadow / SSAO shaders without per-pixel loops, near cascade every other frame,
+FXAA instead of 4x MSAA on medium): 5–10 ms with a weapon in hand, **52–101 estimated fps on an
+M1** (worst: the river outpost; sun_flare 176). Still under 120: vegetation is ~45 % of the
+frame (near / mid LOD crowns: ~2.3 shaded layers per covered pixel), then terrain (~20 %), SSAO
+(~17 %), shadows (~12 %); the flyover of `tests/stream_smooth.play` has p50 ~8 ms, p99 ~13 ms
+(main before: 13 / 33 ms).
 
 Measurement (`npm run bench -- --mode play --prod --m1 --repeat 3 --fresh`): 9 viewpoints in the
 real game (enemies, AI, HUD), 1440×900, a fresh page per measurement. The `--m1` mode is a

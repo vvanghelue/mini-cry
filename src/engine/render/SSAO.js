@@ -68,8 +68,9 @@ void main() {
   vec3 N = normalize(cross(dx, dy));
 
   // 4x4 interleaved rotation (Bayer order so neighbours differ a lot)
-  const int BAYER[16] = int[16](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-  int bayer = BAYER[(ip.x & 3) + ((ip.y & 3) << 2)];
+  // (computed: a constant array indexed per pixel is slow on Apple GPUs)
+  int bx = ip.x & 3, by = ip.y & 3;
+  int bayer = (((bx ^ by) & 1) << 1 | (by & 1)) << 2 | ((((bx ^ by) >> 1) & 1) << 1 | ((by >> 1) & 1));
   float ang = float(bayer) * (6.2831853 / 16.0);
   float jit = float(bayer) / 16.0;
 
@@ -127,18 +128,22 @@ float ssaoSample(float z) {
   vec2 f = hp - fb;
   ivec2 b = ivec2(fb);
   ivec2 mx = ivec2(aoSize) - 1;
-  float s = 0.0, w = 0.0, best = 1.0, bestD = 1e9;
   float tol = z * 0.05 + 0.02;
-  for (int k = 0; k < 4; k++) {
-    ivec2 o = ivec2(k & 1, k >> 1);
-    vec2 t = texelFetch(aoTex, clamp(b + o, ivec2(0), mx), 0).rg;
-    vec2 bl = mix(1.0 - f, f, vec2(o));
-    float dd = abs(t.y - z);
-    float wt = bl.x * bl.y * max(1.0 - dd / tol, 0.0);
-    s += t.x * wt; w += wt;
-    if (dd < bestD) { bestD = dd; best = t.x; }
-  }
-  return w > 1e-4 ? s / w : best;
+  // the 4 texels around, written out (no loop: runs in every lit pixel within aoFar)
+  vec2 t0 = texelFetch(aoTex, clamp(b, ivec2(0), mx), 0).rg;
+  vec2 t1 = texelFetch(aoTex, clamp(b + ivec2(1, 0), ivec2(0), mx), 0).rg;
+  vec2 t2 = texelFetch(aoTex, clamp(b + ivec2(0, 1), ivec2(0), mx), 0).rg;
+  vec2 t3 = texelFetch(aoTex, clamp(b + ivec2(1, 1), ivec2(0), mx), 0).rg;
+  vec4 d = abs(vec4(t0.y, t1.y, t2.y, t3.y) - z);
+  vec4 wt = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y) * max(1.0 - d / tol, 0.0);
+  float w = wt.x + wt.y + wt.z + wt.w;
+  if (w > 1e-4) return dot(vec4(t0.x, t1.x, t2.x, t3.x), wt) / w;
+  // no texel at this depth: the closest one
+  float best = t0.x, bestD = d.x;
+  if (d.y < bestD) { bestD = d.y; best = t1.x; }
+  if (d.z < bestD) { bestD = d.z; best = t2.x; }
+  if (d.w < bestD) best = t3.x;
+  return best;
 }
 `;
 

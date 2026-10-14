@@ -11,12 +11,21 @@ import { DebugPanel } from './ui/DebugPanel.js';
 
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'play';
-const engine = new Engine({ container: document.getElementById('app'), quality: params.get('quality') ?? 'medium' });
-const input = new Input(engine.canvas);
 // debug mode (debug panel shown, settings not persisted): on by default, ?debug=0 turns it off,
 // automated runs (?bot / ?bench / ?nohud) start without it
 const debugFlag = params.get('debug');
 const debugMode = debugFlag !== null ? debugFlag !== '0' : !(params.has('bot') || params.has('bench') || params.has('nohud'));
+// antialiasing is chosen when the WebGL context is created: ?aa=msaa|fxaa|off (0), else the saved
+// setting (Options, applies on the next start), else 'auto': FXAA on low / medium (MSAA costs
+// 20-30 % of the GPU frame there), MSAA on high / ultra
+const quality = params.get('quality') ?? 'medium';
+let saved = {};
+if (!debugMode) try { saved = JSON.parse(localStorage.getItem('minicry.settings.v1') ?? '{}') ?? {}; } catch { /* */ }
+const aaParam = params.get('aa');
+const aaSetting = aaParam !== null ? (aaParam === '0' ? 'off' : aaParam) : saved.antialias ?? 'auto';
+const antialias = aaSetting === 'auto' ? (['high', 'ultra'].includes(saved.quality ?? quality) ? 'msaa' : 'fxaa') : aaSetting;
+const engine = new Engine({ container: document.getElementById('app'), quality, antialias });
+const input = new Input(engine.canvas);
 const app = { engine, input, THREE, mode, params, debugMode, ready: false };
 // loading screen
 const loading = document.createElement('div');
