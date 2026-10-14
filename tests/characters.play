@@ -1,0 +1,18 @@
+# NPC bodies (realistic Rocketbox characters, data/characters.json): every soldier body and the
+# officer stand in a row; rays at the head / chest / thigh hit that part of that body (the
+# hitboxes follow the game rig the bodies are built on), a ray beside the chest misses it, rifle
+# bullets kill one, and bodies far away draw their coarser LODs (index ranges).
+# spawn: -505,2,525,0.6
+eval (()=>{ game.player.godMode = true; const T = app.THREE, p = game.player.pos, f = game.player.forward(), s = new T.Vector3(-f.z, 0, f.x); window.__bodies = ['soldier_goggles', 'soldier_cap', 'soldier_shades', 'soldier_nvg', 'soldier_cap_b', 'soldier_cap_c', 'soldier_woman', 'soldier_woman_b', 'officer']; window.__bodies.forEach((m, i) => game.world.entities.add({ type: 'enemy', archetype: 'merc_rifle', model: m, pos: [p.x + f.x * 12 + s.x * (i - 4) * 1.7, 0, p.z + f.z * 12 + s.z * (i - 4) * 1.7], group: 'bodies' })); return game.actors.byGroup('bodies').map((a) => a.character.root.children[0].name) })()
+wait 1
+eval game.cheats.freezeAI = true
+wait 1
+eval (()=>{ const T = app.THREE, eye = game.player.eye, out = {}; for (const a of game.actors.byGroup('bodies')) { const c = a.character, at = (n, up = 0) => c.bone(n).getWorldPosition(new T.Vector3()).add(new T.Vector3(0, up, 0)); const hit = (pt) => { const h = game.actors.raycast(new T.Ray(eye.clone(), pt.clone().sub(eye).normalize()), 200); return h ? (h.actor === a ? h.part : 'other') : null; }; const chest = at('Chest'), side = new T.Vector3().subVectors(chest, eye).cross(new T.Vector3(0, 1, 0)).normalize().multiplyScalar(0.75); out[a.data.model] = [hit(at('Head', 0.07)), hit(chest), hit(at('UpperLeg.L').lerp(at('LowerLeg.L'), 0.5)), hit(chest.clone().add(side))]; } window.__parts = out; return out })()
+expect Object.keys(window.__parts).length === window.__bodies.length && Object.values(window.__parts).every(([h, b, l, m]) => h === 'head' && b === 'body' && l === 'limb' && m !== 'head' && m !== 'body' && m !== 'limb')
+# rifle bullets at the chest of the first body: it dies
+eval (()=>{ const T = app.THREE, a = game.actors.byGroup('bodies')[0], eye = game.player.eye; for (let i = 0; i < 15 && a.alive; i++) game.weapons.hitscan(eye, a.character.bone('Chest').getWorldPosition(new T.Vector3()).sub(eye).normalize(), game.weapons.defs.rifle_ak, { attacker: 'player' }); return { alive: a.alive, hp: Math.round(a.health), anim: a.character.current?.getClip().name } })()
+expect !game.actors.byGroup('bodies')[0].alive && game.actors.byGroup('bodies')[0].character.current?.getClip().name === 'Death01'
+# LODs from the camera distance: full mesh at 8 m, LOD 1 at 25 m, LOD 2 at 70 m
+eval (()=>{ const cam = game.engine.camera, f = cam.getWorldDirection(new app.THREE.Vector3()).setY(0).normalize(), [, b, c, d] = game.actors.byGroup('bodies'); [[b, 8], [c, 25], [d, 70]].forEach(([a, k]) => a.pos.set(cam.position.x + f.x * k, a.pos.y, cam.position.z + f.z * k)); game.actors.update(0); return [b, c, d].map((a) => [a.data.model, a.character.lod, a.character.lods?.[a.character.lod].count / 3]) })()
+expect (() => { const [, b, c, d] = game.actors.byGroup('bodies'); return b.character.lod === 0 && c.character.lod === 1 && d.character.lod === 2; })()
+shot characters
