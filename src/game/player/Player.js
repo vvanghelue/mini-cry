@@ -82,13 +82,12 @@ export class Player {
 
     if (this.noclip) return this._noclip(dt, input);
 
-    const f = (input.down('forward') ? 1 : 0) - (input.down('back') ? 1 : 0);
-    const s = (input.down('right') ? 1 : 0) - (input.down('left') ? 1 : 0);
+    const { f, s } = input.move();
     const fwd = this.forward();
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     _wish.set(0, 0, 0).addScaledVector(fwd, f).addScaledVector(right, s);
     const moving = _wish.lengthSq() > 0;
-    if (moving) _wish.normalize();
+    if (moving) _wish.multiplyScalar(Math.min(1, _wish.length()) / _wish.length()); // keys: unit length; analog stick: its tilt
 
     // water
     const wl = T.waterLevelAt(this.pos.x, this.pos.z);
@@ -238,8 +237,7 @@ export class Player {
   _noclip(dt, input) {
     const fwd = new THREE.Vector3(-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch));
     const right = new THREE.Vector3(-Math.cos(this.yaw), 0, Math.sin(this.yaw)).negate();
-    const f = (input.down('forward') ? 1 : 0) - (input.down('back') ? 1 : 0);
-    const s = (input.down('right') ? 1 : 0) - (input.down('left') ? 1 : 0);
+    const { f, s } = input.move();
     const sp = input.down('sprint') ? 60 : 15;
     this.pos.addScaledVector(fwd, f * sp * dt).addScaledVector(right, s * sp * dt);
     this.vel.set(0, 0, 0);

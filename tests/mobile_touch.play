@@ -1,0 +1,27 @@
+# Touch controls (?mobile=1 forces the phone mode): no debug panel / stats, move stick (pushed to the
+# edge = sprint), look by dragging the right side, FIRE button, AIM toggle.
+# spawn: -505,2,525,0.6
+# query: mobile=1
+eval (()=>{ game.player.godMode = true; game.weapons.give('rifle_ak', { ammo: { rifle: 120 } }); window.__tp = (el, type, x, y, id = 7) => el.dispatchEvent(new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: true })); window.__p0 = game.player.pos.clone(); return true })()
+wait 0.5
+expect document.body.classList.contains('mobile') && document.querySelector('.touch.show') && app.mobile && !app.debugMode && !app.debug && document.getElementById('perf').hidden
+# stick pushed fully forward: walks then sprints
+eval (()=>{ const z = document.querySelector('.tc-move'), r = z.getBoundingClientRect(), x = r.left + 100, y = r.bottom - 100; __tp(z, 'pointerdown', x, y, 1); __tp(z, 'pointermove', x, y - 80, 1); return game.input.move() })()
+wait 1.5
+eval (()=>{ window.__sprint = game.player.sprinting; window.__moved = game.player.pos.distanceTo(__p0); const z = document.querySelector('.tc-move'); __tp(z, 'pointerup', 0, 0, 1); return { sprint: __sprint, moved: __moved } })()
+expect window.__sprint && window.__moved > 0.5
+expect game.input.moveX === 0 && game.input.moveY === 0 && !game.input.down('sprint')
+# drag on the right side turns the view
+eval (()=>{ window.__yaw0 = game.player.yaw; const z = document.querySelector('.tc-look'), r = z.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; __tp(z, 'pointerdown', x, y, 2); __tp(z, 'pointermove', x - 120, y, 2); __tp(z, 'pointerup', x - 120, y, 2); return true })()
+wait 0.3
+expect game.player.yaw - window.__yaw0 > 0.2
+# hold FIRE
+eval (()=>{ const b = document.querySelector('.b-fire'), r = b.getBoundingClientRect(); __tp(b, 'pointerdown', r.left + 20, r.top + 20, 3); return true })()
+wait 0.6
+eval (()=>{ const b = document.querySelector('.b-fire'); __tp(b, 'pointerup', 0, 0, 3); return game.stats.shots })()
+expect game.stats.shots >= 2 && !game.input.down('fire')
+# AIM toggles aiming down sights
+eval (()=>{ const b = document.querySelector('.b-aim'); __tp(b, 'pointerdown', 0, 0, 4); __tp(b, 'pointerup', 0, 0, 4); return true })()
+wait 0.6
+expect game.weapons.adsBlend > 0.5
+shot mobile_touch

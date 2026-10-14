@@ -119,3 +119,60 @@ canvas { display: block; outline: none; }
 #loading .bar { width: 320px; height: 6px; background: rgba(255,255,255,.15); border-radius: 3px; overflow: hidden; }
 #loading .bar i { display: block; height: 100%; width: 0; background: #ffd34d; transition: width .3s; }
 #loading .lbl { color: #9fc4d6; font-size: 14px; }
+
+/* ------------------------------------------------------------------ mobile (touch controls, landscape) */
+body.mobile { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+.touch { position: fixed; inset: 0; z-index: 27; display: none; pointer-events: none; font-family: 'Trebuchet MS', system-ui, sans-serif; }
+.touch.show { display: block; }
+.tc-zone { position: absolute; pointer-events: auto; touch-action: none; }
+.tc-move { left: 0; top: 22%; bottom: 0; width: 42%; }
+.tc-look { left: 42%; right: 0; top: 0; bottom: 0; }
+.tc-stick { position: absolute; left: calc(env(safe-area-inset-left) + 110px); top: calc(100% - 110px); width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(0,0,0,.18); opacity: .55; pointer-events: none; transition: opacity .15s; }
+.tc-stick.active { opacity: 1; }
+.tc-stick i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: 50%; background: rgba(255,255,255,.5); box-shadow: 0 0 8px rgba(0,0,0,.4); }
+.tc-btn { position: absolute; pointer-events: auto; touch-action: none; display: flex; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 50%; background: rgba(0,0,0,.32); border: 2px solid rgba(255,255,255,.45); color: #fff; font-size: 13px; font-weight: bold; letter-spacing: .5px; text-shadow: 0 1px 2px #000; box-sizing: border-box; }
+.tc-btn[hidden] { display: none; }
+.tc-btn.on { background: rgba(255,211,77,.45); border-color: #ffd34d; }
+.tc-btn.b-fire { right: calc(env(safe-area-inset-right) + 28px); bottom: 34px; width: 86px; height: 86px; font-size: 15px; background: rgba(160,20,10,.38); border-color: rgba(255,120,100,.7); }
+.tc-btn.b-aim { right: calc(env(safe-area-inset-right) + 128px); bottom: 26px; }
+.tc-btn.b-jump { right: calc(env(safe-area-inset-right) + 40px); bottom: 134px; }
+.tc-btn.b-crouch { right: calc(env(safe-area-inset-right) + 116px); bottom: 98px; font-size: 10px; }
+.tc-btn.b-reload { right: calc(env(safe-area-inset-right) + 192px); bottom: 26px; width: 46px; height: 46px; }
+.tc-btn.b-swap { right: calc(env(safe-area-inset-right) + 176px); bottom: 150px; width: 46px; height: 46px; font-size: 18px; }
+.tc-btn.b-grenade { right: calc(env(safe-area-inset-right) + 104px); bottom: 172px; width: 46px; height: 46px; }
+.tc-btn.b-melee { right: calc(env(safe-area-inset-right) + 180px); bottom: 92px; width: 46px; height: 46px; }
+.tc-btn.b-use { right: calc(env(safe-area-inset-right) + 34%); top: 54%; width: 62px; height: 62px; opacity: .45; }
+.tc-btn.b-use.hint { opacity: 1; border-color: #ffd34d; animation: blink 1s infinite; }
+.tc-btn.b-bino { right: calc(env(safe-area-inset-right) + 40px); bottom: 196px; width: 46px; height: 46px; font-size: 20px; }
+.tc-btn.b-map, .tc-btn.b-pause { top: calc(env(safe-area-inset-top) + 8px); width: 44px; height: 44px; border-radius: 8px; font-size: 12px; }
+.tc-btn.b-pause { left: calc(env(safe-area-inset-left) + 10px); }
+.tc-btn.b-map { left: calc(env(safe-area-inset-left) + 62px); }
+.touch.vehicle .b-crouch, .touch.vehicle .b-aim, .touch.vehicle .b-reload, .touch.vehicle .b-grenade, .touch.vehicle .b-melee, .touch.vehicle .b-swap, .touch.vehicle .b-bino { display: none; }
+.touch.map-open > :not(.b-map) { display: none; }
+.touch.map-open .b-map { z-index: 1; }
+.rotate-hint { display: none; }
+@media (orientation: portrait) {
+  .mobile .rotate-hint { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #03121c; color: #cfe8f0; font: 18px 'Trebuchet MS', sans-serif; text-align: center; padding: 24px; }
+  .mobile .rotate-hint .ph { font-size: 64px; animation: rotate-ph 1.6s ease-in-out infinite; }
+}
+@keyframes rotate-ph { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+/* compact HUD around the controls */
+.mobile .hud-compass { transform: scale(.72); transform-origin: 50% 0; top: 6px; }
+.mobile .hud-mini { transform: scale(.55); transform-origin: 100% 0; top: 8px; right: calc(env(safe-area-inset-right) + 8px); }
+.mobile .hud-obj { top: 60px; left: calc(env(safe-area-inset-left) + 12px); max-width: 260px; transform: scale(.82); transform-origin: 0 0; }
+.mobile .hud-notes { top: 128px; left: calc(env(safe-area-inset-left) + 12px); transform: scale(.85); transform-origin: 0 0; }
+.mobile .hud-vitals { left: 50%; bottom: 10px; width: 200px; margin-left: -100px; }
+.mobile .hud-weapon { right: calc(env(safe-area-inset-right) + 12px); bottom: auto; top: 108px; transform: scale(.6); transform-origin: 100% 0; }
+.mobile .hud-vehicle { right: auto; left: 50%; bottom: 48px; transform: translateX(-50%) scale(.8); font-size: 18px; }
+.mobile .hud-subs { bottom: 46px; max-width: 46vw; font-size: 14px; padding: 5px 10px; }
+.mobile .hud-banner .b1 { font-size: 28px; }
+.mobile .hud-prompt { font-size: 13px; top: 64%; }
+.mobile .hud-prompt kbd { display: none; }
+.mobile .map-info { left: 12px; top: 64px; max-width: 220px; font-size: 12px; padding: 8px 10px; }
+.mobile .menu-panel { min-width: 0; width: min(560px, 90vw); max-height: 100vh; overflow-y: auto; padding: 12px 20px; box-sizing: border-box; touch-action: pan-y; }
+.mobile .menu-panel .logo { font-size: 44px; }
+.mobile .menu-panel .tag { margin: 2px 0 10px; }
+.mobile .menu-panel .title { font-size: 30px; margin-bottom: 8px; }
+.mobile .menu-panel button { margin: 6px 0; padding: 10px; }
+.mobile .menu-panel .help { margin-top: 10px; font-size: 12px; }
+.mobile .b-edit, .mobile .perf-row { display: none; }

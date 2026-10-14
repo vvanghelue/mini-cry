@@ -120,8 +120,8 @@ export class Vehicles {
     const v = this.driving, g = this.game;
     if (!v) return;
     const l = inp.locked ? inp.look() : (inp.look(), { yaw: 0, pitch: 0 });
-    const thr = (inp.down('forward') ? 1 : 0) - (inp.down('back') ? 1 : 0);
-    const st = (inp.down('left') ? 1 : 0) - (inp.down('right') ? 1 : 0);
+    const mv = inp.move();
+    const thr = mv.f, st = -mv.s;
     const p = g.player;
     if (v.kind === 'plane') this._pilot(v, dt, inp, l, thr, st);
     else {

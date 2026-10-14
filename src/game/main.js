@@ -8,17 +8,20 @@ import { Live } from '../engine/core/Live.js';
 import { startViewMode, startAssetMode, startViewModelMode } from './modes/viewer.js';
 import { PerfOverlay } from './ui/PerfOverlay.js';
 import { DebugPanel } from './ui/DebugPanel.js';
+import { isMobile } from './ui/TouchControls.js';
 
 const params = new URLSearchParams(location.search);
 const mode = params.get('mode') ?? 'play';
+// phones / tablets (?mobile=1 forces it): touch controls, landscape full screen, low quality, no debug / stats
+const mobile = mode === 'play' && isMobile(params);
 // debug mode (debug panel shown, settings not persisted): on by default, ?debug=0 turns it off,
-// automated runs (?bot / ?bench / ?nohud) start without it
+// automated runs (?bot / ?bench / ?nohud) and phones start without it
 const debugFlag = params.get('debug');
-const debugMode = debugFlag !== null ? debugFlag !== '0' : !(params.has('bot') || params.has('bench') || params.has('nohud'));
+const debugMode = debugFlag !== null ? debugFlag !== '0' : !(mobile || params.has('bot') || params.has('bench') || params.has('nohud'));
 // antialiasing is chosen when the WebGL context is created: ?aa=msaa|fxaa|off (0), else the saved
 // setting (Options, applies on the next start), else 'auto': FXAA on low / medium (MSAA costs
 // 20-30 % of the GPU frame there), MSAA on high / ultra
-const quality = params.get('quality') ?? 'medium';
+const quality = params.get('quality') ?? (mobile ? 'low' : 'medium');
 let saved = {};
 if (!debugMode) try { saved = JSON.parse(localStorage.getItem('minicry.settings.v1') ?? '{}') ?? {}; } catch { /* */ }
 const aaParam = params.get('aa');
@@ -26,7 +29,7 @@ const aaSetting = aaParam !== null ? (aaParam === '0' ? 'off' : aaParam) : saved
 const antialias = aaSetting === 'auto' ? (['high', 'ultra'].includes(saved.quality ?? quality) ? 'msaa' : 'fxaa') : aaSetting;
 const engine = new Engine({ container: document.getElementById('app'), quality, antialias });
 const input = new Input(engine.canvas);
-const app = { engine, input, THREE, mode, params, debugMode, ready: false };
+const app = { engine, input, THREE, mode, params, debugMode, mobile, ready: false };
 // loading screen
 const loading = document.createElement('div');
 loading.id = 'loading';
@@ -41,7 +44,7 @@ window.__mc = app;
 app.live = new Live('game', app);
 
 const perf = (app.perf = new PerfOverlay(engine)); // F3, ?stats=0 hides it
-if (params.get('nohud') === '1') perf.hide();
+if (params.get('nohud') === '1' || (mobile && params.get('stats') === null)) perf.hide();
 
 if (mode === 'asset') {
   await startAssetMode(app, params);
@@ -63,4 +66,4 @@ if (app.world) { app.onLoadProgress?.(0.98, 'shaders'); await app.world.warmUp(e
 engine.start();
 app.ready = true;
 document.getElementById('loading')?.remove();
-app.debug = new DebugPanel(app, perf); // F2, ?debug=0 hides it
+if (!mobile || params.has('debug')) app.debug = new DebugPanel(app, perf); // F2, ?debug=0 hides it

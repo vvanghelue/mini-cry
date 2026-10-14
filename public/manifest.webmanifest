@@ -1,0 +1,9 @@
+{
+  "name": "Mini Cry",
+  "short_name": "Mini Cry",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#03121c",
+  "theme_color": "#03121c"
+}

@@ -44,7 +44,7 @@ export class Menus {
       ${cont ? '<button class="b-cont">Continue</button>' : ''}
       <button class="b-opt">Options</button>
       <button class="b-edit">Editor</button>
-      <div class="help">WASD/ZQSD move · Mouse look · Click / T fire · Right-click aim · R reload · E use · G grenade · V machete strike · Shift sprint · Ctrl crouch · Space jump · B binoculars · M map · 1-5 / Q (A on AZERTY) / wheel weapons</div>
+      <div class="help">${g.app.mobile ? 'Left stick move (push to the edge to sprint) · Drag the right side to look · FIRE (drag it to aim while firing) · AIM / CROUCH toggle · USE when a prompt shows · ⇄ next weapon · R reload · G grenade · V machete' : `WASD/ZQSD move · Mouse look · Click / T fire · Right-click aim · R reload · E use · G grenade · V machete strike · Shift sprint · Ctrl crouch · Space jump · B binoculars · M map · 1-5 / Q (A on AZERTY) / wheel weapons`}</div>
       <div class="load">${g.loadMs ? `Loaded in ${(g.loadMs / 1000).toFixed(1)} s` : ''}</div>`, {
       '.b-new': () => { try { localStorage.removeItem('minicry.save.v1'); } catch { /* */ } g.newGame(); },
       '.b-cont': () => g.newGame({ fromCheckpoint: true }),
@@ -105,14 +105,14 @@ export class Menus {
       <label>Ambient occlusion (SSAO) <input name="ao" type="checkbox" ${s.ao !== false ? 'checked' : ''}></label>
       <label>Sun lens flare <input name="flare" type="checkbox" ${s.flare !== false ? 'checked' : ''}></label>
       <label>Difficulty <select name="difficulty">${DIFFICULTY_LABELS.map(([q, l]) => `<option value="${q}" ${q === s.difficulty ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-      <label>Mouse sensitivity <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>
+      <label>${g.app.mobile ? 'Look sensitivity' : 'Mouse sensitivity'} <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>
       <label>Field of view <input name="fov" type="range" min="60" max="95" step="1" value="${s.fov}"></label>
       <label>Invert Y axis <input name="invertY" type="checkbox" ${s.invertY ? 'checked' : ''}></label>
       <label>Volume <input name="volume" type="range" min="0" max="1" step="0.05" value="${s.volume}"></label>
       <label>Music <input name="music" type="range" min="0" max="1" step="0.05" value="${s.music}"></label>
       <label>Dialogue voices <input name="voices" type="checkbox" ${s.voices ? 'checked' : ''}></label>
       <label>Voice volume <input name="voiceVolume" type="range" min="0" max="1.5" step="0.05" value="${s.voiceVolume ?? 1}"></label>
-      <label>Show performance stats (F3) <input name="perf" type="checkbox" ${document.getElementById('perf')?.hidden === false ? 'checked' : ''}></label>
+      <label class="perf-row">Show performance stats (F3) <input name="perf" type="checkbox" ${document.getElementById('perf')?.hidden === false ? 'checked' : ''}></label>
       <button class="b-back">Back</button>`, {
       '.b-back': () => back(),
     });
@@ -186,7 +186,7 @@ export class Menus {
     ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
     const m = g.missions.focus && g.missions.defs.get(g.missions.focus);
-    this.mapInfo.innerHTML = `<b>${m?.title ?? 'Free roam'}</b><br>${m ? (m.objectives[g.missions.state[m.id]?.obj]?.text ?? '') : ''}<br><small>${this._fast.length ? 'Click a liberated outpost (blue) to travel there.' : 'Liberate outposts to unlock fast travel.'} · M / Esc to close</small>`;
+    this.mapInfo.innerHTML = `<b>${m?.title ?? 'Free roam'}</b><br>${m ? (m.objectives[g.missions.state[m.id]?.obj]?.text ?? '') : ''}<br><small>${this._fast.length ? (g.app.mobile ? 'Tap' : 'Click')+' a liberated outpost (blue) to travel there.' : 'Liberate outposts to unlock fast travel.'} · ${g.app.mobile ? 'MAP' : 'M / Esc'} to close</small>`;
   }
 
   _mapClick(e) {
