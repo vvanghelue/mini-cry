@@ -12,12 +12,26 @@ import { Perf } from './Perf.js';
 import { TONE_MAPPING } from '../render/Grade.js';
 
 export class Engine {
-  /** antialias: 'msaa' (4x MSAA canvas, fixed when the WebGL context is created), 'fxaa' (a post pass
-   *  on the final image, ~20-30 % less GPU time than MSAA with this much vegetation), 'off' */
+  /** antialias (fixed when the WebGL context is created): 'msaa' / 'msaa4' (the canvas' own MSAA, 4x),
+   *  'msaa2' / 'msaa8' (offscreen multisampled framebuffer resolved onto the canvas, see _msaaBegin;
+   *  clamped to what the GPU supports), 'fxaa' (a post pass on the final image, ~20-30 % less GPU
+   *  time than MSAA 4x with this much vegetation), 'off' */
   constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600, antialias = 'msaa' } = {}) {
     this.container = container;
-    this.aa = antialias === true ? 'msaa' : antialias === false ? 'off' : antialias;
-    const renderer = new THREE.WebGLRenderer({ antialias: this.aa === 'msaa', powerPreference: 'high-performance', stencil: false });
+    const aa = antialias === true ? 'msaa' : antialias === false ? 'off' : String(antialias);
+    const m = /^msaa(\d*)$/.exec(aa);
+    this.aa = m ? 'msaa' : aa;
+    this.samples = m ? Number(m[1] || 4) : 0; // MSAA samples (0 = no MSAA)
+    const renderer = new THREE.WebGLRenderer({ antialias: this.samples === 4, powerPreference: 'high-performance', stencil: false });
+    const gl = renderer.getContext();
+    // sample counts the GPU supports for offscreen MSAA (Options only offer x8 when it is there)
+    this.msaaCounts = [...(gl.getInternalformatParameter(gl.RENDERBUFFER, gl.RGBA8, gl.SAMPLES) ?? [])];
+    if (this.samples && this.samples !== 4) {
+      const ok = this.msaaCounts.filter((n) => n <= this.samples);
+      this.samples = ok.length ? Math.max(...ok) : Math.min(...this.msaaCounts, 4);
+      this._offscreenMsaa = this.samples > 1;
+      if (!this._offscreenMsaa) { this.aa = 'off'; this.samples = 0; }
+    }
     this.quality = QUALITY[quality] ? quality : 'medium';
     this.maxDpr = Math.min(devicePixelRatio, QUALITY[this.quality].dpr * Math.max(1, devicePixelRatio / 2));
     this.resScale = 1; // resolution factor (x maxDpr, debug panel)
@@ -144,6 +158,7 @@ export class Engine {
     const auto = scene.matrixWorldAutoUpdate;
     scene.matrixWorldAutoUpdate = false;
     try {
+      if (this._offscreenMsaa) this._msaaBegin();
       this.lighting.prepass(camera);
       renderer.render(scene, camera);
       // sun visibility queries, while the depth buffer still holds the world
@@ -157,12 +172,59 @@ export class Engine {
         renderer.autoClear = true;
       }
       this.lighting.flare.render(camera);
+      if (this._offscreenMsaa) this._msaaResolve();
       if (this.aa === 'fxaa') this._fxaa();
       // last (after FXAA): the finished frame feeds next frame's water reflections (SSR.js)
       this.lighting.ssr.grab(camera);
     } finally {
       scene.matrixWorldAutoUpdate = auto;
     }
+  }
+
+  /** Antialiasing setting as the options name it: 'msaa2' / 'msaa4' / 'msaa8' / 'fxaa' / 'off'. */
+  get aaMode() { return this.aa === 'msaa' ? `msaa${this.samples}` : this.aa; }
+
+  /** Offscreen MSAA (x2 / x8): the canvas' MSAA has a fixed sample count, so the frame is drawn into
+   *  our own multisampled framebuffer (colour + depth renderbuffers at the drawing buffer size) and
+   *  resolved onto the canvas once at the end (_msaaResolve). three draws into it through an external
+   *  framebuffer render target (no resolve / invalidation after each render() call, so the world,
+   *  the first-person overlay and the flare all land in the same buffer); flagged as an XR target
+   *  so materials get the same tone mapping + sRGB output as on the canvas (same shader programs). */
+  _msaaBegin() {
+    const r = this.renderer, gl = r.getContext(), size = r.getDrawingBufferSize(_size);
+    let m = this._msaa;
+    if (!m) {
+      m = this._msaa = { rt: new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false }), fb: gl.createFramebuffer(), color: gl.createRenderbuffer(), depth: gl.createRenderbuffer(), w: 0, h: 0 };
+      m.rt.isXRRenderTarget = true;
+      m.rt.texture.colorSpace = THREE.SRGBColorSpace;
+      r.setRenderTargetFramebuffer(m.rt, m.fb);
+    }
+    if (m.w !== size.x || m.h !== size.y) {
+      m.w = size.x; m.h = size.y;
+      for (const [rb, fmt] of [[m.color, gl.RGBA8], [m.depth, gl.DEPTH_COMPONENT24]]) {
+        gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, this.samples, fmt, m.w, m.h);
+      }
+      gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+      r.state.bindFramebuffer(gl.FRAMEBUFFER, m.fb);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, m.color);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, m.depth);
+      // not setSize(): it would dispose the target (and delete our framebuffer)
+      m.rt.width = m.w; m.rt.height = m.h;
+      m.rt.viewport.set(0, 0, m.w, m.h);
+      m.rt.scissor.set(0, 0, m.w, m.h);
+    }
+    r.setRenderTarget(m.rt);
+  }
+
+  /** Resolve the offscreen MSAA frame onto the canvas, then drop its samples (tile GPUs skip the store). */
+  _msaaResolve() {
+    const r = this.renderer, gl = r.getContext(), m = this._msaa;
+    r.setRenderTarget(null);
+    r.state.bindFramebuffer(gl.READ_FRAMEBUFFER, m.fb);
+    gl.blitFramebuffer(0, 0, m.w, m.h, 0, 0, m.w, m.h, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.invalidateFramebuffer(gl.READ_FRAMEBUFFER, [gl.COLOR_ATTACHMENT0, gl.DEPTH_ATTACHMENT]);
+    r.state.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
   }
 
   /** FXAA over the finished (tone-mapped, sRGB) canvas: copy it, filter it back onto it. */
@@ -191,6 +253,10 @@ export class Engine {
     this.stop();
     removeEventListener('resize', this._onResize);
     this._ro?.disconnect();
+    if (this._msaa) {
+      const gl = this.renderer.getContext();
+      gl.deleteFramebuffer(this._msaa.fb); gl.deleteRenderbuffer(this._msaa.color); gl.deleteRenderbuffer(this._msaa.depth);
+    }
     this.renderer.dispose();
     this.canvas.remove();
   }

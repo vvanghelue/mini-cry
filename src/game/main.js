@@ -18,15 +18,15 @@ const mobile = mode === 'play' && isMobile(params);
 // automated runs (?bot / ?bench / ?nohud) and phones start without it
 const debugFlag = params.get('debug');
 const debugMode = debugFlag !== null ? debugFlag !== '0' : !(mobile || params.has('bot') || params.has('bench') || params.has('nohud'));
-// antialiasing is chosen when the WebGL context is created: ?aa=msaa|fxaa|off (0), else the saved
-// setting (Options, applies on the next start), else 'auto': FXAA on low / medium (MSAA costs
-// 20-30 % of the GPU frame there), MSAA on high / ultra
+// antialiasing is chosen when the WebGL context is created: ?aa=msaa2|msaa4|msaa8|msaa (= 4x)|fxaa|off
+// (0), else the saved setting (Options, applies on the next start), else 'auto': MSAA 4x on
+// desktop; on phones / tablets FXAA (MSAA costs 20-30 % of the GPU frame), MSAA on high / ultra
 const quality = params.get('quality') ?? (mobile ? 'low' : 'medium');
 let saved = {};
 if (!debugMode) try { saved = JSON.parse(localStorage.getItem('minicry.settings.v1') ?? '{}') ?? {}; } catch { /* */ }
 const aaParam = params.get('aa');
 const aaSetting = aaParam !== null ? (aaParam === '0' ? 'off' : aaParam) : saved.antialias ?? 'auto';
-const antialias = aaSetting === 'auto' ? (['high', 'ultra'].includes(saved.quality ?? quality) ? 'msaa' : 'fxaa') : aaSetting;
+const antialias = aaSetting === 'auto' ? (!mobile || ['high', 'ultra'].includes(saved.quality ?? quality) ? 'msaa4' : 'fxaa') : aaSetting;
 const engine = new Engine({ container: document.getElementById('app'), quality, antialias });
 const input = new Input(engine.canvas);
 const app = { engine, input, THREE, mode, params, debugMode, mobile, ready: false };
