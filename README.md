@@ -4,9 +4,7 @@
 
 <sub>The online editor is read-only: saving needs the dev server (`npm run dev`).</sub>
 
-[![In game: shooting, jeep, jungle, bush plane, coast, village](docs/realistic/gameplay.jpg)](https://vvanghelue.github.io/mini-cry/)
-
-![Stilt huts on the lagoon](docs/screenshot_beach.jpg)
+[![Isla Sombra in real time: lens flare, screen-space reflections on the ocean](docs/tech/hero.jpg)](https://vvanghelue.github.io/mini-cry/)
 
 An open-world FPS in the spirit of *Far Cry 1*, with a **realistic, photo-textured look**: a
 2 × 2 km tropical island (jungle, lagoon, volcano, river, islets), mercenary outposts to liberate,
@@ -21,7 +19,31 @@ npm install
 npm run dev          # http://localhost:5190  (game)   ·   /editor.html  (editor)
 ```
 
+## Rendering tech
+
+Every image below is a frame of the running game (`npm run shot` / `npm run play`), split down the
+middle where a feature can be switched off.
+
+![Screen-space reflections: off vs high on the village dock](docs/tech/ssr.jpg)
+![GI interior probe volumes: world grid vs interior volume](docs/tech/gi_interiors.jpg)
+![First-person weapon lit by the world, outdoors and indoors](docs/tech/viewmodel.jpg)
+![Sun shadow cascades: final image and near / mid / far cascades view](docs/tech/shadows.jpg)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/tech/foliage.jpg" alt="145,000 instanced plants, alpha-cut foliage, impostors"></td>
+<td width="50%"><img src="docs/tech/golden_hour.jpg" alt="La Fortaleza at golden hour, AgX tone mapping"></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/tech/night.jpg" alt="The lab at night: light halos and moonlight"></td>
+<td width="50%"><img src="docs/tech/characters.jpg" alt="Realistic Rocketbox soldier bodies"></td>
+</tr>
+</table>
+
 ## The game
+
+[![In game: shooting, jeep, jungle, bush plane, coast, village](docs/realistic/gameplay.jpg)](https://vvanghelue.github.io/mini-cry/)
+
 
 - **Island**: procedural terrain (1025² heightmap, chunked LOD) with PBR texture splatting (12
   photo-scanned layers, height-blended borders, triplanar cliffs, anti-tiling), ocean and rivers
