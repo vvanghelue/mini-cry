@@ -208,7 +208,6 @@ export class DebugPanel {
     fh.add(env('haze', 'start'), 'v', 0, 50, 0.5).name('clear distance (m)');
     fh.add(env('haze', 'brightness'), 'v', 0, 2, 0.01).name('brightness');
     fh.add(env('haze', 'sun'), 'v', 0, 3, 0.01).name('glow toward the sun');
-    fh.add(env('haze', 'sunPower'), 'v', 1, 32, 0.5).name('sun glow tightness');
     fh.add(env('haze', 'variation'), 'v', 0, 1, 0.01).name('drifting banks');
     fh.add(env('haze', 'scale'), 'v', 20, 600, 5).name('bank size (m)');
     fh.add(env('haze', 'drift'), 'v', 0, 15, 0.1).name('drift (m/s)');

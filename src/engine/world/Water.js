@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { LAYERS } from '../render/layers.js';
 import { CLOUDS_GLSL } from '../render/clouds.js';
 import { SSR_GLSL } from '../render/SSR.js';
-import { HAZE_VERT_GLSL } from '../render/Haze.js';
+import { HAZE_VERT_GLSL, HAZE_FRAG_GLSL } from '../render/Haze.js';
 
 const WATER_VERT = /* glsl */ `
   uniform float uTime, waveAmp, flowSpeed;
@@ -53,7 +53,7 @@ const WATER_VERT = /* glsl */ `
     vFlow = flow;
     vec4 mv = viewMatrix * w;
     vFogDepth = -mv.z;
-    hazeVertex(mv.xyz); // near haze + far fog (render/Haze.js), as on the land
+    hazeVertex(mv.xyz); // the near haze's opacity (render/Haze.js), as on the land
     gl_Position = projectionMatrix * mv;
     #include <logdepthbuf_vertex>
   }`;
@@ -68,7 +68,7 @@ const WATER_FRAG = /* glsl */ `
   varying vec2 vFlow;
   varying float vFogDepth;
   varying float vCrest;
-  varying vec4 vHaze;
+  ${HAZE_FRAG_GLSL}
   #include <logdepthbuf_pars_fragment>
   ${CLOUDS_GLSL}
   ${SSR_GLSL}
@@ -129,7 +129,8 @@ const WATER_FRAG = /* glsl */ `
     float alpha = mix(0.45, opacity, smoothstep(0.0, 3.0, depth));
     alpha = max(max(alpha, f * 0.9), F);
     alpha *= smoothstep(-0.05, 0.12, depth);
-    col = col * vHaze.a + vHaze.rgb;
+    vec4 hz = hazeFrag(vWorld - cameraPosition); // near haze + far fog (render/Haze.js)
+    col = col * hz.a + hz.rgb;
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -144,7 +145,7 @@ const WATER_FRAG = /* glsl */ `
       Rw.y = max(Rw.y, 0.005);
       vec3 Rv = normalize((viewMatrix * vec4(Rw, 0.0)).xyz);
       vec4 s = ssrTrace(Pv, Rv, ssrIgn(gl_FragCoord.xy));
-      float w = s.a * F * ssrIntensity * (1.0 - f * 0.8) * vHaze.a;
+      float w = s.a * F * ssrIntensity * (1.0 - f * 0.8) * hz.a;
       // the reflected share is not see-through: out = (1 - w) * (water over the bed) + w * reflection
       w = clamp(w, 0.0, 1.0);
       float a2 = 1.0 - (1.0 - w) * (1.0 - gl_FragColor.a);
