@@ -11,7 +11,7 @@
 An open-world FPS in the spirit of *Far Cry 1*, with a **realistic, photo-textured look**: a
 2 × 2 km tropical island (jungle, lagoon, volcano, river, islets), mercenary outposts to liberate,
 a scripted story of 7 missions + side missions — with its own **engine**, **editor** and **tools
-for AI agents**. Three.js + Vite. Models, sounds and terrain are described in JSON and generated;
+for AI agents**. Three.js (WebGPU renderer, TSL node materials; WebGL 2 fallback) + Vite. Models, sounds and terrain are described in JSON and generated;
 their surfaces use CC0 photo textures (Poly Haven, ambientCG) that `mc textures` downloads and
 packs into texture arrays. The UI is in English; the story content (missions, dialogue, voices)
 is in French.
@@ -100,7 +100,7 @@ See `CLAUDE.md` (agent guide), `docs/ASSETS.md`, `docs/TEXTURES.md`, `docs/MISSI
 ```
 src/engine/   generic engine
   core/       Engine (loop, systems, frame rate cap, CPU/GPU perf), Input, Data, Live, FlyCamera
-  render/     Lighting (day/night, sky, PBR materials, wind), Surfaces (texture arrays), TerrainMaterial (splatting), Grade (tone mapping), SunShadows (cascades), SSAO, GI, LensFlare, Glows, InstancedField, StaticBatch
+  render/     Lighting (day/night, sky, wind), WorldMaterial (PBR node materials + lighting model), Output (tone mapping, grade, fog), Surfaces (texture arrays), TerrainMaterial (splatting), SunShadows (cascades), SSAO, SSR, GI, LensFlare, Glows, InstancedField + FieldMesh, Impostors, StaticBatch
   world/      TerrainData / TerrainGen / TerrainRenderer, Water, Vegetation (+ scatter), Grass, Entities, World
   physics/    Physics (spatial grid, boxes/cylinders/spheres, character, raycasts)
   assets/     ModelBuilder (JSON -> geometry, normals, uvs, surfaces), generators (palm, tree…), surfaces, AssetLibrary

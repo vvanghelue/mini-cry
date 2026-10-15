@@ -1,7 +1,8 @@
 // Stats overlay (bottom right, F3 toggles): shown by default (?stats=0 hides it; automated runs
 // with ?bot / ?bench / ?nohud start without it). stats.js-style graph panels for
-// FPS, CPU ms (JS time of the frame incl. issuing GL calls), GPU ms (timer queries, when the
-// browser exposes EXT_disjoint_timer_query_webgl2), draw calls and JS heap (Chromium only), plus
+// FPS, CPU ms (JS time of the frame incl. encoding the GPU commands), GPU ms (WebGPU timestamp
+// queries, or EXT_disjoint_timer_query_webgl2 on the WebGL 2 fallback), draw calls and JS heap
+// (Chromium only), plus
 // a caption line (resolution scale, triangles, CPU marks). CPU / GPU graphs get a dashed line at
 // the 120 fps budget (8.3 ms). Raw samples come from the engine's Perf hooks, so no extra queries.
 const BUDGET_MS = 1000 / 120;

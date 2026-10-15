@@ -103,8 +103,9 @@ try {
     report.steps.push(entry);
   }
   report.final = await page.evaluate(() => window.__mc.live.commands.state());
-  // shader programs compiled after the loading warm-up (each one is a frame hitch in game)
-  report.lateShaders = await page.evaluate(() => { const w = window.__mc.world; return w?.warmUpStats ? window.__mc.engine.renderer.info.programs.length - w.warmUpStats.total : null; });
+  // render pipelines created after the loading warm-up (each one is a frame hitch in game)
+  report.lateShaders = await page.evaluate(() => { const w = window.__mc.world; return w?.warmUpStats ? window.__mc.engine.pipelineCount() - w.warmUpStats.total : null; });
+  if (report.lateShaders) report.latePipelines = await page.evaluate(() => window.__mc.world.latePipelines?.()); // their material names
 } catch (e) {
   report.fatal = String(e.message ?? e);
 } finally {

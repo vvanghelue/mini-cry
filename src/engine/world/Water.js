@@ -10,147 +10,145 @@
 // Rivers: ribbon meshes along the river polylines, ripples scrolling with the flow.
 // Optional screen-space reflections of the shore, trees, boats... in place of the sky
 // reflection where a ray finds them on screen (render/SSR.js).
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import {
+  Fn, If, uniform, texture, attribute, varying, varyingProperty, property, vec2, vec3, vec4, float, normalize, dot, max, mix, pow, exp, sin, cos, abs, clamp, smoothstep, step, select,
+  floor, fract, distance, reflect, positionLocal, modelWorldMatrix, cameraViewMatrix, cameraPosition, screenCoordinate, renderGroup,
+} from 'three/tsl';
 import { LAYERS } from '../render/layers.js';
-import { CLOUDS_GLSL } from '../render/clouds.js';
-import { SSR_GLSL } from '../render/SSR.js';
+import { skyClouds } from '../render/clouds.js';
+import { SSR } from '../render/SSR.js';
+import { toDisplay } from '../render/Output.js';
 
-const WATER_VERT = /* glsl */ `
-  uniform float uTime, waveAmp, flowSpeed;
-  uniform vec3 camPos;
-  attribute vec2 flow;
-  varying vec3 vWorld;
-  varying vec3 vWaveN;
-  varying vec2 vFlow;
-  varying float vFogDepth;
-  varying float vCrest;
-  #include <logdepthbuf_pars_vertex>
-  // directional swell: x height, yz gradient (d/dx, d/dz)
-  vec3 wave(vec2 p, float t) {
-    vec3 r = vec3(0.0);
-    vec4 W[4];
-    W[0] = vec4(0.80, 0.60, 0.11, 0.50); // dir xy, spatial frequency, amplitude
-    W[1] = vec4(-0.35, 0.94, 0.13, 0.38);
-    W[2] = vec4(0.97, -0.24, 0.23, 0.22);
-    W[3] = vec4(0.42, 0.91, 0.37, 0.12);
-    for (int i = 0; i < 4; i++) {
-      float k = W[i].z, a = W[i].w, ph = dot(W[i].xy, p) * k + t * sqrt(9.8 * k) * 0.55;
-      r.x += sin(ph) * a;
-      r.yz += W[i].xy * (cos(ph) * a * k);
-    }
-    return r;
-  }
-  void main() {
-    vec4 w = modelMatrix * vec4(position, 1.0);
-    float fade = 1.0 - smoothstep(120.0, 400.0, distance(w.xz, camPos.xz));
-    vec3 h = wave(w.xz, uTime) * waveAmp * fade;
-    w.y += h.x;
-    vWaveN = normalize(vec3(-h.y, 1.0, -h.z));
-    vCrest = h.x / max(waveAmp, 1e-3);
-    vWorld = w.xyz;
-    vFlow = flow;
-    vec4 mv = viewMatrix * w;
-    vFogDepth = -mv.z;
-    gl_Position = projectionMatrix * mv;
-    #include <logdepthbuf_vertex>
-  }`;
+// directional swell: dir xy, spatial frequency, amplitude
+const WAVES = [[0.80, 0.60, 0.11, 0.50], [-0.35, 0.94, 0.13, 0.38], [0.97, -0.24, 0.23, 0.22], [0.42, 0.91, 0.37, 0.12]];
 
-const WATER_FRAG = /* glsl */ `
-  uniform float opacity, isRiver, flowSpeed, night, rippleScale;
-  uniform vec3 shallow, deep, foam, sunDirW, sunColor, skyCol, horizonCol, fogColor;
-  uniform float fogDensity;
-  uniform sampler2D heightTex, waterNormal;
-  uniform vec4 terrainRect; // x0, z0, size, unused
-  varying vec3 vWorld;
-  varying vec3 vWaveN;
-  varying vec2 vFlow;
-  varying float vFogDepth;
-  varying float vCrest;
-  #include <logdepthbuf_pars_fragment>
-  ${CLOUDS_GLSL}
-  ${SSR_GLSL}
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+/** x height, yz gradient (d/dx, d/dz) of the swell at world xz, time t (written out, no loop). */
+function wave(p, t) {
+  let r = vec3(0);
+  for (const [dx, dz, k, a] of WAVES) {
+    const ph = dot(vec2(dx, dz), p).mul(k).add(t.mul(Math.sqrt(9.8 * k) * 0.55));
+    r = r.add(vec3(sin(ph).mul(a), vec2(dx, dz).mul(cos(ph).mul(a * k))));
   }
-  vec3 ripple(vec2 uv) { vec3 t = texture2D(waterNormal, uv).xyz * 2.0 - 1.0; return vec3(t.x, 0.0, t.y); }
-  vec3 skyAt(vec3 d) {
-    d.y = abs(d.y);
-    vec3 c = mix(horizonCol, skyCol, pow(d.y, 0.5));
-    vec2 cl = skyClouds(d);
-    vec3 cloudLit = mix(horizonCol * 1.1, vec3(1.0), 0.6 * (1.0 - night)) + sunColor * 0.05;
-    return mix(c, cloudLit * (0.2 + 0.8 * (1.0 - night)), cl.x * 0.85);
-  }
-  void main() {
-    #include <logdepthbuf_fragment>
-    vec2 uv = (vWorld.xz - terrainRect.xy) / terrainRect.z;
-    float ground = texture2D(heightTex, uv).r;
-    float depth = vWorld.y - ground;
-    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) depth = 60.0;
-    vec3 V = normalize(cameraPosition - vWorld);
-    float dist = vFogDepth;
+  return r;
+}
+
+const hash = (p) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453));
+const noise = Fn(([p]) => {
+  const i = floor(p), f0 = fract(p);
+  const f = f0.mul(f0).mul(f0.mul(-2).add(3));
+  return mix(mix(hash(i), hash(i.add(vec2(1, 0))), f.x), mix(hash(i.add(vec2(0, 1))), hash(i.add(vec2(1, 1))), f.x), f.y);
+}).setLayout({ name: 'waterNoise', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
+
+// fragment values the output stage reads (SSR blend after the tone mapping)
+const wF = property('float', 'wF'), wFoam = property('float', 'wFoam'), wFogF = property('float', 'wFogF'), wNs = property('vec3', 'wNs'), wV = property('vec3', 'wV');
+
+/** Water material (ocean or rivers) for one uniform set (Water._uniforms). */
+function waterMaterial(u, lighting) {
+  const m = new THREE.NodeMaterial();
+  m.transparent = true;
+  m.depthWrite = false;
+  m.name = u.isRiver.value ? 'river' : 'ocean';
+  const ssr = lighting.ssr, S = ssr.uniforms;
+  const vWaveN = varyingProperty('vec3', 'vWaveN'), vCrest = varyingProperty('float', 'vCrest');
+  // vertex: the swell (world space, faded out far from the camera)
+  m.positionNode = Fn(() => {
+    const w = modelWorldMatrix.mul(vec4(positionLocal, 1));
+    const fade = float(1).sub(smoothstep(120, 400, distance(w.xz, u.camPos.xz)));
+    const h = wave(w.xz, u.uTime).mul(u.waveAmp).mul(fade).toVar();
+    vWaveN.assign(normalize(vec3(h.y.negate(), 1, h.z.negate())));
+    vCrest.assign(h.x.div(max(u.waveAmp, 1e-3)));
+    return positionLocal.add(vec3(0, h.x, 0));
+  })();
+  const vWorld = varying(modelWorldMatrix.mul(vec4(positionLocal, 1)).xyz, 'vWorld');
+  const vFogDepth = varying(cameraViewMatrix.mul(modelWorldMatrix.mul(vec4(positionLocal, 1))).z.negate(), 'vFogDepth');
+  const vFlow = varying(attribute('flow', 'vec2'), 'vFlow');
+  const clouds = skyClouds(lighting.skyU);
+  const ripple = (uv) => { const t = u.waterNormal.sample(uv).xyz.mul(2).sub(1); return vec3(t.x, 0, t.y); };
+  const skyAt = (d0) => {
+    const d = vec3(d0.x, abs(d0.y), d0.z);
+    const c = mix(u.horizonCol, u.skyCol, pow(d.y, 0.5));
+    const cl = clouds(d);
+    const lit = mix(u.horizonCol.mul(1.1), vec3(1), u.night.oneMinus().mul(0.6)).add(u.sunColor.mul(0.05));
+    return mix(c, lit.mul(u.night.oneMinus().mul(0.8).add(0.2)), cl.x.mul(0.85));
+  };
+  m.colorNode = Fn(() => {
+    const river = u.isRiver.greaterThan(0.5);
+    const uv = vWorld.xz.sub(u.terrainRect.xy).div(u.terrainRect.z);
+    const ground = u.heightTex.sample(uv).r;
+    const depth = vWorld.y.sub(ground).toVar();
+    If(uv.x.lessThan(0).or(uv.y.lessThan(0)).or(uv.x.greaterThan(1)).or(uv.y.greaterThan(1)), () => { depth.assign(60); });
+    const V = normalize(cameraPosition.sub(vWorld)).toVar();
+    wV.assign(V);
+    const dist = vFogDepth;
     // ripples: two scrolling scales of the normal map (along the flow on rivers), fading with distance
-    float t = uTime;
-    vec2 drift = isRiver > 0.5 ? vFlow * t * flowSpeed * 0.35 : vec2(t * 0.011, t * 0.007);
-    vec3 rp = ripple(vWorld.xz * 0.055 * rippleScale + drift) + ripple(vWorld.xz * 0.13 * rippleScale - drift.yx * 1.3 + vec2(0.37, 0.71));
-    float rk = (isRiver > 0.5 ? 0.22 : 0.3) * (1.0 - smoothstep(40.0, 600.0, dist) * 0.8);
-    vec3 n = normalize(vWaveN + rp * rk);
-    float NdV = max(dot(n, V), 0.0);
-    float F = 0.02 + 0.98 * pow(1.0 - NdV, 5.0);
+    const t = u.uTime;
+    const drift = select(river, vFlow.mul(t).mul(u.flowSpeed).mul(0.35), vec2(t.mul(0.011), t.mul(0.007)));
+    const rp = ripple(vWorld.xz.mul(0.055).mul(u.rippleScale).add(drift)).add(ripple(vWorld.xz.mul(0.13).mul(u.rippleScale).sub(drift.yx.mul(1.3)).add(vec2(0.37, 0.71)))).toVar();
+    const rk = select(river, float(0.22), float(0.3)).mul(float(1).sub(smoothstep(40, 600, dist).mul(0.8))).toVar();
+    const n = normalize(vWaveN.add(rp.mul(rk))).toVar();
+    const NdV = max(dot(n, V), 0);
+    const F = float(0.02).add(pow(NdV.oneMinus(), 5).mul(0.98)).toVar();
+    wF.assign(F);
     // body: absorbed toward the deep colour with depth, lit by the sun and the sky
-    float dk = 1.0 - exp(-max(depth, 0.0) * (isRiver > 0.5 ? 0.45 : 0.16));
-    vec3 body = mix(shallow, deep, dk);
-    float sunUp = clamp(sunDirW.y * 2.0, 0.0, 1.0);
-    vec3 lightC = sunColor * (0.12 + 0.16 * sunUp) + skyCol * 0.35 + horizonCol * 0.15;
-    body *= lightC * mix(1.0, 0.25, night);
+    const dk = float(1).sub(exp(max(depth, 0).negate().mul(select(river, float(0.45), float(0.16))))).toVar();
+    const body = mix(u.shallow, u.deep, dk).toVar();
+    const sunUp = clamp(u.sunDirW.y.mul(2), 0, 1);
+    const lightC = u.sunColor.mul(sunUp.mul(0.16).add(0.12)).add(u.skyCol.mul(0.35)).add(u.horizonCol.mul(0.15)).toVar();
+    body.mulAssign(lightC.mul(mix(1, 0.25, u.night)));
     // light through the wave crests (turquoise glow facing the sun)
-    float sss = pow(max(dot(V, -sunDirW), 0.0), 3.0) * clamp(vCrest * 0.5 + 0.5, 0.0, 1.0);
-    body += shallow * sunColor * sss * 0.25 * (1.0 - dk * 0.5);
+    const sss = pow(max(dot(V, u.sunDirW.negate()), 0), 3).mul(clamp(vCrest.mul(0.5).add(0.5), 0, 1));
+    body.addAssign(u.shallow.mul(u.sunColor).mul(sss).mul(0.25).mul(dk.mul(-0.5).add(1)));
     // reflection: sky + clouds, the sun's glint
-    vec3 R = reflect(-V, n);
-    vec3 refl = skyAt(R);
-    vec3 col = mix(body, refl, F);
-    vec3 H = normalize(sunDirW + V);
-    float NdH = max(dot(n, H), 0.0);
-    col += sunColor * (pow(NdH, 900.0) * 6.0 + pow(NdH, 120.0) * 0.25) * step(0.0, sunDirW.y);
+    const R = reflect(V.negate(), n);
+    const col = mix(body, skyAt(R), F).toVar();
+    const H = normalize(u.sunDirW.add(V));
+    const NdH = max(dot(n, H), 0);
+    col.addAssign(u.sunColor.mul(pow(NdH, 900).mul(6).add(pow(NdH, 120).mul(0.25))).mul(step(0, u.sunDirW.y)));
     // shore foam: animated bands where it gets shallow, broken by noise
-    vec2 fuv = vWorld.xz * 0.35 + vFlow * uTime * flowSpeed;
-    float fn = noise(fuv) * 0.6 + noise(fuv * 2.3) * 0.3 + noise(fuv * 5.1) * 0.1;
-    float band = smoothstep(0.85, 0.0, depth) + (isRiver > 0.5 ? 0.0 : smoothstep(1.6, 0.4, depth) * (0.5 + 0.5 * sin(depth * 6.0 - uTime * 1.6)) * 0.6);
-    float f = smoothstep(0.5, 0.8, fn * band + band * 0.2);
-    if (isRiver > 0.5) f = max(f, smoothstep(0.74, 0.92, noise(fuv * 1.7)) * 0.3);
-    col = mix(col, foam * lightC * 0.75, f * 0.8);
+    const fuv = vWorld.xz.mul(0.35).add(vFlow.mul(u.uTime).mul(u.flowSpeed)).toVar();
+    const fn = noise(fuv).mul(0.6).add(noise(fuv.mul(2.3)).mul(0.3)).add(noise(fuv.mul(5.1)).mul(0.1));
+    const band = smoothstep(0.85, 0, depth).add(select(river, float(0), smoothstep(1.6, 0.4, depth).mul(sin(depth.mul(6).sub(u.uTime.mul(1.6))).mul(0.5).add(0.5)).mul(0.6))).toVar();
+    const f = smoothstep(0.5, 0.8, fn.mul(band).add(band.mul(0.2))).toVar();
+    If(river, () => { f.assign(max(f, smoothstep(0.74, 0.92, noise(fuv.mul(1.7))).mul(0.3))); });
+    wFoam.assign(f);
+    col.assign(mix(col, u.foam.mul(lightC).mul(0.75), f.mul(0.8)));
     // see-through in the shallows, opaque at grazing angles (Fresnel) and in the deep
-    float alpha = mix(0.45, opacity, smoothstep(0.0, 3.0, depth));
-    alpha = max(max(alpha, f * 0.9), F);
-    alpha *= smoothstep(-0.05, 0.12, depth);
-    // fog (exp2, same as three)
-    float fogF = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
-    col = mix(col, fogColor, fogF);
-    gl_FragColor = vec4(col, alpha);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-    // screen-space reflections (ultra): the previous frame is tone mapped already, so it replaces
-    // the reflected share of the shaded colour here, in display space
-    if (ssrOn > 0.5 && F > 0.025) {
-      vec3 Pv = (viewMatrix * vec4(vWorld, 1.0)).xyz;
-      // calmer normal than the shading one: at grazing angles the full ripples would send most
-      // rays to the sky or under the surface; never below the horizon (nothing to hit there)
-      vec3 nS = normalize(vWaveN + rp * rk * 0.25);
-      vec3 Rw = reflect(-V, nS);
-      Rw.y = max(Rw.y, 0.005);
-      vec3 Rv = normalize((viewMatrix * vec4(Rw, 0.0)).xyz);
-      vec4 s = ssrTrace(Pv, Rv, ssrIgn(gl_FragCoord.xy));
-      float w = s.a * F * ssrIntensity * (1.0 - f * 0.8) * (1.0 - fogF);
+    const alpha = mix(0.45, u.opacity, smoothstep(0, 3, depth)).toVar();
+    alpha.assign(max(max(alpha, f.mul(0.9)), F));
+    alpha.mulAssign(smoothstep(-0.05, 0.12, depth));
+    // fog (exp2, before the tone mapping like the WebGL version)
+    const fogF = float(1).sub(exp(u.fogDensity.mul(u.fogDensity).mul(vFogDepth).mul(vFogDepth).negate()));
+    wFogF.assign(fogF);
+    col.assign(mix(col, u.fogColor, fogF));
+    // calmer normal for the reflection rays than the shading one: at grazing angles the full
+    // ripples would send most rays to the sky or under the surface
+    wNs.assign(normalize(vWaveN.add(rp.mul(rk).mul(0.25))));
+    return vec4(col, alpha);
+  })();
+  // output: tone mapped like everything else, then the screen-space reflection (the previous
+  // frame is display values already) replaces the reflected share, in display space
+  const trace = ssr.traceNode();
+  m.mcOutput = (node) => Fn(() => {
+    const o = vec4(node).toVar();
+    const out = vec4(toDisplay(o.rgb), o.a).toVar();
+    If(S.ssrOn.greaterThan(0.5).and(wF.greaterThan(0.025)), () => {
+      const Pv = cameraViewMatrix.mul(vec4(vWorld, 1)).xyz;
+      // never below the horizon (nothing to hit there)
+      const Rw = reflect(wV.negate(), wNs).toVar();
+      Rw.y.assign(max(Rw.y, 0.005));
+      const Rv = normalize(cameraViewMatrix.mul(vec4(Rw, 0)).xyz);
+      const s = trace(Pv, Rv, SSR.ign(screenCoordinate)).toVar();
       // the reflected share is not see-through: out = (1 - w) * (water over the bed) + w * reflection
-      w = clamp(w, 0.0, 1.0);
-      float a2 = 1.0 - (1.0 - w) * (1.0 - gl_FragColor.a);
-      gl_FragColor = vec4(((1.0 - w) * gl_FragColor.a * gl_FragColor.rgb + w * s.rgb) / max(a2, 1e-4), a2);
-      if (ssrDebug > 0.5) gl_FragColor = vec4(s.rgb * s.a, 1.0);
-    }
-  }`;
+      const w = clamp(s.a.mul(wF).mul(S.ssrIntensity).mul(wFoam.mul(-0.8).add(1)).mul(wFogF.oneMinus()), 0, 1);
+      const a2 = float(1).sub(w.oneMinus().mul(out.a.oneMinus()));
+      out.assign(vec4(w.oneMinus().mul(out.a).mul(out.rgb).add(s.rgb.mul(w)).div(max(a2, 1e-4)), a2));
+      If(S.ssrDebug.greaterThan(0.5), () => { out.assign(vec4(s.rgb.mul(s.a), 1)); });
+    });
+    return out;
+  })();
+  return m;
+}
 
 export class Water {
   constructor(terrain, lighting, scene) {
@@ -175,51 +173,61 @@ export class Water {
   }
 
   _uniforms(c, river) {
-    const L = this.lighting;
-    const t = this.terrain;
+    const L = this.lighting, S = L.sun.uniforms, K = L.skyU;
+    const t = this.terrain, g = (v) => uniform(v);
     return {
       uTime: L.uniforms.uTime,
-      waveAmp: { value: river ? 0.04 : 0.45 },
-      flowSpeed: { value: river ? 1.4 : 0.15 },
-      isRiver: { value: river ? 1 : 0 },
-      opacity: { value: river ? 0.92 : 0.9 },
-      shallow: { value: new THREE.Color(c.shallow) },
-      deep: { value: new THREE.Color(c.deep) },
-      foam: { value: new THREE.Color(this.lighting.env.ocean.foam) },
-      sunDirW: { value: L.sunDir },
-      sunColor: { value: L.sunColor },
-      skyCol: { value: L.skyU.zenith.value },
-      horizonCol: { value: L.skyU.horizon.value },
-      fogColor: { value: L.scene.fog.color },
-      fogDensity: { value: 0 },
-      night: { value: 0 },
-      camPos: { value: new THREE.Vector3() },
-      heightTex: { value: this.heightTex },
-      terrainRect: { value: new THREE.Vector4(-t.half, -t.half, t.size, 0) },
+      waveAmp: g(river ? 0.04 : 0.45),
+      flowSpeed: g(river ? 1.4 : 0.15),
+      isRiver: g(river ? 1 : 0),
+      opacity: g(river ? 0.92 : 0.9),
+      shallow: g(new THREE.Color(c.shallow)),
+      deep: g(new THREE.Color(c.deep)),
+      foam: g(new THREE.Color(this.lighting.env.ocean.foam)),
+      sunDirW: S.sunDirW,
+      sunColor: g(L.sunColor).setGroup(renderGroup),
+      skyCol: K.zenith,
+      horizonCol: K.horizon,
+      fogColor: g(L.fog.color).setGroup(renderGroup), // linear (the water mixes its fog before the tone mapping)
+      fogDensity: g(0),
+      night: g(0),
+      camPos: g(new THREE.Vector3()),
+      heightTex: texture(this.heightTex),
+      terrainRect: g(new THREE.Vector4(-t.half, -t.half, t.size, 0)),
       waterNormal: L.surfaces.uniforms.waterNormal,
-      rippleScale: { value: river ? 1.6 : 1 },
-      cloudCoverage: L.skyU.cloudCoverage,
-      cloudSpeed: L.skyU.cloudSpeed,
-      ...L.ssr.uniforms,
+      rippleScale: g(river ? 1.6 : 1),
     };
   }
 
   _material(u) {
-    return new THREE.ShaderMaterial({ uniforms: u, vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, depthWrite: false, extensions: {} });
+    return waterMaterial(u, this.lighting);
   }
 
+  /** Terrain heights for the water depth (float32 where the GPU filters it, else half float). */
   _heightTexture() {
     const t = this.terrain;
-    const tex = new THREE.DataTexture(t.heights, t.res, t.res, THREE.RedFormat, THREE.FloatType);
+    const f32 = this.lighting.renderer.hasFeature?.('float32-filterable') !== false && this.lighting.renderer.backend?.isWebGPUBackend;
+    const tex = f32
+      ? new THREE.DataTexture(t.heights, t.res, t.res, THREE.RedFormat, THREE.FloatType)
+      : new THREE.DataTexture(new Uint16Array(t.res * t.res), t.res, t.res, THREE.RedFormat, THREE.HalfFloatType);
     tex.minFilter = tex.magFilter = THREE.LinearFilter;
     tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.needsUpdate = true;
+    this._halfHeights = !f32;
+    this._fillHeights(tex);
     return tex;
+  }
+
+  _fillHeights(tex) {
+    if (this._halfHeights) {
+      const h = this.terrain.heights, d = tex.image.data;
+      for (let i = 0; i < h.length; i++) d[i] = THREE.DataUtils.toHalfFloat(h[i]);
+    }
+    tex.needsUpdate = true;
   }
 
   /** Call after sculpting so depth shading follows the new ground. */
   refreshHeights() {
-    this.heightTex.needsUpdate = true;
+    this._fillHeights(this.heightTex);
   }
 
   /** Rings of quads around the origin, ring radius growing geometrically (follows the camera). */
@@ -299,7 +307,7 @@ export class Water {
     // snap to a coarse grid so the wave pattern (world space) doesn't swim
     this.ocean.position.set(Math.round(camera.position.x / 8) * 8, this.terrain.seaLevel, Math.round(camera.position.z / 8) * 8);
     this.ocean.updateMatrixWorld();
-    const fog = this.scene.fog;
+    const fog = this.lighting.fog;
     for (const u of [this.oceanU, this.riverU]) {
       u.camPos.value.copy(camera.position);
       u.fogDensity.value = fog ? fog.density : 0;

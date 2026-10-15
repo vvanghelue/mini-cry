@@ -6,20 +6,20 @@
 //   - no extra geometry pass: the rays march through the half-res depth pre-pass of SSAO.js
 //     (STATIC + DYNAMIC layers). While SSR is on, that pre-pass reaches `distance` metres instead
 //     of stopping where the AO fades out, and it runs even when the AO itself is switched off;
-//   - no extra colour pass: the reflected colour is the previous frame, copied from the canvas at
-//     the very end of the frame (one copy, after the canvas pass is over, so the tile GPU doesn't
-//     have to store and reload the multisampled buffers mid-frame), reprojected to this frame's
-//     view with the previous view-projection matrix;
+//   - no extra colour pass and no copy: while SSR is on, the engine draws the frame into one of
+//     two frame targets in turn (Engine.js), so the reflected colour is simply the previous
+//     frame's target, reprojected to this frame's view with the previous view-projection matrix;
 //   - only water pixels trace: the march lives in the water shader (Water.js), behind a uniform
 //     switch, so the same program serves every quality preset (nothing compiles late) and the
 //     rest of the frame pays nothing. Per pixel: `steps` depth fetches spread along the ray in
 //     screen space (denser near the start, jittered per pixel), then a short binary refinement;
 //     the level only changes uniforms (the loops break on them), so switching never recompiles.
-// The copied frame is already tone mapped, so the water blends it in after its own tone mapping,
+// The previous frame is already tone mapped, so the water blends it in after its own tone mapping,
 // in display space, in place of its sky reflection (Fresnel x hit confidence). A ray that leaves
 // the screen, finds nothing within `ray` metres, or points back at the camera fades back to the
 // sky reflection.
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { Fn, If, Loop, Break, uniform, texture, vec2, vec3, vec4, float, ivec2, mix, sqrt, abs, cos, sin, clamp, min, fract, dot, smoothstep, select, renderGroup } from 'three/tsl';
 
 export const SSR_DEFAULTS = {
   // screen-space reflections on the water: strength, blur (0 = mirror .. 1 = very glossy)
@@ -38,79 +38,6 @@ export const SSR_LEVELS = {
 const MAX_STEPS = 32;
 const MAX_REFINE = 6;
 
-/** Fragment code for the water shader: ssrTrace(view pos, view dir, jitter) -> (display rgb, confidence). */
-export const SSR_GLSL = /* glsl */ `
-uniform sampler2D ssrColor, ssrDepth;
-uniform float ssrOn, ssrIntensity, ssrNear, ssrFar, ssrRay, ssrDebug, ssrSteps, ssrRefine, ssrBlur;
-uniform vec2 ssrProjXY;
-uniform mat4 ssrReproj; // this frame's view space -> previous frame's clip space
-float ssrViewZ(float d) { return (ssrNear * ssrFar) / ((ssrFar - ssrNear) * d - ssrFar); }
-vec2 ssrUv(vec3 p) { return p.xy / (-p.z * ssrProjXY) * 0.5 + 0.5; }
-float ssrIgn(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
-vec4 ssrTrace(vec3 P, vec3 D, float jit) {
-  if (-P.z > ssrFar) return vec4(0.0); // water past the depth range (most of the sea): no work
-  float len = ssrRay;
-  if (D.z > 0.0) len = min(len, (-P.z - ssrNear * 4.0) / D.z); // stop before the near plane
-  if (len < 0.5) return vec4(0.0);
-  vec3 E = P + D * len;
-  vec2 s0 = ssrUv(P), s1 = ssrUv(E);
-  float k0 = -1.0 / P.z, k1 = -1.0 / E.z; // 1/w is linear in screen space
-  // clip the segment to the screen
-  vec2 ds = s1 - s0;
-  float tEnd = 1.0;
-  if (ds.x > 1e-5) tEnd = min(tEnd, (1.0 - s0.x) / ds.x); else if (ds.x < -1e-5) tEnd = min(tEnd, -s0.x / ds.x);
-  if (ds.y > 1e-5) tEnd = min(tEnd, (1.0 - s0.y) / ds.y); else if (ds.y < -1e-5) tEnd = min(tEnd, -s0.y / ds.y);
-  float tPrev = 0.0, zPrev = P.z;
-  for (int i = 1; i <= ${MAX_STEPS}; i++) {
-    if (float(i) > ssrSteps) break;
-    float f = (float(i) - jit) / ssrSteps;
-    float t = tEnd * f * sqrt(f); // denser near the start: the base of what stands on the water
-    float rz = -1.0 / mix(k0, k1, t);
-    float d = texture2D(ssrDepth, mix(s0, s1, t)).x;
-    float sz = d < 1.0 ? ssrViewZ(d) : -1e6;
-    float behind = sz - rz; // > 0: the ray went behind the surface stored at this pixel
-    // generous: a ray that slips behind a tree crown between two steps went through it
-    float thick = abs(rz - zPrev) * 1.5 + 0.5 - rz * 0.06;
-    if (behind > 0.0 && behind < thick) {
-      // refine between the last point in front and this one
-      float a = tPrev, b = t;
-      for (int j = 0; j < ${MAX_REFINE}; j++) {
-        if (float(j) >= ssrRefine) break;
-        float m = 0.5 * (a + b);
-        float mz = -1.0 / mix(k0, k1, m);
-        float md = texture2D(ssrDepth, mix(s0, s1, m)).x;
-        if (md < 1.0 && ssrViewZ(md) > mz) b = m; else a = m;
-      }
-      vec3 H = vec3(mix(s0, s1, b), -1.0 / mix(k0, k1, b));
-      vec3 Hv = vec3((H.xy * 2.0 - 1.0) * ssrProjXY * -H.z, H.z);
-      vec4 pc = ssrReproj * vec4(Hv, 1.0);
-      vec2 puv = pc.xy / pc.w * 0.5 + 0.5;
-      if (pc.w <= 0.0 || any(lessThan(puv, vec2(0.0))) || any(greaterThan(puv, vec2(1.0)))) return vec4(0.0);
-      vec2 edge = smoothstep(vec2(0.0), vec2(0.07), puv) * smoothstep(vec2(0.0), vec2(0.07), 1.0 - puv);
-      float conf = edge.x * edge.y;
-      float hitDist = len * b * k1 / mix(k0, k1, b);
-      conf *= 1.0 - smoothstep(0.6, 1.0, hitDist / ssrRay); // long rays fade out
-      conf *= 1.0 - smoothstep(0.1, 0.6, D.z); // rays toward the camera: little on screen to hit
-      vec3 col = texture2D(ssrColor, puv).rgb;
-      if (ssrBlur > 0.0) {
-        // glossy: 4 more taps around the hit (rotated per pixel), wider the farther the hit
-        float rad = ssrBlur * (0.002 + 0.035 * clamp(hitDist / 60.0, 0.0, 1.0));
-        vec2 ax = vec2(rad * ssrProjXY.y / ssrProjXY.x, rad);
-        float a0 = jit * 6.2831853;
-        for (int k = 0; k < 4; k++) {
-          float a = a0 + float(k) * 1.5707963;
-          col += texture2D(ssrColor, clamp(puv + vec2(cos(a), sin(a)) * ax, 0.0, 1.0)).rgb;
-        }
-        col *= 0.2;
-      }
-      return vec4(col, conf);
-    }
-    tPrev = t; zPrev = rz;
-  }
-  return vec4(0.0);
-}
-`;
-
 export class SSR {
   /** @param ao the SSAO instance whose depth pre-pass the rays march through */
   constructor(renderer, ao) {
@@ -119,27 +46,26 @@ export class SSR {
     this.level = 'off'; // off | ultralow | low | medium | high (settings, debug panel, ?ssr=<level>)
     this.distance = 0;
     this.blur = SSR_DEFAULTS.ssr.blur;
-    this.camera = null;
-    this.valid = false; // a previous frame exists in colorTex
-    this.colorTex = new THREE.FramebufferTexture(1, 1);
-    this.colorTex.minFilter = this.colorTex.magFilter = THREE.LinearFilter;
-    this.colorTex.generateMipmaps = false;
-    this._full = new THREE.Vector2();
+    this.valid = false; // a previous frame exists (ssrColor)
     this._prevViewProj = new THREE.Matrix4();
+    const placeholder = new THREE.DataTexture(new Uint8Array(4), 1, 1);
+    placeholder.minFilter = placeholder.magFilter = THREE.LinearFilter;
+    placeholder.needsUpdate = true;
+    const u = (v) => uniform(v).setGroup(renderGroup);
     this.uniforms = {
-      ssrColor: { value: this.colorTex },
-      ssrDepth: { value: ao.depthRT.depthTexture },
-      ssrOn: { value: 0 },
-      ssrIntensity: { value: 1 },
-      ssrNear: { value: 0.1 },
-      ssrFar: { value: 100 },
-      ssrRay: { value: 100 },
-      ssrSteps: { value: 1 },
-      ssrRefine: { value: 0 },
-      ssrBlur: { value: SSR_DEFAULTS.ssr.blur },
-      ssrDebug: { value: 0 }, // 1: water shows the reflection colour x confidence only
-      ssrProjXY: { value: new THREE.Vector2(1, 1) },
-      ssrReproj: { value: new THREE.Matrix4() },
+      ssrColor: texture(placeholder),
+      ssrDepth: texture(ao.depthRT.depthTexture),
+      ssrOn: u(0),
+      ssrIntensity: u(1),
+      ssrNear: u(0.1),
+      ssrFar: u(100),
+      ssrRay: u(100),
+      ssrSteps: u(1),
+      ssrRefine: u(0),
+      ssrBlur: u(SSR_DEFAULTS.ssr.blur),
+      ssrDebug: u(0), // 1: water shows the reflection colour x confidence only
+      ssrProjXY: u(new THREE.Vector2(1, 1)),
+      ssrReproj: u(new THREE.Matrix4()), // this frame's view space -> previous frame's clip space
     };
   }
 
@@ -183,25 +109,104 @@ export class SSR {
     u.ssrReproj.value.multiplyMatrices(this._prevViewProj, camera.matrixWorld);
   }
 
-  /** End of the frame (everything drawn): keep the canvas for the next frame's reflections. */
-  grab(camera) {
-    if (!this.active || !camera.isPerspectiveCamera) { this.valid = false; return; }
-    const r = this.renderer;
-    if (r.getRenderTarget() !== null) return;
-    const full = r.getDrawingBufferSize(this._full);
-    const img = this.colorTex.image;
-    if (img.width !== full.x || img.height !== full.y) {
-      // a FramebufferTexture is allocated once at its size: resizing needs a new one
-      this.colorTex.dispose();
-      this.colorTex = new THREE.FramebufferTexture(full.x, full.y);
-      this.colorTex.minFilter = this.colorTex.magFilter = THREE.LinearFilter;
-      this.colorTex.generateMipmaps = false;
-      this.uniforms.ssrColor.value = this.colorTex;
-    }
-    r.copyFramebufferToTexture(this.colorTex);
+  /** End of the frame (everything drawn into `rt`, the engine's frame target): the next frame
+   *  reflects it. rt null (SSR off, or drawn straight into the canvas): nothing to reflect. */
+  endFrame(camera, rt) {
+    if (!this.active || !rt || !camera.isPerspectiveCamera) { this.valid = false; return; }
+    this.uniforms.ssrColor.value = rt.texture;
     this._prevViewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this.valid = true;
   }
 
-  dispose() { this.colorTex.dispose(); }
+  /**
+   * Water fragment code: Fn(view pos, view dir, jitter) -> vec4(display rgb, confidence).
+   * Screen uvs run down the texture (WebGPU convention; three flips them for WebGL).
+   */
+  traceNode() {
+    if (this._trace) return this._trace;
+    const U = this.uniforms, A = this.ao.uniforms;
+    const viewZ = (d) => U.ssrNear.mul(U.ssrFar).div(U.ssrFar.sub(U.ssrNear).mul(d).sub(U.ssrFar));
+    const toUv = (p) => {
+      const n = p.xy.div(p.z.negate().mul(U.ssrProjXY));
+      return vec2(n.x.mul(0.5).add(0.5), n.y.mul(-0.5).add(0.5));
+    };
+    const depthAt = (uv) => U.ssrDepth.load(ivec2(clamp(uv, 0, 0.9999).mul(A.aoSize)));
+    this._trace = Fn(([P, D, jit]) => {
+      const out = vec4(0).toVar();
+      // water past the depth range (most of the sea): no work
+      If(P.z.negate().lessThanEqual(U.ssrFar), () => {
+        const len = U.ssrRay.toVar();
+        If(D.z.greaterThan(0), () => { len.assign(min(len, P.z.negate().sub(U.ssrNear.mul(4)).div(D.z))); }); // stop before the near plane
+        If(len.greaterThanEqual(0.5), () => {
+          const E = P.add(D.mul(len));
+          const s0 = toUv(P).toVar(), s1 = toUv(E).toVar();
+          const k0 = float(-1).div(P.z), k1 = float(-1).div(E.z); // 1/w is linear in screen space
+          // clip the segment to the screen
+          const ds = s1.sub(s0);
+          const tEnd = float(1).toVar();
+          If(ds.x.greaterThan(1e-5), () => { tEnd.assign(min(tEnd, s0.x.oneMinus().div(ds.x))); }).ElseIf(ds.x.lessThan(-1e-5), () => { tEnd.assign(min(tEnd, s0.x.negate().div(ds.x))); });
+          If(ds.y.greaterThan(1e-5), () => { tEnd.assign(min(tEnd, s0.y.oneMinus().div(ds.y))); }).ElseIf(ds.y.lessThan(-1e-5), () => { tEnd.assign(min(tEnd, s0.y.negate().div(ds.y))); });
+          const tPrev = float(0).toVar(), zPrev = P.z.toVar();
+          Loop({ start: 1, end: MAX_STEPS, condition: '<=' }, ({ i }) => {
+            If(float(i).greaterThan(U.ssrSteps), () => { Break(); });
+            const f = float(i).sub(jit).div(U.ssrSteps);
+            const t = tEnd.mul(f).mul(sqrt(f)).toVar(); // denser near the start: the base of what stands on the water
+            const rz = float(-1).div(mix(k0, k1, t)).toVar();
+            const d = depthAt(mix(s0, s1, t));
+            const sz = select(d.lessThan(1), viewZ(d), float(-1e6));
+            const behind = sz.sub(rz); // > 0: the ray went behind the surface stored at this pixel
+            // generous: a ray that slips behind a tree crown between two steps went through it
+            const thick = abs(rz.sub(zPrev)).mul(1.5).add(0.5).sub(rz.mul(0.06));
+            If(behind.greaterThan(0).and(behind.lessThan(thick)), () => {
+              // refine between the last point in front and this one
+              const a = tPrev.toVar(), b = t.toVar();
+              Loop(MAX_REFINE, ({ i: j }) => {
+                If(float(j).greaterThanEqual(U.ssrRefine), () => { Break(); });
+                const mid = a.add(b).mul(0.5);
+                const mz = float(-1).div(mix(k0, k1, mid));
+                const md = depthAt(mix(s0, s1, mid));
+                If(md.lessThan(1).and(viewZ(md).greaterThan(mz)), () => { b.assign(mid); }).Else(() => { a.assign(mid); });
+              });
+              const Hz = float(-1).div(mix(k0, k1, b));
+              const Hs = mix(s0, s1, b);
+              const Hv = vec3(vec2(Hs.x.mul(2).sub(1), Hs.y.mul(-2).add(1)).mul(U.ssrProjXY).mul(Hz.negate()), Hz);
+              const pc = U.ssrReproj.mul(vec4(Hv, 1)).toVar();
+              const n = pc.xy.div(pc.w);
+              const puv = vec2(n.x.mul(0.5).add(0.5), n.y.mul(-0.5).add(0.5)).toVar();
+              If(pc.w.greaterThan(0).and(puv.x.greaterThanEqual(0)).and(puv.y.greaterThanEqual(0)).and(puv.x.lessThanEqual(1)).and(puv.y.lessThanEqual(1)), () => {
+                const edge = smoothstep(vec2(0), vec2(0.07), puv).mul(smoothstep(vec2(0), vec2(0.07), puv.oneMinus()));
+                const conf = edge.x.mul(edge.y).toVar();
+                const hitDist = len.mul(b).mul(k1).div(mix(k0, k1, b));
+                conf.mulAssign(float(1).sub(smoothstep(0.6, 1, hitDist.div(U.ssrRay)))); // long rays fade out
+                conf.mulAssign(float(1).sub(smoothstep(0.1, 0.6, D.z))); // rays toward the camera: little on screen to hit
+                const c = U.ssrColor.sample(puv).level(0).rgb.toVar();
+                If(U.ssrBlur.greaterThan(0), () => {
+                  // glossy: 4 more taps around the hit (rotated per pixel), wider the farther the hit
+                  const rad = U.ssrBlur.mul(float(0.002).add(clamp(hitDist.div(60), 0, 1).mul(0.035)));
+                  const ax = vec2(rad.mul(U.ssrProjXY.y).div(U.ssrProjXY.x), rad);
+                  const a0 = jit.mul(6.2831853);
+                  for (let k = 0; k < 4; k++) {
+                    const ang = a0.add(k * 1.5707963);
+                    c.addAssign(U.ssrColor.sample(clamp(puv.add(vec2(cos(ang), sin(ang)).mul(ax)), 0, 1)).level(0).rgb);
+                  }
+                  c.mulAssign(0.2);
+                });
+                out.assign(vec4(c, conf));
+              });
+              Break();
+            });
+            tPrev.assign(t);
+            zPrev.assign(rz);
+          });
+        });
+      });
+      return out;
+    });
+    return this._trace;
+  }
+
+  /** Interleaved gradient noise of a pixel (ray jitter). */
+  static ign(p) { return fract(fract(dot(p, vec2(0.06711056, 0.00583715))).mul(52.9829189)); }
+
+  dispose() {}
 }

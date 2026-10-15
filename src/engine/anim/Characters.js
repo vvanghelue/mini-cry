@@ -596,12 +596,9 @@ export class Character {
     this.model.traverse((o) => {
       o.layers.set(layer);
       if (o.isMesh) {
-        // own material (hit tint); clone() drops the lighting patch (sun, shadows, SSAO, GI,
-        // textures): carry it over — same program cache key, no extra compile
-        const src = o.material;
-        o.material = src.clone();
-        o.material.onBeforeCompile = src.onBeforeCompile;
-        o.material.customProgramCacheKey = src.customProgramCacheKey;
+        // own material (hit tint); the clone shares the node graph of the world material
+        // (sun, shadows, SSAO, GI, textures): same program, no extra compile
+        o.material = o.material.clone();
         this.meshes.push(o);
       }
       if (o.isSkinnedMesh && !this.skeletons.has(o.skeleton)) { this.skeletons.add(o.skeleton); o.skeleton.update = updateSkeletonOncePerFrame; }

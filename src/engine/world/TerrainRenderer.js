@@ -31,7 +31,10 @@ export class TerrainRenderer {
     this.chunks = [];
     for (let cz = 0; cz < n; cz++) {
       for (let cx = 0; cx < n; cx++) {
+        // hidden until its first LOD is built: the renderer builds a mesh's shaders for the
+        // attributes it has when first drawn
         const mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.material);
+        mesh.visible = false;
         mesh.matrixAutoUpdate = false;
         mesh.layers.set(LAYERS.STATIC);
         mesh.name = `terrain_${cx}_${cz}`;
@@ -145,6 +148,7 @@ export class TerrainRenderer {
         c.lod = lod;
         c.geos[lod] ??= this._build(c, lod);
         c.mesh.geometry = c.geos[lod];
+        c.mesh.visible = true;
       }
       const s = this.cellsPerChunk / LOD_STEPS[lod];
       tris += s * s * 2;

@@ -1,8 +1,10 @@
 // Characters: preview every archetype (model(s) + palette + held weapon) animated, browse / play all
 // clips (pack + retargeted UAL), aim pitch, and edit palettes live (game/archetypes.json).
 import { useEffect, useRef, useState } from 'preact/hooks';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { context } from 'three/tsl';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { outputTransform } from '../../engine/render/Output.js';
 import { Data } from '../../engine/core/Data.js';
 import { Lighting } from '../../engine/render/Lighting.js';
 import { CharacterLibrary, archetypeModels } from '../../engine/anim/Characters.js';
@@ -11,9 +13,11 @@ import { Row, ColorField, NumberField } from '../ui/Fields.jsx';
 
 class CharPreview {
   constructor(canvas) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    // same display transform as the game (render/Output.js, inline in the materials)
+    this.renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: false });
+    this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.contextNode = context({ getOutput: outputTransform });
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
     this.camera.position.set(2.2, 1.7, 3.2);
@@ -33,6 +37,7 @@ class CharPreview {
   }
 
   async init() {
+    await this.renderer.init();
     const arch = await Data.json('game/archetypes.json', { fresh: true });
     const models = archetypeModels(arch.archetypes);
     this.lib = await new CharacterLibrary(this.lighting).load(models);
@@ -73,6 +78,7 @@ class CharPreview {
   }
 
   frame(t) {
+    if (!this.renderer.initialized || !this.lib) return;
     this.clock.update(t);
     const dt = Math.min(0.05, this.clock.getDelta());
     const cv = this.renderer.domElement;

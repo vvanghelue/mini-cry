@@ -1,9 +1,10 @@
-// Live 3D preview of the asset being edited: its own small WebGLRenderer, OrbitControls, a ground
+// Live 3D preview of the asset being edited: its own small WebGPURenderer, OrbitControls, a ground
 // grid at y = 0 with a -Z "front" arrow, collider wireframes, weapon / vehicle point markers, the
 // selected part highlighted (wire + box) and a TransformControls gizmo writing back pos / rot /
 // scale (parts), pos / yaw / size (colliders) or pos (points). Click picks a part (or a collider /
 // a marker). Rendering is on demand (camera moves, edits, turntable).
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { Fn, uniform, attribute, varying, vec3, float, dot, mix, clamp, normalize, select, normalGeometry, normalLocal, normalFlat, transformNormalToView, diffuseColor } from 'three/tsl';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { buildAsset } from '../../../engine/assets/ModelBuilder.js';
@@ -82,7 +83,9 @@ export class AssetPreview {
   constructor(el, cb) {
     this.el = el;
     this.cb = cb;
-    const r = (this.renderer = new THREE.WebGLRenderer({ antialias: true }));
+    const r = (this.renderer = new THREE.WebGPURenderer({ antialias: true }));
+    this._ready = false;
+    r.init().then(() => { this._ready = true; this.needs = true; });
     r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     r.setClearColor(0x2a313a, 1);
     r.domElement.className = 'ap-canvas';
@@ -102,19 +105,24 @@ export class AssetPreview {
     scene.add(this.root);
 
     // model: lambert, vertex colours, flat shading; emissive attribute + optional wind heat-map
-    this.viewU = { value: 0 };
-    this.mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-    this.mat.onBeforeCompile = (sh) => {
-      sh.uniforms.uView = this.viewU;
-      // leaves: same crown-normal shading as the game (Lighting.material foliage)
-      sh.vertexShader = 'attribute float aWind;\nattribute float aEmis;\nvarying float vWind;\nvarying float vEmis;\nvarying float vFol;\nvarying vec3 vFolN;\n' + sh.vertexShader
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWind = aWind; vEmis = aEmis;')
-        .replace('#include <normal_vertex>', '#include <normal_vertex>\nvFol = dot(normal, normal) > 2.0 ? 1.0 : 0.0; vFolN = transformedNormal;');
-      sh.fragmentShader = 'uniform float uView;\nvarying float vWind;\nvarying float vEmis;\nvarying float vFol;\nvarying vec3 vFolN;\n' + sh.fragmentShader
-        .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nif (vFol > 0.0) { vec3 fm = mix(normal, normalize(vFolN), vFol); normal = dot(fm, fm) > 1e-4 ? normalize(fm) : normalize(vFolN); }')
-        .replace('#include <color_fragment>', '#include <color_fragment>\nif (uView > 0.5) diffuseColor.rgb = mix(vec3(0.08, 0.12, 0.45), vec3(1.0, 0.25, 0.05), clamp(vWind, 0.0, 1.0));')
-        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * vEmis;');
-    };
+    this.viewU = uniform(0);
+    this.mat = new THREE.MeshLambertNodeMaterial({ flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+    const has = (b, n) => b.geometry.hasAttribute(n);
+    const vWind = varying(Fn((b) => (has(b, 'aWind') ? attribute('aWind', 'float') : float(0)))(), 'vWind');
+    const vEmis = varying(Fn((b) => (has(b, 'aEmis') ? attribute('aEmis', 'float') : float(0)))(), 'vEmis');
+    this.mat.colorNode = Fn((b) => {
+      const c = has(b, 'color') ? vec3(attribute('color', 'vec3')) : vec3(1);
+      return select(this.viewU.greaterThan(0.5), mix(vec3(0.08, 0.12, 0.45), vec3(1.0, 0.25, 0.05), clamp(vWind, 0, 1)), c);
+    })();
+    // leaves: same crown-normal shading as the game (WorldMaterial foliage)
+    this.mat.normalNode = Fn((b) => {
+      if (!has(b, 'normal')) return normalFlat;
+      const vFol = varying(select(dot(normalGeometry, normalGeometry).greaterThan(2), float(1), float(0)), 'vFol');
+      const vFolN = varying(transformNormalToView(normalLocal), 'vFolN');
+      const fm = mix(normalFlat, normalize(vFolN), vFol);
+      return select(dot(fm, fm).greaterThan(1e-4), normalize(fm), normalize(vFolN));
+    })();
+    this.mat.emissiveNode = diffuseColor.rgb.mul(vEmis);
     this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.mat);
     this.root.add(this.mesh);
     this.wire = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x0b0e12, transparent: true, opacity: 0.5 }));
@@ -172,7 +180,7 @@ export class AssetPreview {
     const loop = () => {
       this.raf = requestAnimationFrame(loop);
       const moved = this.orbit.update();
-      if (moved || this.needs || this.orbit.autoRotate) {
+      if (this._ready && (moved || this.needs || this.orbit.autoRotate)) {
         this.needs = false;
         this.renderer.render(scene, cam);
       }
@@ -197,8 +205,7 @@ export class AssetPreview {
     this.orbit.dispose();
     this._disposePick();
     disposeTree(this.scene);
-    this.renderer.dispose();
-    this.renderer.forceContextLoss(); // free the context now (the panel can be reopened many times)
+    this.renderer.dispose(); // frees the device's resources now (the panel can be reopened many times)
     this.renderer.domElement.remove();
   }
 

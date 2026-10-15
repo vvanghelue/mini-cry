@@ -1,23 +1,23 @@
 // Lighting of the first-person view models (separate overlay pass, Weapons.js). The view-model
 // camera follows the world camera (position + orientation), so the view-model scene is in world
-// space and its materials (patch()) are lit like the world's:
+// space and its materials (patch(): world materials, render/WorldMaterial.js) are lit like the
+// world's:
 //  - the sun of SunShadows.js with the world's cascaded shadows (the gun goes dark under a tree or a
 //    roof; the shadow cameras only draw the world, so the view model casts none);
-//  - the baked GI probes at each shaded point in place of the ambient light (GI.js, through a
-//    hemisphere light that mirrors the world's: its fallback without GI);
+//  - the baked GI probes at each shaded point in place of the ambient light (GI.js; the
+//    hemisphere light of the time of day without GI);
 //  - sky reflections from a small procedural sky (zenith / horizon of the time of day, ground
 //    bounce, a soft sun glow, a darker tree line) turned into a PMREM, specular only, scaled by
-//    the probe sky visibility (giOcc) so metal doesn't glow in a bunker.
+//    the probe sky visibility so metal doesn't glow in a bunker.
 // SSAO is not applied: its buffer holds the world behind the view model (the overlay clears depth),
 // so its occlusion would be the background's; the probes and the shadows darken enclosed places.
 // The environment is re-rendered only when the sky colours change (time of day), at most once a
 // second: a 32 px cube + the PMREM passes into reused targets.
-import * as THREE from 'three';
-
-// diffuse comes from the probes (GI.js); the environment map only reflects, occluded like the world's
-const IBL_DIFFUSE = 'iblIrradiance += getIBLIrradiance( geometryNormal );';
-const IBL_SPECULAR = 'radiance += iblRadiance;';
-const MAPS_CHUNK = THREE.ShaderChunk.lights_fragment_maps.replace(IBL_DIFFUSE, '').replace(IBL_SPECULAR, 'radiance += iblRadiance * giOcc;');
+import * as THREE from 'three/webgpu';
+import {
+  Fn, uniform, varying, vec3, vec4, float, normalize, dot, max, min, mix, pow, sin, atan, smoothstep, step, select, positionLocal, positionViewDirection, normalView, roughness,
+  cameraWorldMatrix, pmremTexture, materialReference, reflect,
+} from 'three/tsl';
 
 const ENV_SIZE = 32;
 
@@ -28,42 +28,35 @@ export class ViewLight {
     this.scene = scene;
     this.lighting = lighting;
     this.camera = camera;
-    // ambient without GI (and the GI floor): the world's hemisphere light, copied every frame
-    this.hemi = new THREE.HemisphereLight(0xffffff, 0xffffff, 1);
-    scene.add(this.hemi);
-    this._patched = new WeakSet();
+    this._patched = new WeakMap();
     this.u = {
-      zenith: { value: new THREE.Color() }, horizon: { value: new THREE.Color() }, ground: { value: new THREE.Color() },
-      sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() },
+      zenith: uniform(new THREE.Color()), horizon: uniform(new THREE.Color()), ground: uniform(new THREE.Color()),
+      sunDir: uniform(new THREE.Vector3(0, 1, 0)), sunCol: uniform(new THREE.Color()),
     };
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.ShaderMaterial({
-      uniforms: this.u, side: THREE.BackSide, depthWrite: false, depthTest: false,
-      vertexShader: /* glsl */ `
-        varying vec3 vDir;
-        void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: /* glsl */ `
-        uniform vec3 zenith, horizon, ground, sunDir, sunCol;
-        varying vec3 vDir;
-        void main() {
-          vec3 d = normalize(vDir);
-          float h = d.y;
-          vec3 col = h > 0.0 ? mix(horizon, zenith, pow(h, 0.5)) : mix(horizon * 0.5, ground, min(-h * 4.0, 1.0));
-          // tree line / hills: a darker, greener band just above the horizon, uneven in azimuth
-          float a = atan(d.z, d.x);
-          float top = 0.06 + 0.05 * (0.5 + 0.5 * sin(a * 5.0 + 1.3) * sin(a * 3.0 - 0.4));
-          col = mix(col, ground * vec3(0.55, 0.75, 0.5), smoothstep(top + 0.02, top - 0.02, h) * step(-0.02, h) * 0.85);
-          float sd = max(dot(d, sunDir), 0.0);
-          col += sunCol * (pow(sd, 6.0) * 0.35 + pow(sd, 64.0) * 1.5);
-          gl_FragColor = vec4(col, 1.0);
-        }`,
-    }));
+    const u = this.u;
+    const m = new THREE.MeshBasicNodeMaterial({ side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false });
+    const vDir = varying(positionLocal, 'vEnvDir');
+    m.colorNode = Fn(() => {
+      const d = normalize(vDir).toVar();
+      const h = d.y;
+      const col = select(h.greaterThan(0), mix(u.horizon, u.zenith, pow(max(h, 0), 0.5)), mix(u.horizon.mul(0.5), u.ground, min(h.negate().mul(4), 1))).toVar();
+      // tree line / hills: a darker, greener band just above the horizon, uneven in azimuth
+      const a = atan(d.z, d.x);
+      const top = float(0.06).add(sin(a.mul(5).add(1.3)).mul(sin(a.mul(3).sub(0.4))).mul(0.5).add(0.5).mul(0.05));
+      col.assign(mix(col, u.ground.mul(vec3(0.55, 0.75, 0.5)), smoothstep(top.add(0.02), top.sub(0.02), h).mul(step(-0.02, h)).mul(0.85)));
+      const sd = max(dot(d, u.sunDir), 0);
+      col.addAssign(u.sunCol.mul(pow(sd, 6).mul(0.35).add(pow(sd, 64).mul(1.5))));
+      return col;
+    })();
+    const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), m);
     sky.frustumCulled = false;
     this.envScene = new THREE.Scene();
     this.envScene.add(sky);
-    this.cubeRT = new THREE.WebGLCubeRenderTarget(ENV_SIZE, { type: THREE.HalfFloatType, generateMipmaps: false });
+    this.cubeRT = new THREE.CubeRenderTarget(ENV_SIZE, { type: THREE.HalfFloatType, generateMipmaps: false });
     this.cubeCam = new THREE.CubeCamera(0.1, 10, this.cubeRT);
     this.pmrem = new THREE.PMREMGenerator(renderer);
     this.pmremRT = null;
+    this.envIntensity = uniform(1); // radiance of an open sky (scene.environmentIntensity of the WebGL version)
     this._key = '';
     this.intensity = 1; // env map scale (game/player.json arms.envMap multiplies it in the materials)
     this.update(0);
@@ -79,20 +72,15 @@ export class ViewLight {
     u.sunCol.value.copy(L.skyU.sunCol.value);
     const key = [u.zenith.value, u.horizon.value, u.ground.value, u.sunCol.value].map((c) => c.getHexString()).join('') + u.sunDir.value.toArray().map((x) => Math.round(x * 50)).join(',');
     const now = performance.now();
-    if (key !== this._key && !(now - (this._at ?? -1e9) < 1000)) {
+    if (this.renderer.initialized && key !== this._key && !(now - (this._at ?? -1e9) < 1000)) {
       this._key = key;
       this._at = now;
       this.cubeCam.update(this.renderer, this.envScene);
       this.pmremRT = this.pmrem.fromCubemap(this.cubeRT.texture, this.pmremRT);
-      this.scene.environment = this.pmremRT.texture;
     }
-    const h = L.hemi;
-    this.hemi.color.copy(h.color);
-    this.hemi.groundColor.copy(h.groundColor);
-    this.hemi.intensity = h.intensity;
     // sky radiance of an open sky (a hemisphere light of intensity I lights like an environment of
     // radiance colour x I / PI); the shader occludes it with the probes
-    this.scene.environmentIntensity = (h.intensity / Math.PI) * this.intensity;
+    this.envIntensity.value = (L.hemi.intensity / Math.PI) * this.intensity;
     this.follow();
   }
 
@@ -105,25 +93,40 @@ export class ViewLight {
     v.updateMatrixWorld(true);
   }
 
-  /** Light the materials under `root` like the world (sun + shadows, probe GI); once per material. */
+  /** Environment radiance (specular) of a view-model fragment, for the world lighting model. */
+  _env() {
+    if (!this._envFn) {
+      const tex = this.pmremRT?.texture ?? this.cubeRT.texture; // the PMREM target is reused: same texture
+      this._envFn = () => {
+        const n = normalView;
+        // mixing the reflection with the normal keeps rough objects from gathering light from behind
+        const r = normalize(mix(reflect(positionViewDirection.negate(), n), n, pow(roughness, 4)));
+        const rW = normalize(cameraWorldMatrix.mul(vec4(r, 0)).xyz);
+        // x the material's own envMapIntensity (player.json arms.envMap)
+        return pmremTexture(tex, rW, roughness).rgb.mul(this.envIntensity).mul(materialReference('envMapIntensity', 'float'));
+      };
+    }
+    return this._envFn;
+  }
+
+  /** Light the materials under `root` like the world (sun + shadows, probe GI, environment
+   *  reflections; no SSAO): their materials are replaced by world materials, once per material. */
   patch(root) {
     const L = this.lighting;
     root.traverse((o) => {
       if (!o.material) return;
-      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-        if (this._patched.has(m) || !(m.isMeshStandardMaterial || m.isMeshLambertMaterial)) continue;
-        this._patched.add(m);
-        const prev = m.onBeforeCompile;
-        m.onBeforeCompile = (sh, r) => {
-          prev?.call(m, sh, r);
-          L.sun.inject(sh);
-          L.gi.inject(sh);
-          sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>', () => MAPS_CHUNK);
-        };
-        const prevKey = m.customProgramCacheKey?.bind(m);
-        m.customProgramCacheKey = () => `${prevKey ? prevKey() : ''}|vm`;
-        m.needsUpdate = true;
-      }
+      const list = Array.isArray(o.material) ? o.material : [o.material];
+      const out = list.map((m) => {
+        if (!(m.isMeshStandardMaterial || m.isMeshLambertMaterial) || m.isWorldMaterial) return m;
+        let w = this._patched.get(m);
+        if (!w) {
+          w = L.patch(m);
+          w.mcCfg = { ao: false, sky: false, env: w.isMeshStandardNodeMaterial ? this._env() : null };
+          this._patched.set(m, w);
+        }
+        return w;
+      });
+      o.material = Array.isArray(o.material) ? out : out[0];
     });
   }
 }

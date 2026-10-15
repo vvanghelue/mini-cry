@@ -1,4 +1,5 @@
-// Headless Chrome (real GPU through ANGLE/Metal, vsync off) driving the game or the editor.
+// Headless Chrome (real GPU: WebGPU through Dawn / Metal on macOS, vsync off) driving the game or
+// the editor.
 // Used by tools/shot.mjs, tools/bench.mjs and `mc run`.
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -46,16 +47,18 @@ export async function ensureServer() {
 }
 
 export async function launch({ width = 1440, height = 900, dpr = 1, headless = true } = {}) {
-  // macOS: Chrome on the real GPU (ANGLE / Metal). Elsewhere (Linux CI / cloud containers without
-  // Chrome or a GPU): the bundled Chromium (MC_CHROMIUM overrides its path), WebGL through ANGLE
-  // (SwiftShader when there is no GPU) — slow but pixel-correct, fine for shots and tests.
+  // macOS: Chrome on the real GPU (WebGPU on Metal; ANGLE / Metal for the ?renderer=webgl
+  // fallback). Elsewhere (Linux CI / cloud containers without Chrome or a GPU): the bundled
+  // Chromium headless shell (MC_CHROMIUM overrides its path), WebGPU on SwiftShader (Vulkan) —
+  // slow but pixel-correct, fine for shots and tests. There the compositor must run on Vulkan
+  // too, or the WebGPU canvas never reaches the screenshots.
   const mac = process.platform === 'darwin';
-  const exe = process.env.MC_CHROMIUM ?? (!mac && fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : null);
-  const browser = await chromium.launch({
-    ...(exe ? { executablePath: exe } : { channel: 'chrome' }),
-    headless,
-    args: ['--enable-gpu', mac ? '--use-angle=metal' : '--use-angle=default', '--enable-unsafe-swiftshader', '--disable-gpu-vsync', '--disable-frame-rate-limit', '--enable-unsafe-webgpu', '--ignore-gpu-blocklist'],
-  });
+  const shell = '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell';
+  const exe = process.env.MC_CHROMIUM ?? (mac ? null : [shell, '/opt/pw-browsers/chromium'].find((f) => fs.existsSync(f)) ?? null);
+  const args = mac
+    ? ['--enable-gpu', '--use-angle=metal', '--disable-gpu-vsync', '--disable-frame-rate-limit', '--enable-unsafe-webgpu', '--ignore-gpu-blocklist']
+    : ['--enable-unsafe-webgpu', '--enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan', '--use-angle=swiftshader', '--use-vulkan=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-vsync', '--disable-frame-rate-limit'];
+  const browser = await chromium.launch({ ...(exe ? { executablePath: exe } : { channel: 'chrome' }), headless, args });
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: dpr });
   const logs = [];
   page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
@@ -64,8 +67,9 @@ export async function launch({ width = 1440, height = 900, dpr = 1, headless = t
   return { browser, page, logs };
 }
 
-/** Open a page and wait until window.__mc.ready (set by the game / editor boot). */
-export async function openApp(page, path, { timeout = 90000 } = {}) {
+/** Open a page and wait until window.__mc.ready (set by the game / editor boot). Without a GPU
+ *  (SwiftShader) the loading warm-up compiles every render pipeline on the CPU: minutes. */
+export async function openApp(page, path, { timeout = process.platform === 'darwin' ? 90000 : 420000 } = {}) {
   await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
   try {
     await page.waitForFunction(() => window.__mc?.ready === true, null, { timeout, polling: 250 });

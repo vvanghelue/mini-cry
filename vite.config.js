@@ -7,6 +7,9 @@ import { devApi } from './tools/vite-dev-api.js';
 export default defineConfig({
   server: { port: 5190, strictPort: false, watch: { ignored: ['**/shots/**', '**/.mc-backup/**', '**/dist/**', '**/tests/**'] } },
   oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
+  // one three.js build: 'three' (our modules, the examples) resolves to the WebGPU build, so the
+  // WebGLRenderer (unused: the WebGL 2 fallback is WebGPURenderer's own backend) isn't bundled
+  resolve: { alias: [{ find: /^three$/, replacement: 'three/webgpu' }] },
   build: {
     target: 'es2022',
     rollupOptions: {

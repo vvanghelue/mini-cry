@@ -6,18 +6,23 @@
 // between stones, grass grows through the dirt...), so painted borders follow the texture
 // instead of the 2 m grid. Every material maps to a layer + a tint (its palette colour / the
 // layer's mean colour, Surfaces.js surfRel: TERRAIN_MATERIALS still sets the colours, GI and the
-// map agree). Flat
-// ground samples a top projection, slopes switch to triplanar (no stretched cliffs); a second,
-// much larger scale of the same layer breaks the tiling with distance. Vertex colours carry the
-// per-vertex variation and the underwater darkening.
-import * as THREE from 'three';
+// map agree). Flat ground samples a top projection, slopes switch to triplanar (no stretched
+// cliffs); a second, much larger scale of the same layer breaks the tiling with distance. Vertex
+// colours carry the per-vertex variation and the underwater darkening.
+import * as THREE from 'three/webgpu';
+import {
+  Fn, If, texture, uniformArray, uniform, attribute, varying, vec2, vec3, vec4, float, int, ivec2, mix, max, clamp, pow, abs, sign, normalize, length, smoothstep, floor, fract,
+  modelWorldMatrix, positionLocal, cameraPosition, cameraViewMatrix, renderGroup, mat3, select, property,
+} from 'three/tsl';
 import { TERRAIN_MATERIALS } from '../world/TerrainData.js';
-import { SURF_DETAIL_GLSL, luma } from './Surfaces.js';
+import { luma, surfRel } from './Surfaces.js';
+import { WorldStandardMaterial } from './WorldMaterial.js';
+import { surfSpecK } from './nodes.js';
 
 const N = 16; // material slots (TERRAIN_MATERIALS ids)
 
 export function terrainMaterial(lighting, terrain) {
-  const S = lighting.surfaces;
+  const S = lighting.surfaces, SU = S.uniforms;
   const m = S.manifest?.terrain;
   const info = Array.from({ length: N }, () => new THREE.Vector4(1, 1, 1, 0));
   const info2 = Array.from({ length: N }, () => new THREE.Vector4(0.25, 0.6, 1, 0.6));
@@ -38,135 +43,109 @@ export function terrainMaterial(lighting, terrain) {
   ids.minFilter = ids.magFilter = THREE.NearestFilter;
   ids.generateMipmaps = false;
   ids.needsUpdate = true;
-  const uniforms = {
-    terIds: { value: ids },
-    terMat: { value: info },
-    terMat2: { value: info2 },
-    terMean: { value: means },
-    terGrid: { value: new THREE.Vector4(-terrain.half, -terrain.half, 1 / terrain.cell, terrain.res) },
+  const g = (n) => n.setGroup(renderGroup);
+  const U = {
+    terIds: texture(ids),
+    terMat: g(uniformArray(info, 'vec4')), // rgb: palette colour (linear), a: layer
+    terMat2: g(uniformArray(info2, 'vec4')), // x: uv per m, y: roughness scale, z: normal strength, w: chroma
+    terMean: g(uniformArray(means, 'vec4')), // per layer: 1 / mean albedo, mean luminance
+    terGrid: g(uniform(new THREE.Vector4(-terrain.half, -terrain.half, 1 / terrain.cell, terrain.res))), // world -> grid: x0, z0, 1 / cell, res
   };
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
-  lighting.patch(mat, { terrain: true });
-  const prev = mat.onBeforeCompile;
-  mat.onBeforeCompile = (sh, r) => {
-    prev.call(mat, sh, r);
-    Object.assign(sh.uniforms, uniforms, { terAlbedo: S.uniforms.terAlbedo, terNormal: S.uniforms.terNormal, surfDetail: S.uniforms.surfDetail, surfNormalScale: S.uniforms.surfNormalScale });
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vTerrW;\nvarying vec3 vTerrN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvTerrW = (modelMatrix * vec4(position, 1.0)).xyz;\nvTerrN = normalize(mat3(modelMatrix) * normal);');
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\n${PARS}`)
-      .replace('#include <map_fragment>', `#include <map_fragment>\n${SPLAT}`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = tRough;')
-      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        normal = normalize((viewMatrix * vec4(tN, 0.0)).xyz);`);
+  const mat = new WorldStandardMaterial(lighting, { ao: true, sky: true, env: null }, { roughness: 1, metalness: 0 });
+  mat.name = 'terrain';
+  mat.vertexColors = false;
+  const vW = varying(modelWorldMatrix.mul(vec4(positionLocal, 1)).xyz, 'vTerrW');
+  const vN = varying(normalize(mat3(modelWorldMatrix).mul(attribute('normal', 'vec3'))), 'vTerrN');
+  const vCol = varying(attribute('color', 'vec3'), 'vTerrCol');
+
+  // one layer: albedo (a = height) + normal (world) + roughness, top or triplanar projection,
+  // near detail scale mixed with a large scale that breaks the tiling with distance (inline: the
+  // per-pixel code is written out, no loop or local array, see the header of SunShadows.js)
+  const layer = (id, P, Nw, bw, tri, far, out) => {
+    const mi = U.terMat.element(id), m2 = U.terMat2.element(id);
+    const L = int(mi.a), k = m2.x;
+    const nt = vec4(0).toVar();
+    If(tri.not(), () => {
+      const uv = P.xz.mul(k);
+      const alb = SU.terAlbedo.sample(uv).depth(L).toVar();
+      nt.assign(SU.terNormal.sample(uv).depth(L));
+      If(far.greaterThan(0), () => {
+        const a2 = SU.terAlbedo.sample(uv.mul(0.173).add(vec2(0.31, 0.77))).depth(L);
+        alb.rgb.assign(mix(alb.rgb, a2.rgb, far.mul(0.55)));
+      });
+      out.alb.assign(alb);
+      const t = nt.xy.mul(2).sub(1).mul(m2.z);
+      out.nW.assign(vec3(t.x, 0, t.y));
+    }).Else(() => {
+      const ux = P.zy.mul(k), uy = P.xz.mul(k), uz = P.xy.mul(k);
+      const ax = SU.terAlbedo.sample(ux).depth(L), ay = SU.terAlbedo.sample(uy).depth(L), az = SU.terAlbedo.sample(uz).depth(L);
+      out.alb.assign(ax.mul(bw.x).add(ay.mul(bw.y)).add(az.mul(bw.z)));
+      const nx = SU.terNormal.sample(ux).depth(L), ny = SU.terNormal.sample(uy).depth(L), nz = SU.terNormal.sample(uz).depth(L);
+      nt.assign(nx.mul(bw.x).add(ny.mul(bw.y)).add(nz.mul(bw.z)));
+      const tx = nx.xy.mul(2).sub(1).mul(m2.z), ty = ny.xy.mul(2).sub(1).mul(m2.z), tz = nz.xy.mul(2).sub(1).mul(m2.z);
+      out.nW.assign(vec3(0, tx.y, tx.x.mul(sign(Nw.x))).mul(bw.x).add(vec3(ty.x, 0, ty.y).mul(bw.y)).add(vec3(tz.x.mul(sign(Nw.z)), tz.y, 0).mul(bw.z)));
+    });
+    out.alb.rgb.assign(mi.rgb.mul(surfRel(out.alb.rgb, U.terMean.element(L), m2.w, 1)));
+    out.rough.assign(clamp(nt.b.mul(m2.y), 0.04, 1));
   };
-  const pk = mat.customProgramCacheKey.bind(mat);
-  mat.customProgramCacheKey = () => pk() + '|terrain';
+
+  // splat: colour (x vertex colour), world normal, roughness — computed once in the colour node
+  mat.colorNode = Fn(() => {
+    const P = vW;
+    const Nw = normalize(vN).toVar('terNw');
+    surfSpecK.assign(0.35); // rough ground: little sky reflection, even at grazing angles
+    // 4 grid vertices around the pixel, their materials and bilinear weights
+    const gp = P.xz.sub(U.terGrid.xy).mul(U.terGrid.z);
+    const f = fract(gp);
+    const c0 = clamp(ivec2(floor(gp)), ivec2(0), ivec2(int(U.terGrid.w).sub(2))).toVar();
+    const idOf = (o) => int(U.terIds.load(c0.add(ivec2(...o))).r.mul(255).add(0.5)).toVar();
+    const i0 = idOf([0, 0]), i1 = idOf([1, 0]), i2 = idOf([0, 1]), i3 = idOf([1, 1]);
+    // projection: top on gentle ground, triplanar on slopes
+    const tri = Nw.y.lessThan(0.78).toVar();
+    const bw0 = pow(abs(Nw), vec3(4));
+    const bw = bw0.div(bw0.x.add(bw0.y).add(bw0.z)).toVar();
+    const dist = length(P.sub(cameraPosition)).toVar();
+    const far = select(tri, float(0), smoothstep(12, 90, dist)).toVar();
+    const lay = (n) => ({ alb: vec4(0).toVar('ta' + n), nW: vec3(0).toVar('tn' + n), rough: float(1).toVar('tr' + n) });
+    const l0 = lay(0), l1 = lay(1), l2 = lay(2), l3 = lay(3);
+    const col = vec3(0).toVar(), nAcc = vec3(0).toVar(), rAcc = float(1).toVar();
+    layer(i0, P, Nw, bw, tri, far, l0);
+    // written out without arrays or loops: the generic 4-layer loop (local arrays indexed in a
+    // loop) cost ~4.5 ms more per frame on Apple GPUs than this
+    If(i0.equal(i1).and(i0.equal(i2)).and(i0.equal(i3)), () => {
+      // inside a material (most pixels): one layer
+      col.assign(l0.alb.rgb); nAcc.assign(l0.nW); rAcc.assign(l0.rough);
+    }).Else(() => {
+      // border: corners sharing a material add up, then the layers height-blend (the higher
+      // texel, stone or tuft, wins near the border)
+      const w0 = f.x.oneMinus().mul(f.y.oneMinus()).toVar(), w1 = f.x.mul(f.y.oneMinus()).toVar();
+      const w2 = f.x.oneMinus().mul(f.y).toVar(), w3 = f.x.mul(f.y).toVar();
+      If(i1.equal(i0), () => { w0.addAssign(w1); w1.assign(0); });
+      If(i2.equal(i0), () => { w0.addAssign(w2); w2.assign(0); }).ElseIf(i2.equal(i1), () => { w1.addAssign(w2); w2.assign(0); });
+      If(i3.equal(i0), () => { w0.addAssign(w3); w3.assign(0); }).ElseIf(i3.equal(i1), () => { w1.addAssign(w3); w3.assign(0); }).ElseIf(i3.equal(i2), () => { w2.addAssign(w3); w3.assign(0); });
+      If(w1.greaterThan(0), () => { layer(i1, P, Nw, bw, tri, far, l1); });
+      If(w2.greaterThan(0), () => { layer(i2, P, Nw, bw, tri, far, l2); });
+      If(w3.greaterThan(0), () => { layer(i3, P, Nw, bw, tri, far, l3); });
+      const h = (w, l) => select(w.greaterThan(0), w.add(l.alb.a.mul(0.55)), float(-1));
+      const h0 = h(w0, l0).toVar(), h1 = h(w1, l1).toVar(), h2 = h(w2, l2).toVar(), h3 = h(w3, l3).toVar();
+      const hmax = max(max(h0, h1), max(h2, h3));
+      const b = (hh) => max(hh.sub(hmax).add(0.22), 0);
+      const b0 = b(h0).toVar(), b1 = b(h1).toVar(), b2 = b(h2).toVar(), b3 = b(h3).toVar();
+      const bs = max(b0.add(b1).add(b2).add(b3), 1e-4);
+      col.assign(l0.alb.rgb.mul(b0).add(l1.alb.rgb.mul(b1)).add(l2.alb.rgb.mul(b2)).add(l3.alb.rgb.mul(b3)).div(bs));
+      nAcc.assign(l0.nW.mul(b0).add(l1.nW.mul(b1)).add(l2.nW.mul(b2)).add(l3.nW.mul(b3)).div(bs));
+      rAcc.assign(l0.rough.mul(b0).add(l1.rough.mul(b1)).add(l2.rough.mul(b2)).add(l3.rough.mul(b3)).div(bs));
+    });
+    // normal detail fades out with distance (mip noise), surfaces.normalScale from the environment
+    const nk = SU.surfNormalScale.mul(SU.surfDetail).mul(float(1).sub(smoothstep(60, 250, dist)));
+    terNormal.assign(normalize(Nw.add(nAcc.mul(nk))));
+    terRough.assign(rAcc);
+    return vec4(vCol.mul(col), 1);
+  })();
+  mat.roughnessNode = terRough;
+  mat.normalNode = normalize(cameraViewMatrix.mul(vec4(terNormal, 0)).xyz);
   mat.userData.terrainIds = ids;
   return mat;
 }
 
-const PARS = /* glsl */ `
-uniform highp sampler2DArray terAlbedo;
-uniform highp sampler2DArray terNormal;
-uniform sampler2D terIds;
-uniform vec4 terMat[${N}];  // rgb: palette colour (linear), a: layer
-uniform vec4 terMat2[${N}]; // x: uv per m, y: roughness scale, z: normal strength, w: chroma
-uniform vec4 terMean[${N}]; // per layer: 1 / mean albedo, mean luminance
-${SURF_DETAIL_GLSL}
-uniform vec4 terGrid;       // world -> grid: x0, z0, 1 / cell, res
-uniform float surfDetail, surfNormalScale;
-varying vec3 vTerrW;
-varying vec3 vTerrN;
-
-// one layer: albedo (a = height) + normal (world) + roughness, top or triplanar projection,
-// near detail scale mixed with a large scale that breaks the tiling with distance
-void terLayer(int id, vec3 P, vec3 Nw, vec3 bw, bool tri, float far, out vec4 alb, out vec3 nW, out float rough) {
-  vec4 mi = terMat[id], m2 = terMat2[id];
-  float L = mi.a, k = m2.x;
-  vec4 nt;
-  if (!tri) {
-    vec2 uv = P.xz * k;
-    alb = texture(terAlbedo, vec3(uv, L));
-    nt = texture(terNormal, vec3(uv, L));
-    if (far > 0.0) {
-      vec4 a2 = texture(terAlbedo, vec3(uv * 0.173 + vec2(0.31, 0.77), L));
-      alb.rgb = mix(alb.rgb, a2.rgb, far * 0.55);
-    }
-    vec2 t = (nt.xy * 2.0 - 1.0) * m2.z;
-    nW = vec3(t.x, 0.0, t.y);
-  } else {
-    vec2 ux = P.zy * k, uy = P.xz * k, uz = P.xy * k;
-    vec4 ax = texture(terAlbedo, vec3(ux, L)), ay = texture(terAlbedo, vec3(uy, L)), az = texture(terAlbedo, vec3(uz, L));
-    alb = ax * bw.x + ay * bw.y + az * bw.z;
-    vec4 nx = texture(terNormal, vec3(ux, L)), ny = texture(terNormal, vec3(uy, L)), nz = texture(terNormal, vec3(uz, L));
-    nt = nx * bw.x + ny * bw.y + nz * bw.z;
-    vec2 tx = (nx.xy * 2.0 - 1.0) * m2.z, ty = (ny.xy * 2.0 - 1.0) * m2.z, tz = (nz.xy * 2.0 - 1.0) * m2.z;
-    nW = vec3(0.0, tx.y, tx.x * sign(Nw.x)) * bw.x + vec3(ty.x, 0.0, ty.y) * bw.y + vec3(tz.x * sign(Nw.z), tz.y, 0.0) * bw.z;
-  }
-  alb.rgb = mi.rgb * surfRel(alb.rgb, terMean[int(L)], m2.w, 1.0);
-  rough = clamp(nt.b * m2.y, 0.04, 1.0);
-}
-`;
-
-const SPLAT = /* glsl */ `
-vec3 tN = normalize(vTerrN);
-float tRough = 1.0;
-surfSpecK = 0.35; // rough ground: little sky reflection, even at grazing angles
-{
-  vec3 Nw = tN;
-  // 4 grid vertices around the pixel, their materials and bilinear weights
-  vec2 g = (vTerrW.xz - terGrid.xy) * terGrid.z;
-  vec2 f = fract(g);
-  ivec2 c0 = clamp(ivec2(floor(g)), ivec2(0), ivec2(int(terGrid.w) - 2));
-  int i0 = int(texelFetch(terIds, c0, 0).r * 255.0 + 0.5);
-  int i1 = int(texelFetch(terIds, c0 + ivec2(1, 0), 0).r * 255.0 + 0.5);
-  int i2 = int(texelFetch(terIds, c0 + ivec2(0, 1), 0).r * 255.0 + 0.5);
-  int i3 = int(texelFetch(terIds, c0 + ivec2(1, 1), 0).r * 255.0 + 0.5);
-  // projection: top on gentle ground, triplanar on slopes
-  bool tri = Nw.y < 0.78;
-  vec3 bw = pow(abs(Nw), vec3(4.0));
-  bw /= bw.x + bw.y + bw.z;
-  float dist = length(vTerrW - cameraPosition);
-  float far = tri ? 0.0 : smoothstep(12.0, 90.0, dist);
-  vec3 col, nAcc;
-  float rAcc;
-  vec4 a0;
-  vec3 n0;
-  float r0;
-  terLayer(i0, vTerrW, Nw, bw, tri, far, a0, n0, r0);
-  // Written out without arrays or loops: the generic 4-layer loop (local arrays indexed in a
-  // loop) cost ~4.5 ms more per frame on Apple GPUs than this.
-  if (i0 == i1 && i0 == i2 && i0 == i3) {
-    // inside a material (most pixels): one layer
-    col = a0.rgb; nAcc = n0; rAcc = r0;
-  } else {
-    // border: corners sharing a material add up, then the layers height-blend (the higher
-    // texel, stone or tuft, wins near the border)
-    float w0 = (1.0 - f.x) * (1.0 - f.y), w1 = f.x * (1.0 - f.y), w2 = (1.0 - f.x) * f.y, w3 = f.x * f.y;
-    if (i1 == i0) { w0 += w1; w1 = 0.0; }
-    if (i2 == i0) { w0 += w2; w2 = 0.0; } else if (i2 == i1) { w1 += w2; w2 = 0.0; }
-    if (i3 == i0) { w0 += w3; w3 = 0.0; } else if (i3 == i1) { w1 += w3; w3 = 0.0; } else if (i3 == i2) { w2 += w3; w3 = 0.0; }
-    vec4 a1 = vec4(0.0), a2 = vec4(0.0), a3 = vec4(0.0);
-    vec3 n1 = vec3(0.0), n2 = vec3(0.0), n3 = vec3(0.0);
-    float r1 = 1.0, r2 = 1.0, r3 = 1.0;
-    if (w1 > 0.0) terLayer(i1, vTerrW, Nw, bw, tri, far, a1, n1, r1);
-    if (w2 > 0.0) terLayer(i2, vTerrW, Nw, bw, tri, far, a2, n2, r2);
-    if (w3 > 0.0) terLayer(i3, vTerrW, Nw, bw, tri, far, a3, n3, r3);
-    float h0 = w0 > 0.0 ? w0 + a0.a * 0.55 : -1.0, h1 = w1 > 0.0 ? w1 + a1.a * 0.55 : -1.0;
-    float h2 = w2 > 0.0 ? w2 + a2.a * 0.55 : -1.0, h3 = w3 > 0.0 ? w3 + a3.a * 0.55 : -1.0;
-    float hmax = max(max(h0, h1), max(h2, h3));
-    float b0 = max(h0 - hmax + 0.22, 0.0), b1 = max(h1 - hmax + 0.22, 0.0), b2 = max(h2 - hmax + 0.22, 0.0), b3 = max(h3 - hmax + 0.22, 0.0);
-    float bs = max(b0 + b1 + b2 + b3, 1e-4);
-    col = (a0.rgb * b0 + a1.rgb * b1 + a2.rgb * b2 + a3.rgb * b3) / bs;
-    nAcc = (n0 * b0 + n1 * b1 + n2 * b2 + n3 * b3) / bs;
-    rAcc = (r0 * b0 + r1 * b1 + r2 * b2 + r3 * b3) / bs;
-  }
-  // normal detail fades out with distance (mip noise), surfaces.normalScale from the environment
-  float nk = surfNormalScale * surfDetail * (1.0 - smoothstep(60.0, 250.0, dist));
-  tN = normalize(Nw + nAcc * nk);
-  diffuseColor.rgb *= col;
-  tRough = rAcc;
-}
-`;
+const terNormal = property('vec3', 'terN'), terRough = property('float', 'terRough');

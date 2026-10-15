@@ -46,7 +46,7 @@ export class DebugPanel {
   // ---- Stats (read-only, refreshed 4x per second) ----------------------------------------
   _stats(gui) {
     const f = (this.statsFolder = gui.addFolder('Stats'));
-    const keys = ['fps', 'frame', 'cpu', 'gpu', 'res', 'calls', 'triangles', 'geometries', 'textures', 'programs', 'lateShaders', 'heap', 'marks'];
+    const keys = ['fps', 'frame', 'cpu', 'gpu', 'backend', 'res', 'calls', 'triangles', 'geometries', 'textures', 'pipelines', 'lateShaders', 'heap', 'marks'];
     if (this.app.game) keys.push('pos', 'actors', 'mission');
     if (this.app.world) keys.push('time');
     for (const k of keys) { this.info[k] = ''; f.add(this.info, k).disable(); }
@@ -64,8 +64,9 @@ export class DebugPanel {
     I.triangles = `${(s.triangles / 1000).toFixed(1)}k`;
     I.geometries = r.info.memory.geometries;
     I.textures = r.info.memory.textures;
-    I.programs = r.info.programs?.length ?? 0;
-    I.lateShaders = world?.warmUpStats ? I.programs - world.warmUpStats.total : '-';
+    I.backend = engine.backend ?? '-';
+    I.pipelines = engine.pipelineCount();
+    I.lateShaders = world?.warmUpStats ? I.pipelines - world.warmUpStats.total : '-';
     const m = performance.memory; // Chromium only
     I.heap = m ? `${(m.usedJSHeapSize / 1048576).toFixed(0)} / ${(m.totalJSHeapSize / 1048576).toFixed(0)} MB` : 'n/a';
     I.marks = Object.entries(s.marks).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' · ') || '-';
@@ -267,7 +268,7 @@ export class DebugPanel {
       get ssr() { return L.ssr.level; }, set ssr(v) { if (game) game.saveSettings({ ssr: v }); else L.ssr.setLevel(v); },
       get stats() { return overlay?.visible ?? false; }, set stats(v) { overlay?.setVisible(v); },
       get maxFps() { return engine.maxFps; }, set maxFps(v) { if (game) game.saveSettings({ fpsLimit: v }); else engine.maxFps = v; },
-      // fixed when the WebGL context is created: reload with ?aa=
+      // fixed when the renderer is created: reload with ?aa=
       get aa() { return engine.aa; }, set aa(v) { const u = new URL(location.href); u.searchParams.set('aa', v); location.href = u.href; },
       wireframe: false,
     };

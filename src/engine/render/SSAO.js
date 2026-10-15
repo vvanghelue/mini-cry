@@ -4,153 +4,39 @@
 // Everything runs at half resolution:
 //   1. depth pre-pass of the STATIC + DYNAMIC layers (no grass, water, FX) through a copy of the
 //      main camera whose far plane stops where the AO has faded out (fadeFar), so the distant
-//      world is frustum-culled and costs nothing. Same depth material as the shadow cascades:
-//      the programs are shared, nothing new compiles;
+//      world is frustum-culled and costs nothing. Same depth material as the shadow cascades
+//      (Lighting.js: LOD switch, cut-out leaves);
 //   2. AO pass: view-space position rebuilt from depth, normal rebuilt from depth (picking the
 //      smaller neighbour delta so edges don't smear), N samples on a golden-angle spiral rotated
 //      by a 4x4 interleaved pattern. A range falloff kills occluders far away from the receiver,
 //      so there is no dark halo around foreground objects;
 //   3. one 4x4 depth-aware blur: every 4x4 window contains all 16 rotations of the pattern, so it
 //      removes the pattern noise completely (no temporal accumulation, no ghosting).
-// The result (AO + linear depth) is read back in the lit materials (Lighting.patch) with a
-// depth-aware bilateral upsample and applied to the indirect (hemisphere) light, plus a small
-// share of the direct sun. Surfaces missing from the pre-pass (grass) take the AO of the closest
-// depth around them, i.e. the ground they stand on.
+// The result (AO + linear depth) is read back in the lit materials (aoNode(), Lighting.js) with a
+// depth-aware bilateral upsample and applied to the indirect light (probe GI, sky reflections),
+// plus a small share of the direct sun. Surfaces missing from the pre-pass (grass) take the AO of
+// the closest depth around them, i.e. the ground they stand on.
 // The water's screen-space reflections (SSR.js) march through the same depth: while they are on,
 // the pre-pass reaches `depthFar` and runs even with the AO switched off.
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import {
+  Fn, If, Loop, uniform, texture, textureLoad, screenCoordinate, vec2, vec3, vec4, float, int, ivec2, clamp, max, min, abs, cos, sin, pow, round, floor, dot, normalize, cross,
+  smoothstep, inverseSqrt, select, mix, renderGroup,
+} from 'three/tsl';
 import { LAYERS } from './layers.js';
 
 const DEPTH_LAYERS = (1 << LAYERS.STATIC) | (1 << LAYERS.DYNAMIC) | (1 << LAYERS.OCCLUDER);
 
-const QUAD_VERT = /* glsl */ `
-in vec3 position;
-void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }
-`;
-
-const AO_FRAG = /* glsl */ `
-precision highp float;
-precision highp int;
-uniform sampler2D tDepth;
-uniform vec2 size;
-uniform vec2 projXY;
-uniform float cNear, cFar;
-uniform float radius, intensity, projScale, maxPx, fadeFar;
-out vec4 o;
-#define SAMPLES %SAMPLES%
-
-float viewZ(float d) { return (cNear * cFar) / ((cFar - cNear) * d - cFar); }
-vec3 viewPos(ivec2 p, float d) {
-  vec2 uv = (vec2(p) + 0.5) / size;
-  float z = viewZ(d);
-  return vec3((uv * 2.0 - 1.0) * projXY * -z, z);
-}
-vec3 fetchPos(ivec2 p) {
-  p = clamp(p, ivec2(0), ivec2(size) - 1);
-  return viewPos(p, texelFetch(tDepth, p, 0).x);
-}
-void main() {
-  ivec2 ip = ivec2(gl_FragCoord.xy);
-  float d = texelFetch(tDepth, ip, 0).x;
-  if (d >= 1.0) { o = vec4(1.0, cFar, 0.0, 1.0); return; }
-  vec3 P = viewPos(ip, d);
-  float dist = -P.z;
-  float rPx = radius * projScale / dist;
-  float fade = 1.0 - smoothstep(fadeFar * 0.6, fadeFar, dist);
-  if (rPx < 1.0 || fade <= 0.0) { o = vec4(1.0, dist, 0.0, 1.0); return; }
-  rPx = min(rPx, maxPx);
-
-  vec3 pr = fetchPos(ip + ivec2(1, 0)), pl = fetchPos(ip - ivec2(1, 0));
-  vec3 pu = fetchPos(ip + ivec2(0, 1)), pd = fetchPos(ip - ivec2(0, 1));
-  ivec2 last = ivec2(size) - 1;
-  bool useR = ip.x == 0 || (ip.x < last.x && abs(pr.z - P.z) < abs(P.z - pl.z));
-  bool useU = ip.y == 0 || (ip.y < last.y && abs(pu.z - P.z) < abs(P.z - pd.z));
-  vec3 dx = useR ? pr - P : P - pl;
-  vec3 dy = useU ? pu - P : P - pd;
-  vec3 N = normalize(cross(dx, dy));
-
-  // 4x4 interleaved rotation (Bayer order so neighbours differ a lot)
-  // (computed: a constant array indexed per pixel is slow on Apple GPUs)
-  int bx = ip.x & 3, by = ip.y & 3;
-  int bayer = (((bx ^ by) & 1) << 1 | (by & 1)) << 2 | ((((bx ^ by) >> 1) & 1) << 1 | ((by >> 1) & 1));
-  float ang = float(bayer) * (6.2831853 / 16.0);
-  float jit = float(bayer) / 16.0;
-
-  float r2 = radius * radius;
-  float occ = 0.0;
-  for (int i = 0; i < SAMPLES; i++) {
-    float t = (float(i) + jit) / float(SAMPLES);
-    float a = ang + float(i) * 2.3999632;
-    vec2 off = vec2(cos(a), sin(a)) * (rPx * pow(t, 1.5) + 1.0);
-    vec3 Q = fetchPos(ip + ivec2(round(off)));
-    vec3 v = Q - P;
-    float vv = dot(v, v);
-    float cosT = dot(v, N) * inversesqrt(vv + 1e-6);
-    float fall = max(1.0 - vv / r2, 0.0);
-    occ += max(cosT - 0.12, 0.0) * fall;
-  }
-  float ao = clamp(1.0 - intensity * occ / float(SAMPLES), 0.0, 1.0);
-  o = vec4(mix(1.0, ao, fade), dist, 0.0, 1.0);
-}
-`;
-
-const BLUR_FRAG = /* glsl */ `
-precision highp float;
-precision highp int;
-uniform sampler2D tAO;
-uniform vec2 size;
-out vec4 o;
-void main() {
-  ivec2 ip = ivec2(gl_FragCoord.xy);
-  vec2 c = texelFetch(tAO, ip, 0).rg;
-  float tol = c.y * 0.06 + 0.02;
-  float s = 0.0, w = 0.0;
-  for (int y = -2; y <= 1; y++)
-    for (int x = -2; x <= 1; x++) {
-      ivec2 q = clamp(ip + ivec2(x, y), ivec2(0), ivec2(size) - 1);
-      vec2 t = texelFetch(tAO, q, 0).rg;
-      float k = max(1.0 - abs(t.y - c.y) / tol, 0.0);
-      s += t.x * k; w += k;
-    }
-  o = vec4(w > 1e-4 ? s / w : c.x, c.y, 0.0, 1.0);
-}
-`;
-
-export const AO_GLSL = /* glsl */ `
-uniform sampler2D aoTex;
-uniform vec2 aoScale;
-uniform vec2 aoSize;
-uniform float aoEnabled;
-uniform float aoFar;
-uniform float aoDirect;
-uniform float aoDebug;
-float ssaoSample(float z) {
-  vec2 hp = gl_FragCoord.xy * aoScale - 0.5;
-  vec2 fb = floor(hp);
-  vec2 f = hp - fb;
-  ivec2 b = ivec2(fb);
-  ivec2 mx = ivec2(aoSize) - 1;
-  float tol = z * 0.05 + 0.02;
-  // the 4 texels around, written out (no loop: runs in every lit pixel within aoFar)
-  vec2 t0 = texelFetch(aoTex, clamp(b, ivec2(0), mx), 0).rg;
-  vec2 t1 = texelFetch(aoTex, clamp(b + ivec2(1, 0), ivec2(0), mx), 0).rg;
-  vec2 t2 = texelFetch(aoTex, clamp(b + ivec2(0, 1), ivec2(0), mx), 0).rg;
-  vec2 t3 = texelFetch(aoTex, clamp(b + ivec2(1, 1), ivec2(0), mx), 0).rg;
-  vec4 d = abs(vec4(t0.y, t1.y, t2.y, t3.y) - z);
-  vec4 wt = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y) * max(1.0 - d / tol, 0.0);
-  float w = wt.x + wt.y + wt.z + wt.w;
-  if (w > 1e-4) return dot(vec4(t0.x, t1.x, t2.x, t3.x), wt) / w;
-  // no texel at this depth: the closest one
-  float best = t0.x, bestD = d.x;
-  if (d.y < bestD) { bestD = d.y; best = t1.x; }
-  if (d.z < bestD) { bestD = d.z; best = t2.x; }
-  if (d.w < bestD) best = t3.x;
-  return best;
-}
-`;
+/** 4x4 Bayer index (0..15) of a pixel, computed (a constant array indexed per pixel is slow on Apple GPUs). */
+export const bayer16 = (ip) => {
+  const bx = ip.x.bitAnd(3), by = ip.y.bitAnd(3), xy = bx.bitXor(by);
+  const lo = xy.bitAnd(1).shiftLeft(1).bitOr(by.bitAnd(1));
+  const hi = xy.shiftRight(1).bitAnd(1).shiftLeft(1).bitOr(by.shiftRight(1).bitAnd(1));
+  return lo.shiftLeft(2).bitOr(hi);
+};
 
 export class SSAO {
-  constructor(renderer, scene, { samples = 8, radius = 1.0, intensity = 2.6, direct = 0.2, maxPx = 48, fadeFar = 80 } = {}) {
+  constructor(renderer, scene, { samples = 8, radius = 1.0, intensity = 2.6, direct = 0.2, maxPx = 48, fadeFar = 80, depthMaterial = null } = {}) {
     this.renderer = renderer;
     this.scene = scene;
     this.enabled = true; // user toggle (settings, debug panel)
@@ -165,69 +51,125 @@ export class SSAO {
     this.cam = new THREE.PerspectiveCamera();
     this.cam.matrixWorldAutoUpdate = false; // matrixWorld(Inverse) copied from the main camera
 
-    this.depthRT = new THREE.WebGLRenderTarget(1, 1, {
-      format: THREE.RedFormat,
-      type: THREE.UnsignedByteType,
-      depthBuffer: true,
-      generateMipmaps: false,
-    });
+    this.depthRT = new THREE.RenderTarget(1, 1, { format: THREE.RedFormat, type: THREE.UnsignedByteType, depthBuffer: true, generateMipmaps: false });
     this.depthRT.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
-    this.depthRT.depthTexture.format = THREE.DepthFormat;
-    const rtOpts = {
-      format: THREE.RGFormat,
-      type: THREE.HalfFloatType,
-      minFilter: THREE.NearestFilter,
-      magFilter: THREE.NearestFilter,
-      depthBuffer: false,
-      generateMipmaps: false,
-    };
-    this.aoRT = new THREE.WebGLRenderTarget(1, 1, rtOpts);
-    this.blurRT = new THREE.WebGLRenderTarget(1, 1, rtOpts);
-    // same parameters as SunShadows.depthMatDouble: double-sided (leaves, open props), no fog
-    this.depthMat = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide });
+    const rtOpts = { format: THREE.RGFormat, type: THREE.HalfFloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, generateMipmaps: false };
+    this.aoRT = new THREE.RenderTarget(1, 1, rtOpts);
+    this.blurRT = new THREE.RenderTarget(1, 1, rtOpts);
+    // same parameters as the sun cascades: double-sided (leaves, open props), LOD switch, cut-outs
+    this.depthMat = depthMaterial;
 
-    this.aoMat = new THREE.RawShaderMaterial({
-      glslVersion: THREE.GLSL3,
-      vertexShader: QUAD_VERT,
-      fragmentShader: AO_FRAG.replace('%SAMPLES%', String(this._compiled)),
-      uniforms: {
-        tDepth: { value: this.depthRT.depthTexture },
-        size: { value: this.size },
-        projXY: { value: new THREE.Vector2() },
-        cNear: { value: 0.1 },
-        cFar: { value: 1000 },
-        radius: { value: radius },
-        intensity: { value: intensity },
-        projScale: { value: 1 },
-        maxPx: { value: maxPx },
-        fadeFar: { value: fadeFar },
-      },
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.blurMat = new THREE.RawShaderMaterial({
-      glslVersion: THREE.GLSL3,
-      vertexShader: QUAD_VERT,
-      fragmentShader: BLUR_FRAG,
-      uniforms: { tAO: { value: this.aoRT.texture }, size: { value: this.size } },
-      depthTest: false,
-      depthWrite: false,
-    });
-    this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.aoMat);
-    this.quad.frustumCulled = false;
-    this.quadScene = new THREE.Scene();
-    this.quadScene.add(this.quad);
-    this.quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const g = (n) => n.setGroup(renderGroup);
+    this.u = {
+      size: g(uniform(this.size)),
+      projXY: g(uniform(new THREE.Vector2())),
+      cNear: g(uniform(0.1)),
+      cFar: g(uniform(1000)),
+      radius: g(uniform(radius)),
+      intensity: g(uniform(intensity)),
+      projScale: g(uniform(1)),
+      maxPx: g(uniform(maxPx)),
+      fadeFar: g(uniform(fadeFar)),
+    };
+    this.depthTex = texture(this.depthRT.depthTexture);
+    this.aoTexIn = texture(this.aoRT.texture);
+    this.quad = new THREE.QuadMesh(this._aoMaterial(this._compiled));
+    this.blurMat = this._blurMaterial();
 
     this.uniforms = {
-      aoTex: { value: this.blurRT.texture },
-      aoScale: { value: new THREE.Vector2(0.5, 0.5) },
-      aoSize: { value: this.size },
-      aoEnabled: { value: 0 },
-      aoFar: this.aoMat.uniforms.fadeFar, // AO is 1 past this distance: no lookup
-      aoDirect: { value: direct },
-      aoDebug: { value: 0 }, // 1: show the AO term only
+      aoTex: texture(this.blurRT.texture),
+      aoScale: g(uniform(new THREE.Vector2(0.5, 0.5))),
+      aoSize: this.u.size,
+      aoEnabled: g(uniform(0)),
+      aoFar: this.u.fadeFar, // AO is 1 past this distance: no lookup
+      aoDirect: g(uniform(direct)),
+      aoDebug: g(uniform(0)), // 1: show the AO term only
     };
+  }
+
+  _aoMaterial(samples) {
+    const u = this.u, depth = this.depthTex;
+    const viewZ = (d) => u.cNear.mul(u.cFar).div(u.cFar.sub(u.cNear).mul(d).sub(u.cFar));
+    const viewPos = (p, d) => {
+      const uv = vec2(p).add(0.5).div(u.size);
+      const z = viewZ(d);
+      return vec3(uv.mul(2).sub(1).mul(vec2(1, -1)).mul(u.projXY).mul(z.negate()), z);
+    };
+    const last = ivec2(u.size).sub(1);
+    const fetchPos = (p) => {
+      const q = clamp(p, ivec2(0), last);
+      return viewPos(q, depth.load(q));
+    };
+    const m = new THREE.NodeMaterial();
+    m.colorNode = Fn(() => {
+      const ip = ivec2(screenCoordinate);
+      const d = depth.load(ip).toVar();
+      const out = vec4(1, u.cFar, 0, 1).toVar();
+      If(d.lessThan(1), () => {
+        const P = viewPos(ip, d).toVar();
+        const dist = P.z.negate();
+        const rPx = u.radius.mul(u.projScale).div(dist).toVar();
+        const fade = float(1).sub(smoothstep(u.fadeFar.mul(0.6), u.fadeFar, dist));
+        out.assign(vec4(1, dist, 0, 1));
+        If(rPx.greaterThanEqual(1).and(fade.greaterThan(0)), () => {
+          rPx.assign(min(rPx, u.maxPx));
+          const pr = fetchPos(ip.add(ivec2(1, 0))), pl = fetchPos(ip.sub(ivec2(1, 0)));
+          const pu = fetchPos(ip.add(ivec2(0, 1))), pd = fetchPos(ip.sub(ivec2(0, 1)));
+          const useR = ip.x.equal(0).or(ip.x.lessThan(last.x).and(abs(pr.z.sub(P.z)).lessThan(abs(P.z.sub(pl.z)))));
+          const useU = ip.y.equal(0).or(ip.y.lessThan(last.y).and(abs(pu.z.sub(P.z)).lessThan(abs(P.z.sub(pd.z)))));
+          const dx = select(useR, pr.sub(P), P.sub(pl)), dy = select(useU, pu.sub(P), P.sub(pd));
+          // rows run down the texture (WebGPU): flip the cross product to keep N toward the camera
+          const N = normalize(cross(dy, dx)).toVar();
+          // 4x4 interleaved rotation (Bayer order so neighbours differ a lot)
+          const b = float(bayer16(ip));
+          const ang = b.mul(6.2831853 / 16), jit = b.div(16);
+          const r2 = u.radius.mul(u.radius);
+          const occ = float(0).toVar();
+          Loop(samples, ({ i }) => {
+            const fi = float(i);
+            const t = fi.add(jit).div(samples);
+            const a = ang.add(fi.mul(2.3999632));
+            const off = vec2(cos(a), sin(a)).mul(rPx.mul(pow(t, 1.5)).add(1));
+            const Q = fetchPos(ip.add(ivec2(round(off))));
+            const v = Q.sub(P);
+            const vv = dot(v, v);
+            const cosT = dot(v, N).mul(inverseSqrt(vv.add(1e-6)));
+            const fall = max(float(1).sub(vv.div(r2)), 0);
+            occ.addAssign(max(cosT.sub(0.12), 0).mul(fall));
+          });
+          const ao = clamp(float(1).sub(u.intensity.mul(occ).div(samples)), 0, 1);
+          out.assign(vec4(mix(1, ao, fade), dist, 0, 1));
+        });
+      });
+      return out;
+    })();
+    m.depthTest = m.depthWrite = false;
+    m.name = `ssao${samples}`;
+    return m;
+  }
+
+  _blurMaterial() {
+    const u = this.u, ao = this.aoTexIn;
+    const m = new THREE.NodeMaterial();
+    m.colorNode = Fn(() => {
+      const ip = ivec2(screenCoordinate);
+      const c = ao.load(ip).rg.toVar();
+      const tol = c.y.mul(0.06).add(0.02);
+      const s = float(0).toVar(), w = float(0).toVar();
+      const last = ivec2(u.size).sub(1);
+      for (let y = -2; y <= 1; y++) {
+        for (let x = -2; x <= 1; x++) {
+          const t = ao.load(clamp(ip.add(ivec2(x, y)), ivec2(0), last)).rg;
+          const k = max(float(1).sub(abs(t.y.sub(c.y)).div(tol)), 0);
+          s.addAssign(t.x.mul(k));
+          w.addAssign(k);
+        }
+      }
+      return vec4(select(w.greaterThan(1e-4), s.div(w), c.x), c.y, 0, 1);
+    })();
+    m.depthTest = m.depthWrite = false;
+    m.name = 'ssaoBlur';
+    return m;
   }
 
   /** Half the drawing buffer; called by render() whenever the canvas or the pixel ratio changes. */
@@ -245,7 +187,7 @@ export class SSAO {
 
   /** Tuning (environment.json `ao`): { intensity, radius (m), direct (0..1), distance (m) } */
   set({ intensity, radius, direct, distance } = {}) {
-    const u = this.aoMat.uniforms;
+    const u = this.u;
     if (intensity != null) u.intensity.value = intensity;
     if (radius != null) u.radius.value = radius;
     if (distance != null) u.fadeFar.value = distance;
@@ -262,8 +204,9 @@ export class SSAO {
     this.samples = n;
     if (n > 0 && n !== this._compiled) {
       this._compiled = n;
-      this.aoMat.fragmentShader = AO_FRAG.replace('%SAMPLES%', String(n));
-      this.aoMat.needsUpdate = true;
+      this.quad.material.dispose();
+      this.quad.material = this._aoMaterial(n);
+      this._aoMat = null;
     }
     this._sync();
   }
@@ -288,87 +231,90 @@ export class SSAO {
     cam.view = camera.view;
     cam.filmGauge = camera.filmGauge;
     cam.filmOffset = camera.filmOffset;
-    cam.far = Math.min(camera.far, Math.max(this.active ? this.aoMat.uniforms.fadeFar.value * 1.1 : 0, this.depthFar));
+    cam.far = Math.min(camera.far, Math.max(this.active ? this.u.fadeFar.value * 1.1 : 0, this.depthFar));
+    cam.coordinateSystem = r.coordinateSystem;
     cam.updateProjectionMatrix();
     cam.matrixWorld.copy(camera.matrixWorld);
     cam.matrixWorldInverse.copy(camera.matrixWorldInverse);
     cam.layers.mask = camera.layers.mask & DEPTH_LAYERS;
 
     const prevTarget = r.getRenderTarget();
-    const prevOverride = scene.overrideMaterial, prevFog = scene.fog, prevBg = scene.background;
-    const autoClear = r.autoClear;
-    r.autoClear = false;
+    const prevOverride = scene.overrideMaterial, prevBg = scene.background;
 
     // 1. half-res depth pre-pass
     scene.overrideMaterial = this.depthMat;
-    scene.fog = null;
     scene.background = null;
     r.setRenderTarget(this.depthRT);
-    r.clear(true, true, false);
     r.render(scene, cam);
     scene.overrideMaterial = prevOverride;
-    scene.fog = prevFog;
     scene.background = prevBg;
     this.depthReady = true;
-    if (!this.active) {
-      r.autoClear = autoClear;
-      r.setRenderTarget(prevTarget);
-      return;
-    }
+    if (!this.active) { r.setRenderTarget(prevTarget); return; }
 
     // 2. AO
-    const u = this.aoMat.uniforms;
+    const u = this.u;
     const pm = cam.projectionMatrix.elements;
     u.projXY.value.set(1 / pm[0], 1 / pm[5]);
     u.cNear.value = cam.near;
     u.cFar.value = cam.far;
     u.projScale.value = pm[5] * this.size.y * 0.5;
-    this.quad.material = this.aoMat;
+    const aoMat = this.quad.material;
     r.setRenderTarget(this.aoRT);
-    r.render(this.quadScene, this.quadCam);
+    this.quad.render(r);
 
     // 3. depth-aware 4x4 blur
     this.quad.material = this.blurMat;
     r.setRenderTarget(this.blurRT);
-    r.render(this.quadScene, this.quadCam);
+    this.quad.render(r);
+    this.quad.material = aoMat;
 
-    r.autoClear = autoClear;
     r.setRenderTarget(prevTarget);
     if (!this.rendered) { this.rendered = true; this._sync(); }
   }
 
-  /** Apply the (upsampled) AO to a built-in lit material. Call from onBeforeCompile. */
-  inject(sh) {
-    Object.assign(sh.uniforms, this.uniforms);
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + AO_GLSL)
-      .replace(
-        '#include <aomap_fragment>',
-        `#include <aomap_fragment>
-        if (aoEnabled > 0.5) {
-          float ssao = vViewPosition.z < aoFar ? ssaoSample(vViewPosition.z) : 1.0;
-          reflectedLight.indirectDiffuse *= ssao;
-          reflectedLight.indirectSpecular *= ssao;
-          float ssaoD = mix(1.0, ssao, aoDirect);
-          reflectedLight.directDiffuse *= ssaoD;
-          reflectedLight.directSpecular *= ssaoD;
-          if (aoDebug > 0.5) {
-            reflectedLight.directDiffuse = vec3(ssao);
-            reflectedLight.directSpecular = reflectedLight.indirectDiffuse = reflectedLight.indirectSpecular = vec3(0.0);
-            totalEmissiveRadiance = vec3(0.0);
-          }
-        }`,
-      );
+  /**
+   * AO (0..1) at the shaded pixel of a lit material, view depth z: the 4 half-res texels around,
+   * weighted bilinearly and by depth similarity (written out, no loop: runs in every lit pixel
+   * within aoFar); no texel at this depth: the closest one.
+   */
+  sampleNode() {
+    if (this._sample) return this._sample;
+    const U = this.uniforms, ao = U.aoTex;
+    const fn = Fn(([z, fc]) => {
+      const hp = fc.mul(U.aoScale).sub(0.5);
+      const fb = floor(hp);
+      const f = hp.sub(fb);
+      const b = ivec2(fb);
+      const mx = ivec2(U.aoSize).sub(1);
+      const tol = z.mul(0.05).add(0.02);
+      const at = (dx, dy) => ao.load(clamp(b.add(ivec2(dx, dy)), ivec2(0), mx)).rg;
+      const t0 = at(0, 0).toVar(), t1 = at(1, 0).toVar(), t2 = at(0, 1).toVar(), t3 = at(1, 1).toVar();
+      const d = abs(vec4(t0.y, t1.y, t2.y, t3.y).sub(z)).toVar();
+      const fx = f.x, fy = f.y;
+      const wt = vec4(fx.oneMinus().mul(fy.oneMinus()), fx.mul(fy.oneMinus()), fx.oneMinus().mul(fy), fx.mul(fy)).mul(max(float(1).sub(d.div(tol)), 0)).toVar();
+      const w = wt.x.add(wt.y).add(wt.z).add(wt.w);
+      const out = float(0).toVar();
+      If(w.greaterThan(1e-4), () => {
+        out.assign(dot(vec4(t0.x, t1.x, t2.x, t3.x), wt).div(w));
+      }).Else(() => {
+        out.assign(t0.x);
+        const bestD = d.x.toVar();
+        If(d.y.lessThan(bestD), () => { bestD.assign(d.y); out.assign(t1.x); });
+        If(d.z.lessThan(bestD), () => { bestD.assign(d.z); out.assign(t2.x); });
+        If(d.w.lessThan(bestD), () => { out.assign(t3.x); });
+      });
+      return out;
+    });
+    this._sample = (z) => fn(z, screenCoordinate);
+    return this._sample;
   }
 
   dispose() {
     this.depthRT.dispose();
     this.aoRT.dispose();
     this.blurRT.dispose();
-    this.depthMat.dispose();
-    this.aoMat.dispose();
+    this.quad.material.dispose();
     this.blurMat.dispose();
-    this.quad.geometry.dispose();
   }
 }
 

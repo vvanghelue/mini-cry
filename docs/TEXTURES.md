@@ -49,10 +49,11 @@ The same views with the former flat-shaded low-poly look and with the textured r
 
 ## Packing
 
-Each group is **one tall strip image** (layers stacked vertically) uploaded straight into a WebGL2
-texture array — `texImage3D` slices an image source by layer height — so a group is one fetch and
-one decode, with no per-layer canvas work (`src/engine/render/Surfaces.js`). Mipmaps are generated
-on the GPU, sampling is trilinear + 8x anisotropic.
+Each group is **one tall strip image** (layers stacked vertically) uploaded straight into a WebGPU
+texture array — one `copyExternalImageToTexture` per layer, each from its band of the decoded
+bitmap — so a group is one fetch and one decode, with no per-layer canvas work
+(`src/engine/render/Surfaces.js`; the `?renderer=webgl` fallback decodes the pixels once). Mipmaps
+are generated on the GPU, sampling is trilinear + 8x anisotropic.
 
 | file | content |
 |---|---|
@@ -98,7 +99,8 @@ only knows vertex colours) stays consistent with what is drawn.
 Lighting: MeshStandardMaterial (GGX sun specular with the cascaded shadows, probe GI or hemisphere
 ambient), sky reflections for the indirect specular scaled by the probe sky visibility (no glowing
 undersides), leaves with low specular and normals bent upward (thin, translucent). The colour
-grade is AgX tone mapping with a mild contrast / saturation curve (`src/engine/render/Grade.js`).
+grade is AgX tone mapping with a mild contrast / saturation curve, applied inline in every material's
+output with the fog (`src/engine/render/Output.js`).
 `environment.json` `surface: { skySpecular, normalScale, detail }` tunes it live (`detail: 0` =
 plain vertex colours, for A/B).
 

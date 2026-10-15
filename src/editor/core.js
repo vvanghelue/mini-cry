@@ -51,7 +51,8 @@ export class EditorCore {
 
   async init(container) {
     const params = new URLSearchParams(location.search);
-    const engine = (this.engine = new Engine({ container, quality: params.get('quality') ?? 'medium' }));
+    const engine = (this.engine = new Engine({ container, quality: params.get('quality') ?? 'medium', backend: params.get('renderer') === 'webgl' ? 'webgl' : 'webgpu' }));
+    await engine.init();
     engine.camera.layers.enable(LAYERS.EDITOR);
     this.input = new Input(engine.canvas);
     this.input.requireLock = false;

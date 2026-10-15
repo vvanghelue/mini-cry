@@ -5,6 +5,7 @@ import { Data } from '../core/Data.js';
 import { LAYERS } from '../render/layers.js';
 import { fadeMaterial } from '../render/InstancedField.js';
 import { lodMaterial } from '../render/LodFade.js';
+import { FieldMesh } from '../render/FieldMesh.js';
 import { TerrainData } from './TerrainData.js';
 import { TerrainRenderer } from './TerrainRenderer.js';
 import { Water } from './Water.js';
@@ -112,77 +113,91 @@ export class World {
   }
 
   /**
-   * Compile every shader variant the game can draw, main pass and shadow pass, during loading
-   * instead of hitching (100+ ms with ANGLE / Metal) the first time one shows up: everything in
-   * the scene (hidden pools, LODs and far meshes included), a stand-in per cached lit material
-   * (as the plain mesh a prop batch uses and as an instanced mesh), and `extras` (a character,
-   * ...). One frame is drawn with every object shown and culling off, then the state is restored.
+   * Compile every pipeline the game can draw, main pass and depth passes, during loading instead
+   * of hitching the first time one shows up: everything in the scene (hidden pools, LODs and far
+   * meshes included), a stand-in per cached world material (as the plain mesh a prop batch uses
+   * and as a FieldMesh instance), and `extras` (a character, ...). Pipelines compile in parallel
+   * (compileAsync), then one frame is drawn with every object shown and culling off (sun
+   * cascades, SSAO pre-pass, view model), and the state is restored.
    */
   async warmUp(camera = this.engine.camera, extras = []) {
     const e = this.engine, r = e.renderer, scene = this.scene;
-    const t0 = performance.now(), p0 = r.info.programs.length;
+    const t0 = performance.now(), p0 = e.pipelineCount();
+    // the streamed content (terrain tiles, vegetation sectors, grass...) around the camera first
+    this.update(0, e);
     const stand = new THREE.Group();
     stand.name = 'WarmUp';
+    // the asset layout (ModelBuilder): every attribute a prop / plant build carries
     const geo = new THREE.BufferGeometry();
+    const tri = (n, v) => new THREE.Float32BufferAttribute(Array.from({ length: 3 * n }, (_, i) => v[i % n]), n);
     geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1e-3, 0, 0, 0, 1e-3, 0], 3));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute([1, 1, 1, 1, 1, 1, 1, 1, 1], 3));
-    // foliage assets carry baked normals (another program variant). The depth passes (sun cascades,
-    // SSAO pre-pass) draw everything with one shared override material, and three.js only rebuilds
-    // its program when instancing (not the normals) changes from one object to the next: draw
-    // plain / instanced / with / without normals alternately, last, so every variant compiles here
-    const geo0 = geo.clone(); // without normals
-    geo.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1], 2));
-    geo.setAttribute('surface', new THREE.Float32BufferAttribute([0, 0, 0], 1));
-    const geoN = geo; // textured assets: normals + uv + surface
+    geo.setAttribute('normal', tri(3, [0, 1, 0]));
+    geo.setAttribute('color', tri(3, [1, 1, 1]));
+    geo.setAttribute('uv', tri(2, [0, 0]));
+    geo.setAttribute('surface', tri(1, [0]));
+    geo.setAttribute('wind', tri(1, [0]));
+    geo.setAttribute('emissive', tri(1, [0]));
+    const idx = geo.clone().setIndex([0, 1, 2]); // instanced fields draw indexed geometry
     // every option combination AssetLibrary.material() can ask for, even if nothing used it yet
     for (let k = 0; k < 32; k++) this.lighting.material({ textured: true, cutout: !!(k & 16), wind: !!(k & 1), emissive: !!(k & 2), doubleSided: !!(k & 4) || !!(k & 16), foliage: !!(k & 8) });
     const tmp = [];
     const add = (m, plain) => {
-      const b = new THREE.InstancedMesh(geo, m, 1);
-      b.layers.set(LAYERS.STATIC);
-      stand.add(b);
-      tmp.push(b);
+      const f = new FieldMesh(idx, m, 1);
+      f.drawCount = 1;
+      f.layers.set(LAYERS.STATIC);
+      stand.add(f);
+      tmp.push(f);
       if (!plain) return;
       const a = new THREE.Mesh(geo, m);
       a.layers.set(LAYERS.STATIC);
       stand.add(a);
     };
     for (const m of this.lighting.materials.values()) add(m, true);
-    for (const m of fadeMaterial.cache?.values() ?? []) add(m, false); // instanced only (reads instanceMatrix)
+    for (const m of fadeMaterial.cache?.values() ?? []) add(m, false); // instanced only
     for (const m of lodMaterial.cache?.values() ?? []) add(m, false);
-    const fol = this.lighting.material({ textured: true, cutout: false, wind: false, emissive: false, doubleSided: true, foliage: true });
-    [[geo0, false], [geoN, true], [geoN, false], [geo0, true]].forEach(([g, inst], i) => {
-      const b = inst ? new THREE.InstancedMesh(g, fol, 1) : new THREE.Mesh(g, fol);
-      b.layers.set(LAYERS.STATIC);
-      b.renderOrder = 1e6 + i;
-      stand.add(b);
-      if (inst) tmp.push(b);
-    });
     for (const x of extras) stand.add(x);
     camera.getWorldDirection(stand.position).multiplyScalar(3).add(camera.position);
     scene.add(stand);
     const saved = [];
-    const show = (root) => root.traverse((o) => { saved.push(o, o.visible, o.frustumCulled); o.visible = true; o.frustumCulled = false; });
+    // (meshes without vertices yet, e.g. no light halo placed, stay as they are; shadow-only
+    // casters out of reach join their passes: userData.warmUpLayers)
+    const show = (root) => root.traverse((o) => {
+      if (o.geometry && !o.geometry.attributes.position) return;
+      saved.push(o, o.visible, o.frustumCulled, o.layers.mask);
+      o.visible = true; o.frustumCulled = false;
+      if (o.userData.warmUpLayers) o.layers.mask |= o.userData.warmUpLayers;
+    });
     show(scene);
     if (e.overlay?.scene) show(e.overlay.scene);
     try {
-      // main-pass programs compile in parallel (KHR_parallel_shader_compile) when supported
+      // the main pass draws into the frame target when FXAA / SSR need one (Engine.js)
+      const prev = r.getRenderTarget();
+      r.setRenderTarget(e._frameTarget());
       await r.compileAsync(scene, camera);
       if (e.overlay?.scene) await r.compileAsync(e.overlay.scene, e.overlay.camera);
       for (const s of this.lighting.flare.scenes) await r.compileAsync(s, camera); // drawn only when the sun shows
-      // shadow-pass (depth override) variants: draw the cascades once
+      r.setRenderTarget(prev);
+      // depth-pass (override) variants: draw the cascades once
       for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
       e.render();
     } catch (err) { console.warn('warm-up', err); }
-    for (let i = 0; i < saved.length; i += 3) { saved[i].visible = saved[i + 1]; saved[i].frustumCulled = saved[i + 2]; }
+    for (let i = 0; i < saved.length; i += 4) { saved[i].visible = saved[i + 1]; saved[i].frustumCulled = saved[i + 2]; saved[i].layers.mask = saved[i + 3]; }
     stand.removeFromParent();
     for (const x of extras) x.removeFromParent();
     for (const b of tmp) b.dispose();
     geo.dispose();
-    geo0.dispose();
+    idx.dispose();
     for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
-    this.warmUpStats = { programs: r.info.programs.length - p0, total: r.info.programs.length, ms: Math.round(performance.now() - t0) };
+    this.warmUpStats = { pipelines: e.pipelineCount() - p0, total: e.pipelineCount(), ms: Math.round(performance.now() - t0) };
+    // which pipelines exist now (tests list the late ones: World.latePipelines)
+    this._warmKeys = new Set(e.renderer._pipelines?.caches.keys() ?? []);
+  }
+
+  /** Render pipelines created after the warm-up: [material name, object name] (frame hitches). */
+  latePipelines() {
+    const out = [];
+    for (const [k, p] of this.engine.renderer._pipelines?.caches ?? []) if (!this._warmKeys?.has(k)) out.push(p.vertexProgram?.name || p.fragmentProgram?.name || '?');
+    return out;
   }
 
   /** world.json content with the current entities. */

@@ -1,12 +1,12 @@
-// Incremental instance uploads for an InstancedMesh fed by blocks of matrices (one block per
-// sector / tile). Each block keeps its slot range while it stays wanted; a block that leaves is
-// zeroed (a zero matrix collapses the instance to a point, nothing is rasterized) and its slots
-// are reused. Only changed ranges are uploaded; the mesh is repacked contiguously only when it
-// must grow or holes pile up. This keeps streaming (moving camera) uploads to a few KB per frame.
-import * as THREE from 'three';
+// Incremental instance uploads for a FieldMesh (render/FieldMesh.js) fed by blocks of matrices
+// (one block per sector / tile). Each block keeps its slot range while it stays wanted; a block
+// that leaves is zeroed (a zero matrix collapses the instance to a point, nothing is rasterized)
+// and its slots are reused. Only changed ranges are uploaded; the mesh is repacked contiguously
+// only when it must grow or holes pile up. This keeps streaming (moving camera) uploads to a few
+// KB per frame.
 
 /**
- * mesh.userData.capacity must hold the instanceMatrix capacity (instances).
+ * m: a FieldMesh (userData.capacity = its instance capacity, setCapacity() to grow).
  * want: Map(key -> value); lenOf(key, value) -> instance count;
  * write(key, value, dst: Float32Array, dstInstance) copies the block's matrices.
  */
@@ -34,12 +34,7 @@ export function syncBlocks(m, want, lenOf, write) {
       let total = 0;
       for (const [bk, v] of want) total += lenOf(bk, v);
       const fresh = total > u.capacity;
-      if (fresh) {
-        const cap = Math.ceil(total * 1.5);
-        m.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(cap * 16), 16);
-        m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        u.capacity = cap;
-      }
+      if (fresh) m.setCapacity(Math.ceil(total * 1.5));
       const a2 = m.instanceMatrix.array;
       blocks.clear(); free.length = 0;
       let o = 0;
@@ -56,7 +51,7 @@ export function syncBlocks(m, want, lenOf, write) {
       }
       m.instanceMatrix.needsUpdate = true;
       u.hw = o; u.holes = 0;
-      m.count = o;
+      m.drawCount = o;
       m.visible = o > 0;
       return;
     }
@@ -91,9 +86,9 @@ export function syncBlocks(m, want, lenOf, write) {
     }
   }
   attr.needsUpdate = true;
-  m.count = u.hw;
+  m.drawCount = u.hw;
   m.visible = u.hw > u.holes;
 }
 
 /** Live instances of a mesh driven by syncBlocks (count minus zeroed holes). */
-export const liveCount = (m) => m.count - (m.userData.holes ?? 0);
+export const liveCount = (m) => m.drawCount - (m.userData.holes ?? 0);

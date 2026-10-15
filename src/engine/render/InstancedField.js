@@ -1,4 +1,5 @@
-// Generic sector-culled, LOD'd instance renderer (vegetation, static props).
+// Generic sector-culled, LOD'd instance renderer (vegetation, static props), drawn with FieldMesh
+// instancing (render/FieldMesh.js).
 //
 // kinds:  [{ id, asset, variants, lods: [{ distance, quality }], castShadow (m), fade (bool), blend, shareVariantsFrom,
 //           impostor: { cell } (the last LOD is a camera-facing impostor, render/Impostors.js) }]
@@ -8,15 +9,18 @@
 // Instances are added with add(kindIndex, variant, matrix). They are bucketed in SECTOR m
 // sectors; every frame the visible sectors (frustum + a ring around the camera so shadow casters
 // behind it still cast) go to every LOD whose distance range (blend bands included) overlaps them,
-// and when that changes the per-sector matrix blocks are concatenated into one InstancedMesh per
+// and when that changes the per-sector matrix blocks are concatenated into one FieldMesh per
 // (kind, variant, LOD). The exact LOD of each instance, and the dithered cross-fade between two
 // LODs, are decided in the shader (render/LodFade.js).
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LAYERS } from './layers.js';
 import { syncBlocks, liveCount } from './InstanceBlocks.js';
-import { lodRanges, lodGeometry, setLodRange, disposeLodGeometry, lodMaterial } from './LodFade.js';
+import { lodRanges, setLodRange, lodMaterial } from './LodFade.js';
+import { deriveMaterial } from './WorldMaterial.js';
+import { FieldMesh } from './FieldMesh.js';
 import { Impostors } from './Impostors.js';
+import { uniform } from 'three/tsl';
 
 const _frustum = new THREE.Frustum(), _pm = new THREE.Matrix4(), _box = new THREE.Box3(), _v = new THREE.Vector3();
 const CASCADE_BITS = 0b111 << LAYERS.CASCADE;
@@ -75,31 +79,28 @@ export class InstancedField {
           tris = b.triangles;
           if (fade) { mat = fadeMaterial(mat, this.lighting, kind.maxDist); kind.fadeRange = mat.userData.fadeRange; }
         }
-        const mesh = new THREE.InstancedMesh(lodGeometry(geo, kind.ranges[li]), lodMaterial(mat, this.lighting), 16);
+        const mesh = new FieldMesh(geo, li === impLod ? mat : lodMaterial(mat), 16);
+        setLodRange(mesh, kind.ranges[li]);
         // may discard (bands): after the opaque world, for tile GPUs' hidden surface removal; near
         // LODs first, so the far instances they hide fail the early depth test
         mesh.renderOrder = 1 + li * 0.01;
-        mesh.count = 0;
-        mesh.frustumCulled = false;
-        mesh.matrixAutoUpdate = false;
-        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         // sun cascades: _castLayers; the SSAO depth pre-pass takes the LODs starting within castShadow
         const start = li ? lods[li - 1].distance : 0;
         mesh.layers.set(LAYERS.DETAIL);
         if (k.castShadow && start < k.castShadow && li !== impLod) mesh.layers.enable(LAYERS.OCCLUDER);
         mesh.name = `${this.name}_${k.id}_${v}_lod${li}`;
         mesh.userData.lod = li;
-        mesh.userData.capacity = 16;
         mesh.userData.tris = tris;
         this.group.add(mesh);
         if (li === impLod) {
-          // shadow-only twin: the impostors as cards facing the sun, in the cascades only (it shares
-          // the instance buffer, synced in update; never disposed: that would free the buffer)
-          const c = new THREE.InstancedMesh(mesh.geometry, kind.impostor.casterMaterials[v], 1);
-          c.count = 0;
+          // shadow-only twin: the impostors as cards facing the sun, in the cascades only (it draws
+          // the impostor mesh's geometry, instance buffer included; never disposed with it)
+          const c = new THREE.Mesh(mesh.geometry, kind.impostor.casterMaterials[v]);
           c.frustumCulled = false;
           c.matrixAutoUpdate = false;
-          c.layers.mask = CASCADE_BITS; // _castLayers narrows it; until then the loading warm-up compiles it
+          c.userData.lodRange = mesh.userData.lodRange;
+          c.layers.mask = CASCADE_BITS; // _castLayers narrows it
+          c.userData.warmUpLayers = CASCADE_BITS; // World.warmUp compiles it even when out of reach
           c.raycast = () => {};
           c.renderOrder = mesh.renderOrder;
           c.name = `${mesh.name}_caster`;
@@ -206,7 +207,7 @@ export class InstancedField {
     _pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_pm);
     // same camera as the sector choice below, so shader and CPU agree on every instance's LOD
-    (this.lighting.uniforms.camPosW ??= { value: new THREE.Vector3() }).value.copy(cp);
+    this.lighting.uniforms.camPosW.value.copy(cp);
     const n = this.n, half = this.half, S = this.sector, ds = this.drawScale;
     if (ds !== this._bandsDs) {
       // every LOD range bound of every kind: a sector only needs work when its near or far edge crosses one
@@ -215,7 +216,7 @@ export class InstancedField {
         if (!k.maxDist) continue;
         k.scaled = k.ranges.map((r) => r.map((x) => x * ds));
         for (const r of k.scaled) for (const x of r) if (x >= 0) t.add(x);
-        for (const v of k.variants) for (const m of v.meshes) setLodRange(m.geometry, k.scaled[m.userData.lod]);
+        for (const v of k.variants) for (const m of v.meshes) setLodRange(m, k.scaled[m.userData.lod]);
         k.fadeRange?.value.set(k.maxDist * ds * 0.75, k.maxDist * ds);
       }
       this._bands = Float32Array.from([...t].sort((a, b) => a - b));
@@ -296,11 +297,9 @@ export class InstancedField {
       if (m.userData.flushed === this._flushId) continue;
       m.userData.flushed = this._flushId;
       syncBlocks(m, m.userData.want, (bk, v) => { const sec = bk % nn; return v.offsets[sec + 1] - v.offsets[sec]; }, (bk, v, dst, at) => { const sec = bk % nn; dst.set(v.matrices.subarray(v.offsets[sec] * 16, v.offsets[sec + 1] * 16), at * 16); });
-      const caster = m.userData.caster;
-      if (caster) { caster.instanceMatrix = m.instanceMatrix; caster.count = m.count; }
       total += liveCount(m);
       tris += liveCount(m) * m.userData.tris;
-      if (m.count) meshes++;
+      if (m.drawCount) meshes++;
     }
     this.stats.instances = total;
     this.stats.meshes = meshes;
@@ -321,7 +320,7 @@ export class InstancedField {
     for (const k of this.kinds) {
       if (!k.scaled) continue;
       for (let li = 0; li < k.lods.length; li++) {
-        const meshes = new Set(k.variants.map((v) => v.meshes[li]).filter((m) => m?.count));
+        const meshes = new Set(k.variants.map((v) => v.meshes[li]).filter((m) => m?.drawCount));
         if (!meshes.size) continue;
         const [inA, , , outB] = k.scaled[li], px = [];
         const row = { kind: k.def.id, lod: li, meshes: meshes.size, submitted: 0, inRange: 0, tiny: 0, medianPx: 0, vertexInvocations: 0, triangles: 0, shadow: '' };
@@ -330,7 +329,7 @@ export class InstancedField {
           const a = m.instanceMatrix.array, g = m.geometry;
           const verts = g.attributes.position.count, tris = (g.index ? g.index.count : verts) / 3;
           let inRange = 0;
-          for (let i = 0; i < m.count; i++) {
+          for (let i = 0; i < m.drawCount; i++) {
             const o = i * 16, s = Math.hypot(a[o], a[o + 1], a[o + 2]);
             if (!s) continue;
             const d = Math.hypot(a[o + 12] - cp.x, a[o + 14] - cp.z);
@@ -338,9 +337,9 @@ export class InstancedField {
             inRange++;
             px.push((k.height * s * f) / Math.max(d, 1));
           }
-          row.submitted += m.count;
+          row.submitted += m.drawCount;
           row.inRange += inRange;
-          row.vertexInvocations += m.count * verts;
+          row.vertexInvocations += m.drawCount * verts;
           row.triangles += inRange * tris;
           for (let i = 0; i < 3; i++) if (m.layers.isEnabled(LAYERS.CASCADE + i)) cascades.add(i);
         }
@@ -376,7 +375,6 @@ export class InstancedField {
       seen.add(m);
       m.userData.caster?.removeFromParent();
       m.dispose();
-      disposeLodGeometry(m.geometry);
     }
     this.group.removeFromParent();
   }
@@ -400,30 +398,14 @@ function indexedGeometry(g) {
   return ig;
 }
 
-/** Clone of a lit material whose vertices shrink to nothing between 75% and 100% of maxDist. */
+/** Clone of a world material whose vertices shrink to nothing between 75% and 100% of maxDist. */
 export function fadeMaterial(base, lighting, maxDist) {
   const cache = (fadeMaterial.cache ??= new Map());
   const key = base.uuid + '|' + maxDist;
   let m = cache.get(key);
   if (m) return m;
-  m = base.clone();
-  const prev = base.onBeforeCompile;
-  const camU = (lighting.uniforms.camPosW ??= { value: new THREE.Vector3() });
-  const range = { value: new THREE.Vector2(maxDist * 0.75, maxDist) };
-  m.onBeforeCompile = (sh, r) => {
-    prev.call(m, sh, r);
-    sh.uniforms.camPosW = camU;
-    sh.uniforms.fadeRange = range;
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 camPosW;\nuniform vec2 fadeRange;')
-      .replace('#include <begin_vertex>', `#include <begin_vertex>
-        {
-          vec3 fO = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-          transformed *= 1.0 - smoothstep(fadeRange.x, fadeRange.y, distance(fO, camPosW));
-        }`);
-  };
-  const pk = base.customProgramCacheKey.bind(base);
-  m.customProgramCacheKey = () => pk() + '|fade';
+  const range = uniform(new THREE.Vector2(maxDist * 0.75, maxDist));
+  m = deriveMaterial(base, { fade: range });
   m.userData.fadeRange = range;
   cache.set(key, m);
   return m;
