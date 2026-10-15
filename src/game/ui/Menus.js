@@ -111,6 +111,9 @@ export class Menus {
       <label>Antialiasing <select name="antialias">${aaOptions(g.app).map(([v, l]) => `<option value="${v}" ${v === (s.antialias === 'msaa' ? 'msaa4' : s.antialias ?? 'auto') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Ambient occlusion (SSAO) <input name="ao" type="checkbox" ${s.ao !== false ? 'checked' : ''}></label>
       <label>Sun lens flare <input name="flare" type="checkbox" ${s.flare !== false ? 'checked' : ''}></label>
+      <label>Fog & haze <input name="fog" type="checkbox" ${s.fog !== false ? 'checked' : ''}></label>
+      <label>Fog strength <input name="fogStrength" type="range" min="0" max="3" step="0.05" value="${s.fogStrength ?? 1}"></label>
+      <label>Dust motes <input name="motes" type="checkbox" ${s.motes !== false ? 'checked' : ''}></label>
       <label>Water reflections (SSR) <select name="ssr">${[['off', 'off'], ['ultralow', 'ultra low'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']].map(([q, l]) => `<option value="${q}" ${q === (s.ssr === true ? 'medium' : s.ssr || 'off') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Difficulty <select name="difficulty">${DIFFICULTY_LABELS.map(([q, l]) => `<option value="${q}" ${q === s.difficulty ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>${g.app.mobile ? 'Look sensitivity' : 'Mouse sensitivity'} <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>

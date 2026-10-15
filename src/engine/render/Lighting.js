@@ -1,8 +1,8 @@
 // Lighting & atmosphere: time of day (sun / moon arc), sky dome with clouds, hemisphere ambient
 // (replaced by baked probe GI where gi/probes.* exists, see GI.js), auto exposure, cascaded sun
-// shadows, half-res SSAO, water reflections (SSR.js), sun lens flare (LensFlare.js), fog,
-// wind, and the shared material factory (textured PBR sampling the texture arrays of Surfaces.js,
-// or plain Lambert).
+// shadows, half-res SSAO, water reflections (SSR.js), sun lens flare (LensFlare.js), near haze +
+// far fog (Haze.js), dust motes in the sunlight (Motes.js), wind, and the shared material factory
+// (textured PBR sampling the texture arrays of Surfaces.js, or plain Lambert).
 //
 // Everything is driven by an "environment" object (public/data/environment.json, editable in the
 // editor's Environment panel): call setEnvironment(env) and update(dt) every frame.
@@ -14,6 +14,8 @@ import { GI, GI_DEFAULTS } from './GI.js';
 import { LAYERS } from './layers.js';
 import { patchLodDepth } from './LodFade.js';
 import { LensFlare, FLARE_DEFAULTS } from './LensFlare.js';
+import { Haze, HAZE_DEFAULTS } from './Haze.js';
+import { Motes, MOTES_DEFAULTS } from './Motes.js';
 import { CLOUDS_GLSL } from './clouds.js';
 import { Surfaces } from './Surfaces.js';
 
@@ -39,7 +41,7 @@ export const DEFAULT_ENV = {
   ambient: 2.3,
   exposure: 1.0,
   nightExposure: 1.6,
-  fogDensity: 0.0014,
+  fogDensity: 0.0008, // far fog (exp2); the near haze: `haze` (Haze.js)
   foliageTransmission: 0.3, // light through the leaves on the shaded side of crowns
   wind: { strength: 0.35, speed: 1.3, dir: [0.8, 0.6] },
   clouds: { coverage: 0.45, speed: 3, scale: 1 },
@@ -61,6 +63,8 @@ export const DEFAULT_ENV = {
   ...structuredClone(GI_DEFAULTS),
   ...structuredClone(FLARE_DEFAULTS),
   ...structuredClone(SSR_DEFAULTS),
+  ...structuredClone(HAZE_DEFAULTS),
+  ...structuredClone(MOTES_DEFAULTS),
 };
 
 const S = THREE.MathUtils.smoothstep;
@@ -117,6 +121,11 @@ export class Lighting {
     scene.add(this.hemi);
     scene.fog = new THREE.FogExp2(0xb4dcf5, 0.0014);
     this._makeSky();
+    // near haze + far fog in every patched material (replaces three.js's fog there, see Haze.js);
+    // scene.fog stays for the few unpatched materials and turns the haze on (USE_FOG)
+    this.haze = new Haze(this);
+    // dust specks floating in the sunlit air around the camera
+    this.motes = new Motes(this);
     // sun lens flare (occlusion queries after the main scene, drawn last; see LensFlare.js)
     this.flare = new LensFlare(renderer, this);
     this.materials = new Map();
@@ -132,7 +141,7 @@ export class Lighting {
   }
 
   setEnvironment(env) {
-    this.env = { ...structuredClone(DEFAULT_ENV), ...env, sky: { ...DEFAULT_ENV.sky, ...env.sky }, ocean: { ...DEFAULT_ENV.ocean, ...env.ocean }, river: { ...DEFAULT_ENV.river, ...env.river }, wind: { ...DEFAULT_ENV.wind, ...env.wind }, clouds: { ...DEFAULT_ENV.clouds, ...env.clouds }, ao: { ...DEFAULT_ENV.ao, ...env.ao }, surface: { ...DEFAULT_ENV.surface, ...env.surface }, flare: { ...DEFAULT_ENV.flare, ...env.flare }, glows: { ...DEFAULT_ENV.glows, ...env.glows }, ssr: { ...DEFAULT_ENV.ssr, ...env.ssr }, gi: { ...DEFAULT_ENV.gi, ...env.gi }, autoExposure: { ...DEFAULT_ENV.autoExposure, ...env.autoExposure } };
+    this.env = { ...structuredClone(DEFAULT_ENV), ...env, sky: { ...DEFAULT_ENV.sky, ...env.sky }, ocean: { ...DEFAULT_ENV.ocean, ...env.ocean }, river: { ...DEFAULT_ENV.river, ...env.river }, wind: { ...DEFAULT_ENV.wind, ...env.wind }, clouds: { ...DEFAULT_ENV.clouds, ...env.clouds }, ao: { ...DEFAULT_ENV.ao, ...env.ao }, surface: { ...DEFAULT_ENV.surface, ...env.surface }, flare: { ...DEFAULT_ENV.flare, ...env.flare }, glows: { ...DEFAULT_ENV.glows, ...env.glows }, ssr: { ...DEFAULT_ENV.ssr, ...env.ssr }, haze: { ...DEFAULT_ENV.haze, ...env.haze }, motes: { ...DEFAULT_ENV.motes, ...env.motes }, gi: { ...DEFAULT_ENV.gi, ...env.gi }, autoExposure: { ...DEFAULT_ENV.autoExposure, ...env.autoExposure } };
     this.gi.setConfig(this.env);
     const w = this.env.wind;
     this.uniforms.windDir.value.set(w.dir[0], w.dir[1]).normalize();
@@ -143,6 +152,8 @@ export class Lighting {
     this.skyU.cloudSpeed.value = this.env.clouds.speed;
     this.ao.set(this.env.ao);
     this.ssr.set(this.env.ssr);
+    this.haze.setConfig(this.env);
+    this.motes.setConfig(this.env.motes);
     const su = this.surfaces.uniforms;
     su.surfNormalScale.value = this.env.surface.normalScale;
     su.surfDetail.value = this.env.surface.detail;
@@ -199,8 +210,12 @@ export class Lighting {
     this.hemi.groundColor.copy(col(sk.ground)).multiplyScalar(0.35 + 0.65 * day);
     this.hemi.intensity = env.ambient * (0.35 + 0.65 * day) + this.night * 0.6;
     this.uniforms.skySpec.value = (this.hemi.intensity / Math.PI) * (env.surface?.skySpecular ?? 1);
-    this.scene.fog.color.copy(horizon);
-    this.scene.fog.density = env.fogDensity * (1 + this.night * 0.6);
+    this.scene.fog.color.copy(horizon); // its density: Haze._apply
+    this.haze.fogDensity = env.fogDensity;
+    // the near haze is lit like the scene: its colour follows the light (sun + sky) relative to noon
+    const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    const noon = env.sunIntensity * 0.95 + env.ambient * lum(col(sk.dayZenith).lerp(col(sk.dayHorizon), 0.5));
+    this.haze.setTimeOfDay(h, this.night, (lum(this.sunColor) + lum(this.hemi.color) * this.hemi.intensity) / Math.max(noon, 1e-3));
     this.baseExposure = env.exposure * THREE.MathUtils.lerp(1, env.nightExposure, this.night);
     this.renderer.toneMappingExposure = this.baseExposure * this.gi.exposure * (1 - (this.flare?.dazzle ?? 0));
     this.gi.setLight(this.hemi.color, this.hemi.intensity, this.sunColor, lightDir.x);
@@ -314,7 +329,7 @@ export class Lighting {
 
   /** Inject sun + shadows + SSAO + probe GI (+ wind / flat colour / emissive) into a Lambert / Standard material. */
   patch(mat, opts = {}) {
-    const sun = this.sun, ao = this.ao, gi = this.gi, U = this.uniforms, surf = this.surfaces, skyU = this.skyU;
+    const sun = this.sun, ao = this.ao, gi = this.gi, haze = this.haze, U = this.uniforms, surf = this.surfaces, skyU = this.skyU;
     const prev = mat.onBeforeCompile;
     mat.onBeforeCompile = (sh, r) => {
       prev?.call(mat, sh, r);
@@ -322,6 +337,7 @@ export class Lighting {
       sun.inject(sh);
       ao.inject(sh);
       gi.inject(sh);
+      haze.inject(sh);
       if (opts.textured) surf.inject(sh);
       if (mat.isMeshStandardMaterial) skyReflections(sh, skyU);
       if (opts.wind) {
@@ -411,6 +427,8 @@ export class Lighting {
     // dipped a little while staring at the sun
     this.gi.update(dt, this.camera.position);
     this.flare.update(dt, this.camera);
+    this.haze.update(dt);
+    this.motes.update(dt);
     this.renderer.toneMappingExposure = this.baseExposure * this.gi.exposure * (1 - this.flare.dazzle);
   }
 

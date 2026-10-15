@@ -43,7 +43,7 @@ export async function startViewMode(app, params) {
 export async function startAssetMode(app, params) {
   const { engine } = app;
   const lighting = engine.lighting;
-  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004 });
+  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004, haze: { density: 0 }, motes: { intensity: 0 } });
   lighting.flare.setEnabled(false); // turntables: the asset only, never a sun flare / dazzle
   const assets = await new AssetLibrary(lighting).load();
   app.assets = assets;
@@ -144,7 +144,7 @@ export async function startAssetMode(app, params) {
 export async function startViewModelMode(app, params) {
   const { engine } = app;
   const lighting = engine.lighting;
-  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004 });
+  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004, haze: { density: 0 }, motes: { intensity: 0 } });
   lighting.flare.setEnabled(false);
   const { Data } = await import('../../engine/core/Data.js');
   const { loadViewModels } = await import('../player/ViewModels.js');
@@ -237,7 +237,7 @@ export async function startViewModelMode(app, params) {
 export async function startCharactersMode(app, params) {
   const { engine } = app;
   const lighting = engine.lighting;
-  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004 });
+  lighting.setEnvironment({ timeOfDay: Number(params.get('tod') ?? 10.5), dayLengthMinutes: 0, fogDensity: 0.0004, haze: { density: 0 }, motes: { intensity: 0 } });
   lighting.flare.setEnabled(false);
   const { Data } = await import('../../engine/core/Data.js');
   const { CharacterLibrary, nextCharacterFrame } = await import('../../engine/anim/Characters.js');

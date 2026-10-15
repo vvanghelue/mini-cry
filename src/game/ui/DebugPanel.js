@@ -37,7 +37,7 @@ export class DebugPanel {
     gui.domElement.style.maxHeight = '100vh';
     this._stats(gui);
     if (this.app.game) { this._game(gui); this._missions(gui); }
-    if (this.app.world) this._time(gui);
+    if (this.app.world) { this._time(gui); this._fog(gui); }
     this._graphics(gui);
     for (const f of gui.folders) if (f !== this.statsFolder) f.close(); // compact: only the stats open
     this._refresh();
@@ -166,7 +166,6 @@ export class DebugPanel {
     const t = {
       get hour() { return L.timeOfDay; }, set hour(v) { L.setTimeOfDay(v); },
       get dayLength() { return L.env.dayLengthMinutes; }, set dayLength(v) { L.env.dayLengthMinutes = v; },
-      get fog() { return L.env.fogDensity * 1000; }, set fog(v) { L.env.fogDensity = v / 1000; relight(); },
       get exposure() { return L.env.exposure; }, set exposure(v) { L.env.exposure = v; relight(); },
       get wind() { return L.uniforms.windStrength.value; }, set wind(v) { L.env.wind.strength = L.uniforms.windStrength.value = v; },
       get clouds() { return L.skyU.cloudCoverage.value; }, set clouds(v) { L.env.clouds.coverage = L.skyU.cloudCoverage.value = v; },
@@ -176,10 +175,55 @@ export class DebugPanel {
     f.add(t, 'hour', 0, 24, 0.05).name('hour');
     f.add(t, 'advance').name('day / night cycle');
     f.add(t, 'dayLength', 1, 120, 1).name('day length (min)');
-    f.add(t, 'fog', 0, 6, 0.05).name('fog (‰)');
     f.add(t, 'exposure', 0.2, 3, 0.01).name('exposure');
     f.add(t, 'wind', 0, 2, 0.01).name('wind');
     f.add(t, 'clouds', 0, 1, 0.01).name('clouds');
+    f.close();
+  }
+
+  // ---- Fog & haze (Haze.js, Motes.js): on / off + strength are player settings (saved with the
+  // game's options); the rest is lighting.env (haze, fogDensity, motes), saved by the editor ------
+  _fog(gui) {
+    const L = this.app.world.lighting, game = this.app.game;
+    const relight = () => L.setTimeOfDay(L.timeOfDay); // colours + time of day factors
+    const setting = (key, apply) => ({
+      get v() { return game ? game.settings[key] ?? (key === 'fogStrength' ? 1 : true) : key === 'fogStrength' ? L.haze.strength : key === 'motes' ? L.motes.enabled : L.haze.enabled; },
+      set v(x) { if (game) game.saveSettings({ [key]: x }); else apply(x); },
+    });
+    const env = (group, key, scale = 1) => ({
+      get v() { return (group ? L.env[group][key] : L.env[key]) * scale; },
+      set v(x) { if (group) L.env[group][key] = x / scale; else L.env[key] = x / scale; relight(); },
+    });
+    const motes = (key) => ({ get v() { return L.env.motes[key]; }, set v(x) { L.env.motes[key] = x; L.motes.setConfig(L.env.motes); } });
+    const f = gui.addFolder('Fog & haze');
+    f.add(setting('fog', (x) => L.haze.setEnabled(x)), 'v').name('fog (haze + far fog)').listen();
+    f.add(setting('fogStrength', (x) => L.haze.setStrength(x)), 'v', 0, 3, 0.05).name('strength').listen();
+    f.add(env(null, 'fogDensity', 1000), 'v', 0, 6, 0.05).name('far fog (‰)');
+    const fh = f.addFolder('Near haze');
+    fh.add(env('haze', 'density', 1000), 'v', 0, 20, 0.1).name('density (‰ per m)');
+    fh.add(env('haze', 'height'), 'v', 5, 200, 1).name('height (m)');
+    fh.add(env('haze', 'base'), 'v', -50, 100, 1).name('base height (m)');
+    fh.add(env('haze', 'max'), 'v', 0, 0.95, 0.01).name('max opacity');
+    fh.add(env('haze', 'start'), 'v', 0, 50, 0.5).name('clear distance (m)');
+    fh.add(env('haze', 'brightness'), 'v', 0, 2, 0.01).name('brightness');
+    fh.add(env('haze', 'sun'), 'v', 0, 3, 0.01).name('glow toward the sun');
+    fh.add(env('haze', 'sunPower'), 'v', 1, 32, 0.5).name('sun glow tightness');
+    fh.add(env('haze', 'variation'), 'v', 0, 1, 0.01).name('drifting banks');
+    fh.add(env('haze', 'scale'), 'v', 20, 600, 5).name('bank size (m)');
+    fh.add(env('haze', 'drift'), 'v', 0, 15, 0.1).name('drift (m/s)');
+    fh.add(env('haze', 'morning'), 'v', 1, 5, 0.05).name('x at sunrise');
+    fh.add(env('haze', 'evening'), 'v', 1, 5, 0.05).name('x at dusk');
+    fh.add(env('haze', 'night'), 'v', 1, 5, 0.05).name('x at night');
+    fh.add({ get v() { return +L.haze.factor.toFixed(2); }, set v(_) {} }, 'v').name('time of day x (now)').listen().disable();
+    const fm = f.addFolder('Dust motes');
+    fm.add(setting('motes', (x) => L.motes.setEnabled(x)), 'v').name('enabled').listen();
+    fm.add(motes('intensity'), 'v', 0, 4, 0.05).name('intensity');
+    fm.add(motes('count'), 'v', 0, 4000, 50).name('count');
+    fm.add(motes('size'), 'v', 0.002, 0.05, 0.001).name('size (m)');
+    fm.add(motes('box'), 'v', 4, 30, 0.5).name('range (m)');
+    fm.add(motes('drift'), 'v', 0, 3, 0.05).name('drift (m/s)');
+    fm.close();
+    fh.close();
     f.close();
   }
 

@@ -18,7 +18,7 @@ class CharPreview {
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
     this.camera.position.set(2.2, 1.7, 3.2);
     this.lighting = new Lighting(this.renderer, this.scene, this.camera, { quality: 'medium' });
-    this.lighting.setEnvironment({ timeOfDay: 10.5, dayLengthMinutes: 0, fogDensity: 0.0005 });
+    this.lighting.setEnvironment({ timeOfDay: 10.5, dayLengthMinutes: 0, fogDensity: 0.0005, haze: { density: 0 }, motes: { intensity: 0 } });
     this.lighting.sun.setCascades([{ radius: 4, res: 1024, every: 1 }]);
     const ground = new THREE.Mesh(new THREE.CircleGeometry(6, 40).rotateX(-Math.PI / 2), this.lighting.material({ vertexColors: false, color: 0x8a9a6a }));
     this.scene.add(ground);

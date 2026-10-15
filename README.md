@@ -29,8 +29,8 @@ npm run dev          # http://localhost:5190  (game)   ·   /editor.html  (edito
   (palms with textured fronds, jungle giants and broadleaf trees with leaf-cluster crowns, bamboo,
   ferns, banana trees…) in alpha-cut foliage, grass cards around the player, textured buildings and
   props (planks, thatch, corrugated iron, concrete, fort stone, rusty metal…), day/night cycle with
-  cascaded shadows, baked probe GI with auto exposure, ambient occlusion (SSAO), cloudy sky, fog,
-  lens flare, light halos, AgX tone mapping.
+  cascaded shadows, baked probe GI with auto exposure, ambient occlusion (SSAO), cloudy sky,
+  drifting height haze + far fog, dust motes in the sunlight, lens flare, light halos, AgX tone mapping.
 - **FPS combat**: machete (stealth takedowns), pistol, SMG, AK, M4, shotgun, scoped sniper rifle,
   rocket launcher, grenades. Spread, recoil, aiming, reloading, location-based damage
   (head / body / limbs).
@@ -61,7 +61,7 @@ to take off · E to get out once stopped on the ground.
 |---|---|
 | 🗺 World | 3D level: selection, gizmo (W/E/R), placement from the content browser (buildings, props, vegetation, vehicles, weapons, characters, logic), outliner, inspector generated from the schemas, terrain sculpting / painting, vegetation brush, path editing, undo/redo, ▶ play from the camera |
 | ⛰ Island | Island layout (islands, mountains, plateaus, lagoons, rivers, roads, sites) and terrain + vegetation regeneration |
-| ☀ Environment | Time of day, sun, moon, sky, fog, clouds, wind, ocean colours — live |
+| ☀ Environment | Time of day, sun, moon, sky, fog, haze, dust motes, clouds, wind, ocean colours — live |
 | 🎯 Missions | Missions, objectives, triggers, conditions, actions, reference validation, direct testing |
 | 💬 Dialogue | Radio characters, lines, voice generation and playback |
 | 📊 Gameplay | Weapons, ammo, enemies (archetypes & palettes), player, items, plant species |

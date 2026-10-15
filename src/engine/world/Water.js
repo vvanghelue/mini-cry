@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { LAYERS } from '../render/layers.js';
 import { CLOUDS_GLSL } from '../render/clouds.js';
 import { SSR_GLSL } from '../render/SSR.js';
+import { HAZE_VERT_GLSL } from '../render/Haze.js';
 
 const WATER_VERT = /* glsl */ `
   uniform float uTime, waveAmp, flowSpeed;
@@ -25,6 +26,7 @@ const WATER_VERT = /* glsl */ `
   varying float vFogDepth;
   varying float vCrest;
   #include <logdepthbuf_pars_vertex>
+  ${HAZE_VERT_GLSL}
   // directional swell: x height, yz gradient (d/dx, d/dz)
   vec3 wave(vec2 p, float t) {
     vec3 r = vec3(0.0);
@@ -51,14 +53,14 @@ const WATER_VERT = /* glsl */ `
     vFlow = flow;
     vec4 mv = viewMatrix * w;
     vFogDepth = -mv.z;
+    hazeVertex(mv.xyz); // near haze + far fog (render/Haze.js), as on the land
     gl_Position = projectionMatrix * mv;
     #include <logdepthbuf_vertex>
   }`;
 
 const WATER_FRAG = /* glsl */ `
   uniform float opacity, isRiver, flowSpeed, night, rippleScale;
-  uniform vec3 shallow, deep, foam, sunDirW, sunColor, skyCol, horizonCol, fogColor;
-  uniform float fogDensity;
+  uniform vec3 shallow, deep, foam, sunDirW, sunColor, skyCol, horizonCol;
   uniform sampler2D heightTex, waterNormal;
   uniform vec4 terrainRect; // x0, z0, size, unused
   varying vec3 vWorld;
@@ -66,6 +68,7 @@ const WATER_FRAG = /* glsl */ `
   varying vec2 vFlow;
   varying float vFogDepth;
   varying float vCrest;
+  varying vec4 vHaze;
   #include <logdepthbuf_pars_fragment>
   ${CLOUDS_GLSL}
   ${SSR_GLSL}
@@ -126,9 +129,7 @@ const WATER_FRAG = /* glsl */ `
     float alpha = mix(0.45, opacity, smoothstep(0.0, 3.0, depth));
     alpha = max(max(alpha, f * 0.9), F);
     alpha *= smoothstep(-0.05, 0.12, depth);
-    // fog (exp2, same as three)
-    float fogF = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
-    col = mix(col, fogColor, fogF);
+    col = col * vHaze.a + vHaze.rgb;
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -143,7 +144,7 @@ const WATER_FRAG = /* glsl */ `
       Rw.y = max(Rw.y, 0.005);
       vec3 Rv = normalize((viewMatrix * vec4(Rw, 0.0)).xyz);
       vec4 s = ssrTrace(Pv, Rv, ssrIgn(gl_FragCoord.xy));
-      float w = s.a * F * ssrIntensity * (1.0 - f * 0.8) * (1.0 - fogF);
+      float w = s.a * F * ssrIntensity * (1.0 - f * 0.8) * vHaze.a;
       // the reflected share is not see-through: out = (1 - w) * (water over the bed) + w * reflection
       w = clamp(w, 0.0, 1.0);
       float a2 = 1.0 - (1.0 - w) * (1.0 - gl_FragColor.a);
@@ -190,8 +191,7 @@ export class Water {
       sunColor: { value: L.sunColor },
       skyCol: { value: L.skyU.zenith.value },
       horizonCol: { value: L.skyU.horizon.value },
-      fogColor: { value: L.scene.fog.color },
-      fogDensity: { value: 0 },
+      ...L.haze.uniforms,
       night: { value: 0 },
       camPos: { value: new THREE.Vector3() },
       heightTex: { value: this.heightTex },
@@ -299,10 +299,8 @@ export class Water {
     // snap to a coarse grid so the wave pattern (world space) doesn't swim
     this.ocean.position.set(Math.round(camera.position.x / 8) * 8, this.terrain.seaLevel, Math.round(camera.position.z / 8) * 8);
     this.ocean.updateMatrixWorld();
-    const fog = this.scene.fog;
     for (const u of [this.oceanU, this.riverU]) {
       u.camPos.value.copy(camera.position);
-      u.fogDensity.value = fog ? fog.density : 0;
       u.night.value = this.lighting.night;
     }
   }

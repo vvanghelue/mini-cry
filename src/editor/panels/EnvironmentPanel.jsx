@@ -1,5 +1,5 @@
-// Environment: time of day (live), sun / moon, ambient, SSAO, GI, lens flare / light halos, fog, wind,
-// clouds, sky / ocean colours.
+// Environment: time of day (live), sun / moon, ambient, SSAO, GI, lens flare / light halos, far fog,
+// near haze, dust motes, wind, clouds, sky / ocean colours.
 // The 3D viewport stays visible on the left half so changes are seen immediately.
 import { useState } from 'preact/hooks';
 import { Row, NumberField, ColorField } from '../ui/Fields.jsx';
@@ -59,7 +59,25 @@ export function EnvironmentPanel({ ed }) {
         {slider('glows.intensity', 'Light halos (lamps, fires)', 0, 3, 0.01)}
         {slider('glows.distance', 'Halos: max distance (m)', 50, 1500, 10)}
         <h4>Atmosphere</h4>
-        {slider('fogDensity', 'Fog', 0, 0.006, 0.0001)}
+        {slider('fogDensity', 'Far fog', 0, 0.006, 0.0001)}
+        {slider('haze.density', 'Haze: density (per m, at the base)', 0, 0.02, 0.0001)}
+        {slider('haze.height', 'Haze: height (m, density / e)', 5, 200, 1)}
+        {slider('haze.base', 'Haze: base height (m)', -50, 100, 1)}
+        {slider('haze.max', 'Haze: max opacity', 0, 0.95, 0.01)}
+        {slider('haze.start', 'Haze: clear distance (m)', 0, 50, 0.5)}
+        {slider('haze.brightness', 'Haze: brightness', 0, 2, 0.01)}
+        {slider('haze.sun', 'Haze: glow toward the sun', 0, 3, 0.01)}
+        {slider('haze.variation', 'Haze: drifting banks', 0, 1, 0.01)}
+        {slider('haze.scale', 'Haze: bank size (m)', 20, 600, 5)}
+        {slider('haze.drift', 'Haze: drift (m/s)', 0, 15, 0.1)}
+        {slider('haze.morning', 'Haze: x at sunrise (mist)', 1, 5, 0.05)}
+        {slider('haze.evening', 'Haze: x at dusk', 1, 5, 0.05)}
+        {slider('haze.night', 'Haze: x at night', 1, 5, 0.05)}
+        {slider('motes.intensity', 'Dust motes (0 = none)', 0, 4, 0.05)}
+        {slider('motes.count', 'Dust motes: count', 0, 4000, 50)}
+        {slider('motes.size', 'Dust motes: size (m)', 0.002, 0.05, 0.001)}
+        {slider('motes.box', 'Dust motes: range (m)', 4, 30, 0.5)}
+        {slider('motes.drift', 'Dust motes: drift (m/s)', 0, 3, 0.05)}
         {slider('clouds.coverage', 'Clouds', 0, 1, 0.01)}
         {slider('clouds.speed', 'Cloud speed', 0, 20, 0.1)}
         {slider('wind.strength', 'Wind (strength)', 0, 1.5, 0.01)}

@@ -11,7 +11,7 @@ import { CharactersPanel } from './CharactersPanel.jsx';
 export const PANELS = [
   { id: 'world', icon: '🗺', label: 'World', help: '3D level editor: entities, terrain, vegetation' },
   { id: 'terrain', icon: '⛰', label: 'Island', help: 'Island layout (islands, mountains, rivers, roads, sites) and generation', component: TerrainPanel },
-  { id: 'environment', icon: '☀', label: 'Environment', help: 'Time of day, sun, sky, fog, wind, ocean', component: EnvironmentPanel },
+  { id: 'environment', icon: '☀', label: 'Environment', help: 'Time of day, sun, sky, fog, haze, dust, wind, ocean', component: EnvironmentPanel },
   { id: 'missions', icon: '🎯', label: 'Missions', help: 'Missions, objectives, triggers, actions', component: MissionsPanel },
   { id: 'dialogue', icon: '💬', label: 'Dialogue', help: 'Radio characters and lines', component: DialoguePanel },
   { id: 'data', icon: '📊', label: 'Gameplay', help: 'Weapons, enemies, player, items, vegetation', component: DataPanel },
