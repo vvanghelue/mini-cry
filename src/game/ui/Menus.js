@@ -8,6 +8,13 @@ const h = (tag, cls, parent, html) => {
 };
 
 // difficulty setting values (saved in the settings, keys of Game.js DIFFICULTY) -> displayed label
+// Options → Antialiasing (x8 only where the GPU has it)
+const aaOptions = (app) => [
+  ['auto', app.mobile ? 'Auto (FXAA, MSAA 4x on high / ultra)' : 'Auto (MSAA 4x)'],
+  ['msaa2', 'MSAA 2x'], ['msaa4', 'MSAA 4x'],
+  ...(app.engine.msaaCounts?.includes(8) ? [['msaa8', 'MSAA 8x']] : []),
+  ['fxaa', 'FXAA'], ['off', 'Off'],
+];
 const DIFFICULTY_LABELS = [['facile', 'Easy'], ['normal', 'Normal'], ['difficile', 'Hard']];
 
 export class Menus {
@@ -101,7 +108,7 @@ export class Menus {
     this._show(`
       <div class="title">OPTIONS</div>
       <label>Quality <select name="quality">${['low', 'medium', 'high', 'ultra'].map((q) => `<option ${q === s.quality ? 'selected' : ''}>${q}</option>`).join('')}</select></label>
-      <label>Antialiasing <select name="antialias">${[['auto', 'Auto (FXAA, MSAA on high / ultra)'], ['fxaa', 'FXAA'], ['msaa', 'MSAA 4x'], ['off', 'Off']].map(([v, l]) => `<option value="${v}" ${v === (s.antialias ?? 'auto') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      <label>Antialiasing <select name="antialias">${aaOptions(g.app).map(([v, l]) => `<option value="${v}" ${v === (s.antialias === 'msaa' ? 'msaa4' : s.antialias ?? 'auto') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Ambient occlusion (SSAO) <input name="ao" type="checkbox" ${s.ao !== false ? 'checked' : ''}></label>
       <label>Sun lens flare <input name="flare" type="checkbox" ${s.flare !== false ? 'checked' : ''}></label>
       <label>Water reflections (SSR) <select name="ssr">${[['off', 'off'], ['ultralow', 'ultra low'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']].map(([q, l]) => `<option value="${q}" ${q === (s.ssr === true ? 'medium' : s.ssr || 'off') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>

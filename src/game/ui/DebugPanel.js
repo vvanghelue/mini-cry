@@ -268,13 +268,13 @@ export class DebugPanel {
       get stats() { return overlay?.visible ?? false; }, set stats(v) { overlay?.setVisible(v); },
       get maxFps() { return engine.maxFps; }, set maxFps(v) { if (game) game.saveSettings({ fpsLimit: v }); else engine.maxFps = v; },
       // fixed when the WebGL context is created: reload with ?aa=
-      get aa() { return engine.aa; }, set aa(v) { const u = new URL(location.href); u.searchParams.set('aa', v); location.href = u.href; },
+      get aa() { return engine.aaMode; }, set aa(v) { const u = new URL(location.href); u.searchParams.set('aa', v); location.href = u.href; },
       wireframe: false,
     };
     f.add(gfx, 'stats').name('stats (F3)');
     f.add(gfx, 'maxFps', { auto: 0, '30 fps': 30, '60 fps': 60, '90 fps': 90, '120 fps': 120, '144 fps': 144 }).name('FPS limit');
     f.add(gfx, 'quality', ['low', 'medium', 'high', 'ultra']).name('quality');
-    f.add(gfx, 'aa', ['fxaa', 'msaa', 'off']).name('antialias (reloads)');
+    f.add(gfx, 'aa', ['msaa2', 'msaa4', 'msaa8', 'fxaa', 'off']).name('antialias (reloads)');
     f.add(gfx, 'resScale', 0.3, 1, 0.01).name('resolution scale');
     this._sunShadows(f, gfx);
     const ao = L.ao, aoU = ao.aoMat.uniforms;
