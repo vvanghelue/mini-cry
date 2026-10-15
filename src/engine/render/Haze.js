@@ -22,6 +22,9 @@
 // 2 m grid near the camera (32 m far away, where the fog barely changes across a triangle).
 import * as THREE from 'three';
 
+// player setting: x the optical depth of the haze and the far fog (Options menu, F2, ?fog=<strength>)
+export const FOG_STRENGTH = 0.2;
+
 export const HAZE_DEFAULTS = {
   haze: {
     density: 0.0045, // extinction per m at the base height (~19 % at 50 m)
@@ -106,7 +109,7 @@ export class Haze {
     this.time = 0;
     this.factor = 1; // time of day multiplier of the density (debug / tools)
     this.enabled = true;
-    this.strength = 1;
+    this.strength = FOG_STRENGTH;
     const p = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('fog') : null;
     if (p !== null) { this.enabled = p !== '0'; if (+p > 0) this.strength = +p; }
   }
@@ -114,7 +117,7 @@ export class Haze {
   /** Player setting: fog (haze + far fog) on / off. */
   setEnabled(v) { this.enabled = !!v; this._apply(); }
 
-  /** Player setting: x the optical depth of the haze and of the far fog (1 = the environment's look). */
+  /** Player setting: x the optical depth of the haze and of the far fog (1 = environment.json at full). */
   setStrength(v) { this.strength = Math.max(0, Number(v) || 0); this._apply(); }
 
   setConfig(env) {

@@ -19,6 +19,7 @@ import { Missions } from './missions/Missions.js';
 import { Dialogue } from './missions/Dialogue.js';
 import { Vehicles } from './vehicles/Vehicles.js';
 import './entities/index.js';
+import { FOG_STRENGTH } from '../engine/render/Haze.js';
 
 const SAVE_KEY = 'minicry.save.v1';
 const SETTINGS_KEY = 'minicry.settings.v1';
@@ -56,7 +57,7 @@ export class Game {
     this.inventory = new Set();
     this.reinforcements = new Map(); // group -> pending count
     this.zonesInside = new Set();
-    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, fog: true, fogStrength: 1, motes: true, antialias: 'auto', ssr: 'off', fpsLimit: app.debugMode ? 60 : 0, ...(app.debugMode ? {} : loadJSON(SETTINGS_KEY)) };
+    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, fog: true, fogStrength: FOG_STRENGTH, motes: true, antialias: 'auto', ssr: 'off', fpsLimit: app.debugMode ? 60 : 0, ...(app.debugMode ? {} : loadJSON(SETTINGS_KEY)) };
     // frame rate cap (debug panel, 0 = auto: one frame per display refresh; 60 in debug mode); ?fps=N overrides it
     const fps = params.get('fps');
     this.engine.maxFps = fps !== null ? Number(fps) || 0 : this.settings.fpsLimit;
@@ -643,7 +644,7 @@ export class Game {
   _applyFog() {
     const L = this.engine.lighting, s = this.settings;
     L.haze.setEnabled(s.fog !== false);
-    L.haze.setStrength(s.fogStrength ?? 1);
+    L.haze.setStrength(s.fogStrength ?? FOG_STRENGTH);
     L.motes.setEnabled(s.motes !== false);
   }
 

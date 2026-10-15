@@ -6,6 +6,7 @@
 // capture the mouse again); Esc still pauses, and the panel stays usable above the pause menu.
 import { LAYERS } from '../../engine/render/layers.js';
 import { GIProbeView } from '../../engine/render/GIProbeView.js';
+import { FOG_STRENGTH } from '../../engine/render/Haze.js';
 
 export class DebugPanel {
   constructor(app, perfOverlay) {
@@ -187,7 +188,7 @@ export class DebugPanel {
     const L = this.app.world.lighting, game = this.app.game;
     const relight = () => L.setTimeOfDay(L.timeOfDay); // colours + time of day factors
     const setting = (key, apply) => ({
-      get v() { return game ? game.settings[key] ?? (key === 'fogStrength' ? 1 : true) : key === 'fogStrength' ? L.haze.strength : key === 'motes' ? L.motes.enabled : L.haze.enabled; },
+      get v() { return game ? game.settings[key] ?? (key === 'fogStrength' ? FOG_STRENGTH : true) : key === 'fogStrength' ? L.haze.strength : key === 'motes' ? L.motes.enabled : L.haze.enabled; },
       set v(x) { if (game) game.saveSettings({ [key]: x }); else apply(x); },
     });
     const env = (group, key, scale = 1) => ({
@@ -197,7 +198,7 @@ export class DebugPanel {
     const motes = (key) => ({ get v() { return L.env.motes[key]; }, set v(x) { L.env.motes[key] = x; L.motes.setConfig(L.env.motes); } });
     const f = gui.addFolder('Fog & haze');
     f.add(setting('fog', (x) => L.haze.setEnabled(x)), 'v').name('fog (haze + far fog)').listen();
-    f.add(setting('fogStrength', (x) => L.haze.setStrength(x)), 'v', 0, 3, 0.05).name('strength').listen();
+    f.add(setting('fogStrength', (x) => L.haze.setStrength(x)), 'v', 0, 2, 0.01).name('strength').listen();
     f.add(env(null, 'fogDensity', 1000), 'v', 0, 6, 0.05).name('far fog (‰)');
     const fh = f.addFolder('Near haze');
     fh.add(env('haze', 'density', 1000), 'v', 0, 20, 0.1).name('density (‰ per m)');
