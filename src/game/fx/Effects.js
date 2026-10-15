@@ -64,6 +64,7 @@ export class Effects {
     // decals: small dark discs on walls / ground
     const decalGeo = new THREE.CircleGeometry(0.5, 6);
     const decalMat = new THREE.MeshBasicMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false, transparent: true, opacity: 0.85 });
+    lighting.haze.patch(decalMat); // hazed like the surface they sit on
     this.decals = new Pool(decalGeo, decalMat, 160, LAYERS.FX);
     for (const p of [this.lit, this.glow, this.tracers, this.decals]) this.group.add(p.mesh);
     this.shake = 0;

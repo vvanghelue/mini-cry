@@ -19,6 +19,7 @@ import { Missions } from './missions/Missions.js';
 import { Dialogue } from './missions/Dialogue.js';
 import { Vehicles } from './vehicles/Vehicles.js';
 import './entities/index.js';
+import { FOG_STRENGTH } from '../engine/render/Haze.js';
 
 const SAVE_KEY = 'minicry.save.v1';
 const SETTINGS_KEY = 'minicry.settings.v1';
@@ -56,7 +57,7 @@ export class Game {
     this.inventory = new Set();
     this.reinforcements = new Map(); // group -> pending count
     this.zonesInside = new Set();
-    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, antialias: 'auto', ssr: 'off', fpsLimit: app.debugMode ? 60 : 0, ...(app.debugMode ? {} : loadJSON(SETTINGS_KEY)) };
+    this.settings = { quality: this.engine.quality, sensitivity: 1, volume: 0.8, music: 0.5, voices: true, voiceVolume: 1, difficulty: 'normal', fov: 72, invertY: false, ao: true, flare: true, fog: true, fogStrength: FOG_STRENGTH, motes: true, antialias: 'auto', ssr: 'off', fpsLimit: app.debugMode ? 60 : 0, ...(app.debugMode ? {} : loadJSON(SETTINGS_KEY)) };
     // frame rate cap (debug panel, 0 = auto: one frame per display refresh; 60 in debug mode); ?fps=N overrides it
     const fps = params.get('fps');
     this.engine.maxFps = fps !== null ? Number(fps) || 0 : this.settings.fpsLimit;
@@ -65,6 +66,11 @@ export class Game {
     // water reflections: off | ultralow | low | medium | high (`?ssr=` overrides the saved choice)
     if (params.get('ssr')) this.settings.ssr = params.get('ssr');
     this.engine.lighting.ssr.setLevel(this.settings.ssr);
+    // fog: on / off + strength (`?fog=0` / `?fog=<strength>` override the saved choice), dust motes (`?motes=0`)
+    const fogP = params.get('fog');
+    if (fogP !== null) { this.settings.fog = fogP !== '0'; if (+fogP > 0) this.settings.fogStrength = +fogP; }
+    if (params.get('motes') !== null) this.settings.motes = params.get('motes') !== '0';
+    this._applyFog();
     this.difficulty = DIFFICULTY[this.settings.difficulty] ?? DIFFICULTY.normal;
     this.paused = true;
     this.started = false;
@@ -630,8 +636,16 @@ export class Game {
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
     this.engine.lighting.flare.setEnabled(this.settings.flare !== false);
     this.engine.lighting.ssr.setLevel(this.settings.ssr);
+    this._applyFog();
     if ('fpsLimit' in s) this.engine.maxFps = this.settings.fpsLimit;
     if ('antialias' in s) this.hud?.notify?.('Antialiasing: applies on the next start');
+  }
+
+  _applyFog() {
+    const L = this.engine.lighting, s = this.settings;
+    L.haze.setEnabled(s.fog !== false);
+    L.haze.setStrength(s.fogStrength ?? FOG_STRENGTH);
+    L.motes.setEnabled(s.motes !== false);
   }
 
   // --- agent / debug commands ----------------------------------------------------------------
@@ -649,6 +663,15 @@ export class Game {
     L.register('god', ({ on = true }) => (g.player.godMode = on));
     L.register('noclip', ({ on = true }) => (g.player.noclip = on));
     L.register('setTime', ({ hour }) => g.engine.lighting.setTimeOfDay(hour));
+    // fog settings: { on, strength, motes } (any of them)
+    L.register('fog', (a = {}) => {
+      const s = {};
+      if ('on' in a) s.fog = !!a.on;
+      if ('strength' in a) s.fogStrength = Number(a.strength);
+      if ('motes' in a) s.motes = !!a.motes;
+      g.saveSettings(s);
+      return { on: g.settings.fog, strength: g.settings.fogStrength, motes: g.settings.motes };
+    });
     L.register('startMission', ({ id }) => g.missions.start(id));
     L.register('completeObjective', ({ mission }) => g.missions.completeObjective(mission ?? g.missions.focus));
     L.register('spawn', (a) => g.spawnGroup(a));
