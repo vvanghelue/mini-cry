@@ -10,9 +10,14 @@
 // closest to the sun's direction (an orthographic silhouette, i.e. the tree's shadow), drawn by a
 // shadow-only twin of the impostor mesh (casterMaterials, InstancedField). A receiving impostor
 // looks its shadow up one radius toward the sun, in front of its own card.
-import * as THREE from 'three';
-import { FOLIAGE_BASE } from '../assets/surfaces.js';
-import { patchLodDepth } from './LodFade.js';
+import * as THREE from 'three/webgpu';
+import {
+  Fn, If, Discard, float, vec2, vec3, vec4, mat3, max, clamp, normalize, cross, dot, length, select, floor, abs, fwidth, step,
+  texture, attribute, varying, positionGeometry, normalGeometry, modelWorldMatrix, cameraViewMatrix, inverse,
+} from 'three/tsl';
+import { U, instanceMatrix, instanceTint } from './tsl.js';
+import { lodVisible, lodDist } from './LodFade.js';
+import { ST } from './Lighting.js';
 
 export const GRID = 8;
 
@@ -30,97 +35,17 @@ const decode = (ex, ey) => {
   return new THREE.Vector3(tx, Math.max(0, 1 - Math.abs(tx) - Math.abs(tz)), tz).normalize();
 };
 
-const VERT_PARS = /* glsl */ `
-uniform vec4 impSphere; // local bounding sphere: centre, radius
-uniform vec3 camPosW;
-varying vec2 vImpUv;
-flat varying vec2 vImpCell;
-flat varying vec3 vImpTint;
-flat varying mat3 vImpRot;
-flat varying float vImpR;
-`;
-
-// the quad, in the tree's local space, facing direction impV (local) with the bake camera's basis
-// (three.js lookAt with +Y up), and the closest baked view
-const quad = (dir) => /* glsl */ `
-#ifdef USE_INSTANCING
-  mat4 impM = modelMatrix * instanceMatrix;
-#else
-  mat4 impM = modelMatrix;
-#endif
-vec3 impV = ${dir};
-impV.y = max(impV.y, 0.0);
-impV = normalize(impV + vec3(0.0, 1e-4, 0.0));
-vec3 impA = impV / (abs(impV.x) + abs(impV.y) + abs(impV.z));
-vImpCell = clamp(floor((vec2(impA.x + impA.z, impA.x - impA.z) * 0.5 + 0.5) * ${GRID.toFixed(1)}), 0.0, ${(GRID - 1).toFixed(1)});
-vec3 impUp = impV.y > 0.999 ? vec3(0.0, 0.0, -1.0) : vec3(0.0, 1.0, 0.0);
-vec3 impX = normalize(cross(impUp, impV)), impY = cross(impV, impX);
-vec3 transformed = impSphere.xyz + (impX * position.x + impY * position.y) * impSphere.w;
-vImpUv = position.xy * 0.5 + 0.5;
-`;
-
-// replaces begin_vertex: facing the camera
-const VERT_QUAD = /* glsl */ `${quad('(inverse(impM) * vec4(camPosW, 1.0)).xyz - impSphere.xyz')}
-vImpR = impSphere.w * length(impM[0].xyz);
-vImpRot = mat3(normalize(impM[0].xyz), normalize(impM[1].xyz), normalize(impM[2].xyz));
-// per-instance leaf tint (same hash as the foliage meshes, Lighting.patch)
-vImpTint = vec3(1.0);
-#ifdef USE_INSTANCING
-{
-  uvec2 hq = uvec2(ivec2(floor(instanceMatrix[3].xz * 4.0)) + 1048576);
-  uint hh = hq.x * 1597334677u ^ hq.y * 3812015801u;
-  hh = hh * 747796405u + 2891336453u; hh ^= hh >> 16u; hh *= 2246822519u; hh ^= hh >> 13u;
-  float h1 = float(hh & 1023u) / 1023.0, h2 = float((hh >> 10u) & 1023u) / 1023.0;
-  vImpTint = (0.86 + 0.28 * h1) * mix(vec3(1.07, 1.03, 0.8), vec3(0.9, 1.0, 1.1), h2);
+/** The quad, in the tree's local space, facing direction `dir` (local) with the bake camera's basis
+ *  (three.js lookAt with +Y up), and the closest baked view. -> { p: local position, cell } */
+function facing(sphere, d) {
+  const v = normalize(vec3(d.x, max(d.y, 0.0).add(1e-4), d.z));
+  const a = v.div(abs(v.x).add(abs(v.y)).add(abs(v.z)));
+  const cell = clamp(floor(vec2(a.x.add(a.z), a.x.sub(a.z)).mul(0.5).add(0.5).mul(GRID)), 0.0, GRID - 1);
+  const up = select(v.y.greaterThan(0.999), vec3(0.0, 0.0, -1.0), vec3(0.0, 1.0, 0.0));
+  const X = normalize(cross(up, v)), Y = cross(v, X);
+  const p = sphere.xyz.add(X.mul(positionGeometry.x).add(Y.mul(positionGeometry.y)).mul(sphere.w));
+  return { p, cell };
 }
-#endif
-`;
-
-const FRAG_PARS = /* glsl */ `
-uniform highp sampler2DArray impAlbedo;
-uniform highp sampler2DArray impNormal;
-uniform float impLayer, impInset, foliageTransmission; // sunDirW: declared by the sun (SunShadows.js)
-varying vec2 vImpUv;
-flat varying vec2 vImpCell;
-flat varying vec3 vImpTint;
-flat varying mat3 vImpRot;
-flat varying float vImpR;
-#define SUN_RECEIVER_SHIFT vImpR
-bool impLeaf;
-vec3 impNW;
-`;
-
-// replaces map_fragment: albedo + cut-out from the atlas (alpha sharpened around the cut like the
-// leaf cards: crisp at every mip, smooth with alpha to coverage), leaf tint and transmission
-const FRAG_ALBEDO = /* glsl */ `
-{
-  vec2 uv = (vImpCell + clamp(vImpUv, vec2(impInset), vec2(1.0 - impInset))) / ${GRID.toFixed(1)};
-  vec4 ta = texture(impAlbedo, vec3(uv, impLayer));
-  vec4 tn = texture(impNormal, vec3(uv, impLayer));
-  // cut a bit below 0.5: the averaged alpha of the coarse mips would erode the crowns
-  float a = (ta.a - 0.4) / max(fwidth(ta.a), 1e-4) + 0.5;
-  #ifdef OPAQUE
-    if (a < 0.5) discard;
-  #else
-    if (a <= 0.0) discard;
-    diffuseColor.a = clamp(a, 0.0, 1.0);
-  #endif
-  impLeaf = tn.a > 0.5;
-  impNW = normalize(vImpRot * (tn.xyz * 2.0 - 1.0));
-  diffuseColor.rgb *= ta.rgb;
-  if (impLeaf) {
-    float back = clamp(0.25 - dot(impNW, sunDirW), 0.0, 1.0) * step(0.0, sunDirW.y);
-    diffuseColor.rgb *= vImpTint * (1.0 + vec3(1.9, 2.0, 1.2) * (foliageTransmission * back));
-  }
-  surfSpecK = impLeaf ? 0.15 : 0.5;
-}
-`;
-
-// after normal_fragment_begin: the baked normal (thin leaves also get light from above)
-const FRAG_NORMAL = /* glsl */ `
-normal = normalize((viewMatrix * vec4(impNW, 0.0)).xyz);
-if (impLeaf) normal = normalize(normal + (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz * 0.9);
-`;
 
 /** Impostors of the variants of one asset (one texture array layer per variant). */
 export class Impostors {
@@ -130,9 +55,9 @@ export class Impostors {
     this.builds = builds;
     this.cell = cell;
     this.baked = false;
-    const size = GRID * cell, n = builds.length;
+    const size = GRID * cell, n = Math.max(2, builds.length); // >= 2 layers: an array texture
     const rt = (srgb) => {
-      const t = new THREE.WebGLArrayRenderTarget(size, size, n, { depthBuffer: true, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+      const t = new THREE.RenderTarget(size, size, { depth: n, depthBuffer: true, generateMipmaps: false, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
       t.texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       t.texture.anisotropy = 1;
       return t;
@@ -140,114 +65,119 @@ export class Impostors {
     this.albedo = rt(true);
     this.normal = rt(false);
     this.geometry = QUAD;
+    this.albedoTex = texture(this.albedo.texture);
+    this.normalTex = texture(this.normal.texture);
     this.materials = builds.map((b, v) => this._material(b, v));
     this.casterMaterials = builds.map((b, v) => this._casterMaterial(b, v));
   }
 
   get triangles() { return 2; }
 
-  _material(build, layer) {
-    const L = this.lighting;
+  _sphere(build) {
     const s = build.geometry.boundingSphere;
-    const m = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, alphaToCoverage: true });
-    const U = {
-      impSphere: { value: new THREE.Vector4(s.center.x, s.center.y, s.center.z, s.radius * 1.04) },
-      impAlbedo: { value: this.albedo.texture },
-      impNormal: { value: this.normal.texture },
-      impLayer: { value: layer },
-      impInset: { value: 0.5 / this.cell },
-    };
-    m.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, U);
-      sh.uniforms.camPosW = (L.uniforms.camPosW ??= { value: new THREE.Vector3() });
-      sh.uniforms.foliageTransmission = L.uniforms.foliageTransmission;
-      sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', `#include <common>\n${VERT_PARS}`)
-        .replace('#include <begin_vertex>', VERT_QUAD)
-        .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nobjectNormal = vec3(0.0, 0.0, 1.0);');
-      sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', `#include <common>\n${FRAG_PARS}`)
-        .replace('#include <map_fragment>', FRAG_ALBEDO)
-        .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>\n${FRAG_NORMAL}`);
-    };
-    m.customProgramCacheKey = () => 'impostor';
-    // sun, cascades, SSAO, probe GI, sky reflections (Lighting.patch chains the code above first)
-    L.patch(m, {});
+    return U(new THREE.Vector4(s.center.x, s.center.y, s.center.z, s.radius * 1.04));
+  }
+
+  _material(build, layer) {
+    const L = this.lighting, LU = L.uniforms, sunU = L.sun.uniforms;
+    const sphere = this._sphere(build), inset = 0.5 / this.cell;
+    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.9, metalness: 0 });
+    m.alphaToCoverage = true;
+    m.vertexColors = false;
+    const impM = () => modelWorldMatrix.mul(instanceMatrix());
+    // facing the camera, in the tree's local space
+    const view = () => facing(sphere, inverse(impM()).mul(vec4(LU.camPosW, 1.0)).xyz.sub(sphere.xyz));
+    m.positionNode = Fn(() => {
+      const M = instanceMatrix().toVar();
+      const q = M.mul(vec4(view().p, 1.0)).xyz;
+      return select(lodVisible(LU.camPosW), q, vec3(0.0));
+    })();
+    const vCell = varying(view().cell, 'vImpCell').setInterpolation('flat');
+    const vUv = varying(vec2(positionGeometry.x.mul(0.5).add(0.5), positionGeometry.y.mul(-0.5).add(0.5)), 'vImpUv'); // texture rows run down
+    const vTint = varying(instanceTint(attribute('iM3', 'vec4').xyz), 'vImpTint').setInterpolation('flat');
+    const vR = varying(sphere.w.mul(length(impM()[0].xyz)), 'vImpR').setInterpolation('flat');
+    const rot = () => impM();
+    const vRx = varying(normalize(rot()[0].xyz), 'vImpRx').setInterpolation('flat');
+    const vRy = varying(normalize(rot()[1].xyz), 'vImpRy').setInterpolation('flat');
+    const vRz = varying(normalize(rot()[2].xyz), 'vImpRz').setInterpolation('flat');
+    m.colorNode = Fn(() => {
+      const tuv = vCell.add(clamp(vUv, vec2(inset), vec2(1.0 - inset))).div(GRID).toVar();
+      const ta = this.albedoTex.sample(tuv).depth(layer).toVar();
+      const tn = this.normalTex.sample(tuv).depth(layer).toVar();
+      // cut a bit below 0.5: the averaged alpha of the coarse mips would erode the crowns
+      const a = ta.a.sub(0.4).div(max(fwidth(ta.a), 1e-4)).add(0.5).toVar();
+      If(a.lessThanEqual(0.0), () => { Discard(); });
+      const leaf = tn.a.greaterThan(0.5).toVar();
+      const nW = normalize(mat3(vRx, vRy, vRz).mul(tn.xyz.mul(2.0).sub(1.0))).toVar();
+      const c = ta.rgb.toVar();
+      If(leaf, () => {
+        const back = clamp(float(0.25).sub(dot(nW, sunU.sunDirW)), 0.0, 1.0).mul(step(0.0, sunU.sunDirW.y));
+        c.mulAssign(vTint.mul(vec3(1.9, 2.0, 1.2).mul(LU.foliageTransmission.mul(back)).add(1.0)));
+      });
+      ST.specK.assign(select(leaf, float(0.15), float(0.5)));
+      // the baked normal (thin leaves also get light from above)
+      const n = normalize(cameraViewMatrix.mul(vec4(nW, 0.0)).xyz).toVar();
+      If(leaf, () => { n.assign(normalize(n.add(cameraViewMatrix.mul(vec4(0.0, 1.0, 0.0, 0.0)).xyz.mul(0.9)))); });
+      ST.normal.assign(n);
+      return vec4(c, clamp(a, 0.0, 1.0));
+    })();
+    m.normalNode = ST.normal;
+    m.mcSpecK = ST.specK;
+    m.mcSunShift = vR; // receivers look their shadow up in front of their own card
+    m.mcCustomVertex = true; // its own position node (LodFade.lodMaterial keeps it)
+    // sun, cascades, SSAO, probe GI, sky reflections
+    L.light(m);
     return m;
   }
 
   /** Shadow-only material: the quad facing the sun, cut out by the closest baked view. Keeps its own
-   *  material in the depth passes (allowOverride), culls the instances outside its LOD there like
-   *  the depth override does (patchLodDepth). */
+   *  material in the depth passes (allowOverride: false), culls the instances outside its LOD there
+   *  like the depth override does (lodPassMode = 1 during the cascades). */
   _casterMaterial(build, layer) {
-    const L = this.lighting, s = build.geometry.boundingSphere;
-    const m = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide });
+    const L = this.lighting, LU = L.uniforms, sunU = L.sun.uniforms;
+    const sphere = this._sphere(build), inset = 0.5 / this.cell;
+    const m = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide, colorWrite: false, fog: false });
+    m.lights = false;
     m.allowOverride = false;
-    const U = {
-      impSphere: { value: new THREE.Vector4(s.center.x, s.center.y, s.center.z, s.radius * 1.04) },
-      impAlbedo: { value: this.albedo.texture },
-      impLayer: { value: layer },
-      impInset: { value: 0.5 / this.cell },
-    };
-    m.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, U);
-      sh.uniforms.sunDirW = L.sun.uniforms.sunDirW;
-      sh.uniforms.sunFade = L.sun.uniforms.sunFade;
-      sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nuniform vec4 impSphere;\nuniform vec3 sunDirW;\nuniform vec2 sunFade;\nvarying vec2 vImpUv;\nflat varying vec2 vImpCell;')
-        // past the shadow distance (+ a crown) nothing receives its shadow
-        .replace('#include <begin_vertex>', `#ifdef USE_INSTANCING
-          if (lodDist() > sunFade.y + 2.0 * impSphere.w * length(instanceMatrix[0].xyz)) { gl_Position = vec4(0.0, 0.0, -2.0, 1.0); return; }
-          #endif
-          ${quad('inverse(mat3(impM)) * sunDirW')}`);
-      sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform highp sampler2DArray impAlbedo;\nuniform float impLayer, impInset;\nvarying vec2 vImpUv;\nflat varying vec2 vImpCell;')
-        .replace('void main() {', `void main() {
-          vec2 impUvC = (vImpCell + clamp(vImpUv, vec2(impInset), vec2(1.0 - impInset))) / ${GRID.toFixed(1)};
-          if (texture(impAlbedo, vec3(impUvC, impLayer)).a < 0.4) discard;`);
-    };
-    m.customProgramCacheKey = () => 'impostor-caster';
-    return patchLodDepth(m, L.uniforms);
+    const impM = () => modelWorldMatrix.mul(instanceMatrix());
+    const view = () => facing(sphere, inverse(mat3(impM())).mul(sunU.sunDirW));
+    m.positionNode = Fn(() => {
+      const M = instanceMatrix().toVar();
+      const q = M.mul(vec4(view().p, 1.0)).xyz;
+      // past the shadow distance (+ a crown) nothing receives its shadow
+      const near = lodDist(LU.camPosW).lessThanEqual(sunU.sunFade.y.add(sphere.w.mul(2.0).mul(length(M[0].xyz))));
+      return select(lodVisible(LU.camPosW).and(near), q, vec3(0.0));
+    })();
+    const vCell = varying(view().cell, 'vImpCell').setInterpolation('flat');
+    const vUv = varying(vec2(positionGeometry.x.mul(0.5).add(0.5), positionGeometry.y.mul(-0.5).add(0.5)), 'vImpUv'); // texture rows run down
+    m.maskNode = Fn(() => {
+      const tuv = vCell.add(clamp(vUv, vec2(inset), vec2(1.0 - inset))).div(GRID);
+      return this.albedoTex.sample(tuv).depth(layer).a.greaterThanEqual(0.4);
+    })();
+    return m;
   }
 
   /** Render the atlases (needs the surface textures loaded). Restores the renderer state. */
   bake(renderer) {
     const L = this.lighting, S = L.surfaces;
     const t0 = performance.now();
-    const albedoMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, toneMapped: false });
-    albedoMat.onBeforeCompile = (sh) => {
-      S.inject(sh);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nfloat surfSpecK = 1.0;');
-    };
-    albedoMat.customProgramCacheKey = () => 'impostor-bake-albedo';
-    const normalMat = new THREE.ShaderMaterial({
-      uniforms: { folAlbedo: S.uniforms.folAlbedo, folCut: S.uniforms.folCut },
-      vertexShader: /* glsl */ `
-        attribute float surface;
-        varying vec2 vSurfUv;
-        varying vec3 vN;
-        flat varying int vSurf;
-        flat varying float vLeaf;
-        void main() {
-          vSurfUv = uv;
-          vSurf = int(surface + 0.5);
-          vN = normal;
-          vLeaf = dot(normal, normal) > 2.0 ? 1.0 : 0.0; // crown normals have length 2 (ModelBuilder)
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-      fragmentShader: /* glsl */ `
-        uniform highp sampler2DArray folAlbedo;
-        uniform float folCut;
-        varying vec2 vSurfUv;
-        varying vec3 vN;
-        flat varying int vSurf;
-        flat varying float vLeaf;
-        void main() {
-          if (vSurf >= ${FOLIAGE_BASE} && texture(folAlbedo, vec3(vSurfUv, float(vSurf - ${FOLIAGE_BASE}))).a < folCut) discard;
-          gl_FragColor = vec4(normalize(vN) * 0.5 + 0.5, vLeaf);
-        }`,
-      side: THREE.DoubleSide,
-    });
+    // albedo: the asset's textured colour (vertex colours x surface detail), unlit
+    const albedoMat = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide, fog: false });
+    albedoMat.toneMapped = false;
+    albedoMat.colorNode = Fn((builder) => {
+      ST.color.assign(builder.geometry?.attributes?.color ? varying(attribute('color', 'vec3'), 'vColor') : vec3(1.0));
+      ST.alpha.assign(1.0);
+      ST.rough.assign(1.0); ST.metal.assign(0.0); ST.leaf.assign(0.0); ST.specK.assign(1.0);
+      ST.normal.assign(vec3(0.0, 0.0, 1.0));
+      if (builder.geometry?.attributes?.surface) S.sample(ST, {});
+      return vec4(ST.color, 1.0);
+    })();
+    // normal: the baked normals (crown normals have length 2 on leaves, ModelBuilder), A = leaf
+    const normalMat = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide, fog: false });
+    normalMat.toneMapped = false;
+    normalMat.maskNode = S.leafMaskNode();
+    const vN = varying(normalGeometry, 'vBakeN');
+    normalMat.colorNode = vec4(normalize(vN).mul(0.5).add(0.5), select(dot(vN, vN).greaterThan(2.0), float(1.0), float(0.0)));
     const scene = new THREE.Scene();
     const mesh = new THREE.Mesh(undefined, albedoMat);
     mesh.frustumCulled = false;
@@ -255,10 +185,9 @@ export class Impostors {
     const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 10);
     const prevTarget = renderer.getRenderTarget(), prevLayer = renderer.getActiveCubeFace(), prevMip = renderer.getActiveMipmapLevel();
     const prevClear = renderer.getClearColor(new THREE.Color()), prevAlpha = renderer.getClearAlpha(), prevAuto = renderer.autoClear;
+    const prevScissor = renderer.getScissorTest();
     renderer.autoClear = false;
     const c = this.cell, size = GRID * c, center = new THREE.Vector3();
-    // allocated with their mip chain, then rendered without regenerating it after every view
-    for (const t of [this.albedo, this.normal]) { renderer.initRenderTarget(t); t.texture.generateMipmaps = false; }
     this.builds.forEach((b, layer) => {
       const s = b.geometry.boundingSphere, R = s.radius * 1.04;
       center.copy(s.center);
@@ -269,11 +198,12 @@ export class Impostors {
       for (const [t, mat, clear] of [[this.albedo, albedoMat, [0.06, 0.09, 0.035, 0]], [this.normal, normalMat, [0.5, 1, 0.5, 1]]]) {
         mesh.material = mat;
         t.viewport.set(0, 0, size, size);
-        t.scissorTest = false;
+        t.scissor.set(0, 0, size, size);
+        renderer.setScissorTest(false);
         renderer.setRenderTarget(t, layer);
         renderer.setClearColor(new THREE.Color().setRGB(clear[0], clear[1], clear[2], THREE.LinearSRGBColorSpace), clear[3]);
         renderer.clear(true, true, false);
-        t.scissorTest = true;
+        renderer.setScissorTest(true);
         for (let j = 0; j < GRID; j++) {
           for (let i = 0; i < GRID; i++) {
             const d = decode(((i + 0.5) / GRID) * 2 - 1, ((j + 0.5) / GRID) * 2 - 1);
@@ -282,26 +212,27 @@ export class Impostors {
             cam.position.copy(center).addScaledVector(d, 2 * R);
             cam.lookAt(center);
             cam.updateMatrixWorld();
+            // cell (i, j) of the atlas, rows counted from the top of the texture (uv v down)
             t.viewport.set(i * c, j * c, c, c);
             t.scissor.set(i * c, j * c, c, c);
             renderer.setRenderTarget(t, layer);
             renderer.render(scene, cam);
           }
         }
-        t.scissorTest = false;
+        renderer.setScissorTest(false);
         t.viewport.set(0, 0, size, size);
+        t.scissor.set(0, 0, size, size);
       }
     });
     // mipmaps of every layer at once
-    const gl = renderer.getContext();
     for (const t of [this.albedo, this.normal]) {
       t.texture.generateMipmaps = true;
-      renderer.state.bindTexture(gl.TEXTURE_2D_ARRAY, renderer.properties.get(t.texture).__webglTexture);
-      gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+      t.texture.minFilter = THREE.LinearMipmapLinearFilter;
+      renderer.backend.textureUtils?.generateMipmaps?.(t.texture);
     }
-    renderer.state.unbindTexture();
     renderer.setRenderTarget(prevTarget, prevLayer, prevMip);
     renderer.setClearColor(prevClear, prevAlpha);
+    renderer.setScissorTest(prevScissor);
     renderer.autoClear = prevAuto;
     albedoMat.dispose();
     normalMat.dispose();
@@ -315,3 +246,4 @@ export class Impostors {
     for (const m of [...this.materials, ...this.casterMaterials]) m.dispose();
   }
 }
+

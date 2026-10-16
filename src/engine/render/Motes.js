@@ -1,12 +1,13 @@
 // Dust motes: specks floating in the air around the camera, drifting with the wind and wandering a
-// little, lit by the sun only where it really shines (the vertex shader reads the sun cascades:
+// little, lit by the sun only where it really shines (the vertex stage reads the sun cascades:
 // they show in the beams through the canopy, not in the shade), much brighter against the light
-// (forward scattering). One draw of additive points (FX layer: no shadow, no SSAO), wrapped in a
-// box that follows the camera. Strength, count, size, box, drift: environment.json `motes`; on / off:
-// player setting (Options menu, F2, `?motes=0`).
-import * as THREE from 'three';
+// (forward scattering). One draw of additive sprites (instanced quads: WebGPU points are 1 px; FX
+// layer: no shadow, no SSAO), wrapped in a box that follows the camera. Strength, count, size, box,
+// drift: environment.json `motes`; on / off: player setting (Options menu, F2, `?motes=0`).
+import * as THREE from 'three/webgpu';
+import { Fn, float, vec2, vec3, vec4, max, min, sin, mod, dot, length, smoothstep, select, attribute, varyingProperty, varying, cameraPosition, cameraViewMatrix, cameraProjectionMatrix, positionGeometry } from 'three/tsl';
 import { LAYERS } from './layers.js';
-import { SUN_GLSL } from './SunShadows.js';
+import { U } from './tsl.js';
 
 export const MOTES_DEFAULTS = {
   motes: {
@@ -20,42 +21,6 @@ export const MOTES_DEFAULTS = {
 
 const MAX = 4000;
 
-const VERT = /* glsl */ `
-${SUN_GLSL}
-attribute vec4 seed; // home in the box (xyz, 0..1), phase
-uniform float uTime, moteBox, moteSize, moteGain, moteViewH;
-uniform vec3 moteDrift;
-varying vec3 vCol;
-void main() {
-  float B = moteBox;
-  vec3 p = seed.xyz * B + moteDrift;
-  float t = uTime * (0.2 + 0.25 * seed.w) + seed.w * 61.0;
-  p += vec3(sin(t * 1.3 + seed.x * 17.0), 0.5 * sin(t * 0.7 + seed.y * 13.0), sin(t * 1.1 + seed.z * 11.0 + 1.6)) * 0.35;
-  p = cameraPosition + mod(p - cameraPosition + 0.5 * B, B) - 0.5 * B; // wrapped around the camera
-  vec4 mv = viewMatrix * vec4(p, 1.0);
-  gl_Position = projectionMatrix * mv;
-  float d = length(mv.xyz);
-  float fwd = max(dot((p - cameraPosition) / max(d, 1e-3), sunDirW), 0.0);
-  float f2 = fwd * fwd, f8 = f2 * f2; f8 *= f8;
-  float phase = 0.12 + 0.4 * f2 + 2.4 * f8;
-  float fade = smoothstep(0.5, 1.5, d) * (1.0 - smoothstep(B * 0.3, B * 0.5, d));
-  float px = moteSize * projectionMatrix[1][1] * moteViewH * 0.5 / max(d, 0.1);
-  float sz = max(px, 1.5);
-  float twinkle = 0.55 + 0.45 * sin(uTime * (1.5 + 3.0 * seed.w) + seed.x * 40.0);
-  float k = fade * phase * twinkle * moteGain * min(1.0, px * px / (sz * sz));
-  if (k < 1e-3 || mv.z > -0.1) { gl_Position = vec4(0.0, 0.0, -2.0, 1.0); return; } // invisible: culled
-  vCol = sunColor * (k * sunShadow(p, sunDirW, 1.0));
-  gl_PointSize = sz;
-}`;
-
-const FRAG = /* glsl */ `
-varying vec3 vCol;
-void main() {
-  vec2 c = gl_PointCoord * 2.0 - 1.0;
-  float a = max(1.0 - dot(c, c), 0.0);
-  gl_FragColor = vec4(vCol * (a * a), 1.0);
-}`;
-
 export class Motes {
   constructor(lighting) {
     this.lighting = lighting;
@@ -65,28 +30,57 @@ export class Motes {
     let s = 0x2f6b1d;
     const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
     for (let i = 0; i < seed.length; i++) seed[i] = rnd();
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX * 3), 3));
-    geo.setAttribute('seed', new THREE.BufferAttribute(seed, 4));
-    this.uniforms = {
-      ...lighting.sun.uniforms,
+    const geo = new THREE.InstancedBufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+    geo.setIndex([0, 1, 2, 0, 2, 3]);
+    geo.setAttribute('seed', new THREE.InstancedBufferAttribute(seed, 4));
+    geo.instanceCount = 0;
+    this.geometry = geo;
+    const sun = lighting.sun;
+    const u = (this.uniforms = {
       uTime: lighting.uniforms.uTime,
-      moteBox: { value: 16 },
-      moteSize: { value: 0.012 },
-      moteGain: { value: 0 },
-      moteViewH: { value: 900 },
-      moteDrift: { value: new THREE.Vector3() },
-    };
-    this.material = new THREE.ShaderMaterial({
-      uniforms: this.uniforms,
-      vertexShader: VERT,
-      fragmentShader: FRAG,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
+      moteBox: U(16),
+      moteSize: U(0.012),
+      moteGain: U(0),
+      moteViewH: U(900),
+      moteDrift: U(new THREE.Vector3()),
     });
-    this.points = new THREE.Points(geo, this.material);
+    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+    m.toneMapped = false;
+    m.mcRawOutput = true; // written as is, like the WebGL shader (no sRGB encoding)
+    m.lights = false;
+    const vCol = varyingProperty('vec3', 'vMoteCol'), shadow = sun.shadowVertexFn();
+    m.vertexNode = Fn(() => {
+      const sd = attribute('seed', 'vec4');
+      const B = u.moteBox;
+      const p = sd.xyz.mul(B).add(u.moteDrift).toVar();
+      const t = u.uTime.mul(sd.w.mul(0.25).add(0.2)).add(sd.w.mul(61.0));
+      p.addAssign(vec3(sin(t.mul(1.3).add(sd.x.mul(17.0))), sin(t.mul(0.7).add(sd.y.mul(13.0))).mul(0.5), sin(t.mul(1.1).add(sd.z.mul(11.0)).add(1.6))).mul(0.35));
+      p.assign(cameraPosition.add(mod(p.sub(cameraPosition).add(B.mul(0.5)), B)).sub(B.mul(0.5))); // wrapped around the camera
+      const mv = cameraViewMatrix.mul(vec4(p, 1.0)).toVar();
+      const d = length(mv.xyz).toVar();
+      const fwd = max(dot(p.sub(cameraPosition).div(max(d, 1e-3)), sun.uniforms.sunDirW), 0.0);
+      const f2 = fwd.mul(fwd), f4 = f2.mul(f2), f8 = f4.mul(f4);
+      const phase = float(0.12).add(f2.mul(0.4)).add(f8.mul(2.4));
+      const fade = smoothstep(0.5, 1.5, d).mul(float(1.0).sub(smoothstep(B.mul(0.3), B.mul(0.5), d)));
+      const px = u.moteSize.mul(cameraProjectionMatrix.element(1).y).mul(u.moteViewH).mul(0.5).div(max(d, 0.1)).toVar();
+      const sz = max(px, 1.5);
+      const twinkle = sin(u.uTime.mul(sd.w.mul(3.0).add(1.5)).add(sd.x.mul(40.0))).mul(0.45).add(0.55);
+      const k = fade.mul(phase).mul(twinkle).mul(u.moteGain).mul(min(1.0, px.mul(px).div(sz.mul(sz)))).toVar();
+      vCol.assign(sun.uniforms.sunColor.mul(k.mul(shadow(p))));
+      const c = cameraProjectionMatrix.mul(mv).toVar();
+      // a quad of sz pixels around the point
+      c.xy.addAssign(positionGeometry.xy.mul(sz).div(vec2(u.moteViewH.mul(cameraProjectionMatrix.element(1).y.div(cameraProjectionMatrix.element(0).x)), u.moteViewH)).mul(c.w));
+      // invisible: culled
+      return select(k.lessThan(1e-3).or(mv.z.greaterThan(-0.1)), vec4(0.0, 0.0, 2.0, 1.0), c);
+    })();
+    const vUv = varying(positionGeometry.xy, 'vMoteUv');
+    m.colorNode = Fn(() => {
+      const a = max(float(1.0).sub(dot(vUv, vUv)), 0.0);
+      return vec4(vCol.mul(a.mul(a)), 1.0);
+    })();
+    this.material = m;
+    this.points = new THREE.Mesh(geo, m);
     this.points.name = 'Motes';
     this.points.frustumCulled = false;
     this.points.layers.set(LAYERS.FX);
@@ -101,7 +95,7 @@ export class Motes {
     const u = this.uniforms;
     u.moteBox.value = Math.max(cfg.box, 2);
     u.moteSize.value = cfg.size;
-    this.points.geometry.setDrawRange(0, Math.min(MAX, Math.round(cfg.count)));
+    this.geometry.instanceCount = Math.min(MAX, Math.round(cfg.count));
     this.points.visible = this.enabled && cfg.intensity > 0 && cfg.count > 0;
   }
 

@@ -20,6 +20,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { LAYERS } from '../render/layers.js';
 import { Data } from '../core/Data.js';
+import { cloneMaterial } from '../render/Lighting.js';
 
 export const CHAR_HEIGHT = 1.8;
 const BASE = (import.meta.env?.BASE_URL ?? '/') + 'models/';
@@ -596,12 +597,8 @@ export class Character {
     this.model.traverse((o) => {
       o.layers.set(layer);
       if (o.isMesh) {
-        // own material (hit tint); clone() drops the lighting patch (sun, shadows, SSAO, GI,
-        // textures): carry it over — same program cache key, no extra compile
-        const src = o.material;
-        o.material = src.clone();
-        o.material.onBeforeCompile = src.onBeforeCompile;
-        o.material.customProgramCacheKey = src.customProgramCacheKey;
+        // own material (hit tint): same nodes, same shader (cloneMaterial keeps our properties)
+        o.material = cloneMaterial(o.material);
         this.meshes.push(o);
       }
       if (o.isSkinnedMesh && !this.skeletons.has(o.skeleton)) { this.skeletons.add(o.skeleton); o.skeleton.update = updateSkeletonOncePerFrame; }

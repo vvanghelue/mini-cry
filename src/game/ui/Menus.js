@@ -10,11 +10,10 @@ const h = (tag, cls, parent, html) => {
 };
 
 // difficulty setting values (saved in the settings, keys of Game.js DIFFICULTY) -> displayed label
-// Options → Antialiasing (x8 only where the GPU has it)
+// Options → Antialiasing (WebGPU: 1 or 4 samples)
 const aaOptions = (app) => [
   ['auto', app.mobile ? 'Auto (FXAA, MSAA 4x on high / ultra)' : 'Auto (MSAA 4x)'],
-  ['msaa2', 'MSAA 2x'], ['msaa4', 'MSAA 4x'],
-  ...(app.engine.msaaCounts?.includes(8) ? [['msaa8', 'MSAA 8x']] : []),
+  ['msaa4', 'MSAA 4x'],
   ['fxaa', 'FXAA'], ['off', 'Off'],
 ];
 const DIFFICULTY_LABELS = [['facile', 'Easy'], ['normal', 'Normal'], ['difficile', 'Hard']];

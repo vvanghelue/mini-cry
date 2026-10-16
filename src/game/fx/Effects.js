@@ -51,8 +51,7 @@ export class Effects {
     scene.add(this.group);
     // lit chunks: dust, debris, smoke, blood
     const chunkGeo = new THREE.IcosahedronGeometry(0.5, 0);
-    const litMat = new THREE.MeshLambertMaterial({ flatShading: true, transparent: false });
-    lighting.patch(litMat);
+    const litMat = lighting.patch(new THREE.MeshLambertMaterial({ flatShading: true, transparent: false }));
     this.lit = new Pool(chunkGeo, litMat, 1500, LAYERS.FX);
     // glowing: sparks, fire, muzzle flashes, fireballs (unlit, additive-ish)
     const glowMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, fog: false });
@@ -64,7 +63,7 @@ export class Effects {
     // decals: small dark discs on walls / ground
     const decalGeo = new THREE.CircleGeometry(0.5, 6);
     const decalMat = new THREE.MeshBasicMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false, transparent: true, opacity: 0.85 });
-    lighting.haze.patch(decalMat); // hazed like the surface they sit on
+    // hazed like the surface they sit on: the scene's fog node (render/Haze.js) applies to it
     this.decals = new Pool(decalGeo, decalMat, 160, LAYERS.FX);
     for (const p of [this.lit, this.glow, this.tracers, this.decals]) this.group.add(p.mesh);
     this.shake = 0;

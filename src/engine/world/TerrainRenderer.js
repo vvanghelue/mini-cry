@@ -31,7 +31,9 @@ export class TerrainRenderer {
     this.chunks = [];
     for (let cz = 0; cz < n; cz++) {
       for (let cx = 0; cx < n; cx++) {
-        const mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.material);
+        // the real geometry comes with the first LOD (update); until then a stand-in with the same
+        // attributes (WebGPU: the shader is built for the attributes the first geometry has)
+        const mesh = new THREE.Mesh(placeholder(), this.material);
         mesh.matrixAutoUpdate = false;
         mesh.layers.set(LAYERS.STATIC);
         mesh.name = `terrain_${cx}_${cz}`;
@@ -184,4 +186,15 @@ export class TerrainRenderer {
   dispose() {
     for (const c of this.chunks) for (const g of c.geos) g?.dispose();
   }
+}
+
+let _placeholder = null;
+/** One degenerate triangle with the attributes of a terrain chunk (shared, never disposed). */
+function placeholder() {
+  if (_placeholder) return _placeholder;
+  const g = (_placeholder = new THREE.BufferGeometry());
+  for (const k of ['position', 'color', 'normal']) g.setAttribute(k, new THREE.BufferAttribute(new Float32Array(9), 3));
+  g.setIndex([0, 1, 2]);
+  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1);
+  return g;
 }

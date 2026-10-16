@@ -1,6 +1,6 @@
 // Game page entry. Modes (?mode=): play (default), view (free camera), asset (asset turntable),
 // viewmodel (first-person weapon + arms), characters (NPC bodies lineup).
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { Engine } from '../engine/core/Engine.js';
 import { Input } from '../engine/core/Input.js';
 import { World } from '../engine/world/World.js';
@@ -18,7 +18,7 @@ const mobile = mode === 'play' && isMobile(params);
 // automated runs (?bot / ?bench / ?nohud) and phones start without it
 const debugFlag = params.get('debug');
 const debugMode = debugFlag !== null ? debugFlag !== '0' : !(mobile || params.has('bot') || params.has('bench') || params.has('nohud'));
-// antialiasing is chosen when the WebGL context is created: ?aa=msaa2|msaa4|msaa8|msaa (= 4x)|fxaa|off
+// antialiasing is chosen when the renderer is created: ?aa=msaa4|msaa (= 4x)|fxaa|off (WebGPU: 1 or 4 samples)
 // (0), else the saved setting (Options, applies on the next start), else 'auto': MSAA 4x on
 // desktop; on phones / tablets FXAA (MSAA costs 20-30 % of the GPU frame), MSAA on high / ultra
 const quality = params.get('quality') ?? (mobile ? 'low' : 'medium');
@@ -28,6 +28,7 @@ const aaParam = params.get('aa');
 const aaSetting = aaParam !== null ? (aaParam === '0' ? 'off' : aaParam) : saved.antialias ?? 'auto';
 const antialias = aaSetting === 'auto' ? (!mobile || ['high', 'ultra'].includes(saved.quality ?? quality) ? 'msaa4' : 'fxaa') : aaSetting;
 const engine = new Engine({ container: document.getElementById('app'), quality, antialias });
+await engine.init(); // WebGPU device (WebGL 2 fallback)
 const input = new Input(engine.canvas);
 const app = { engine, input, THREE, mode, params, debugMode, mobile, ready: false };
 // loading screen

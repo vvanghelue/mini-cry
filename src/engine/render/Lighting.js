@@ -2,22 +2,36 @@
 // (replaced by baked probe GI where gi/probes.* exists, see GI.js), auto exposure, cascaded sun
 // shadows, half-res SSAO, water reflections (SSR.js), sun lens flare (LensFlare.js), near haze +
 // far fog (Haze.js), dust motes in the sunlight (Motes.js), wind, and the shared material factory
-// (textured PBR sampling the texture arrays of Surfaces.js, or plain Lambert).
+// (textured PBR sampling the texture arrays of Surfaces.js, or plain Lambert), as three.js node
+// materials (TSL, WebGPU).
 //
 // Everything is driven by an "environment" object (public/data/environment.json, editable in the
 // editor's Environment panel): call setEnvironment(env) and update(dt) every frame.
-import * as THREE from 'three';
+//
+// Lit materials (material() / patch()) light with their own lights node instead of the scene's
+// lights: the sun (a direct light whose colour carries the cascaded shadow and a share of the SSAO)
+// and the probe light (GI irradiance in place of the hemisphere light, + sky reflections). The
+// vertex work (wind, our instancing, LOD collapse, distance fade) is the material's position node,
+// which the depth passes (sun cascades, SSAO pre-pass) inherit.
+import * as THREE from 'three/webgpu';
+import {
+  Fn, If, float, int, vec2, vec3, vec4, mat3, max, min, mix, clamp, sqrt, pow, sin, dot, normalize, reflect, length, distance, smoothstep, step, select,
+  attribute, varying, lights, output, ambientOcclusion, roughness, diffuseColor, materialColor, materialEmissive, materialRoughness, materialMetalness,
+  positionLocal, positionView, positionViewDirection, normalView, normalWorld, normalGeometry, normalLocal, normalViewGeometry, faceDirection, transformNormal,
+  cameraViewMatrix, cameraWorldMatrix, cameraProjectionMatrix, modelViewMatrix, modelWorldMatrix, property,
+} from 'three/tsl';
 import { SunShadows } from './SunShadows.js';
 import { SSAO } from './SSAO.js';
 import { SSR, SSR_DEFAULTS } from './SSR.js';
-import { GI, GI_DEFAULTS } from './GI.js';
+import { GI, GI_DEFAULTS, giDbg } from './GI.js';
 import { LAYERS } from './layers.js';
-import { patchLodDepth } from './LodFade.js';
 import { LensFlare, FLARE_DEFAULTS } from './LensFlare.js';
 import { Haze, HAZE_DEFAULTS } from './Haze.js';
 import { Motes, MOTES_DEFAULTS } from './Motes.js';
-import { CLOUDS_GLSL } from './clouds.js';
+import { skyCloudsFn } from './clouds.js';
 import { Surfaces } from './Surfaces.js';
+import { U, isInstanced, instanceMatrix, instanceTint } from './tsl.js';
+import { lodVisible } from './LodFade.js';
 
 // ao: SSAO samples per pixel (0 = off)
 export const QUALITY = {
@@ -70,6 +84,69 @@ export const DEFAULT_ENV = {
 const S = THREE.MathUtils.smoothstep;
 const col = (hex) => new THREE.Color(hex);
 
+// Fragment state of the lit materials (colour node -> normal / roughness / metalness / lights)
+export const ST = {
+  color: property('vec3', 'mcColor'),
+  alpha: property('float', 'mcAlpha'),
+  rough: property('float', 'mcRough'),
+  metal: property('float', 'mcMetal'),
+  normal: property('vec3', 'mcNormal'),
+  leaf: property('float', 'mcLeaf'),
+  specK: property('float', 'mcSpecK'), // sky reflection share (leaves 0.15, ground 0.35)
+};
+
+/** World position of the fragment, from the view position (no extra varying). */
+export const fragWorldPos = () => cameraWorldMatrix.mul(vec4(positionView, 1.0)).xyz;
+
+/** The sun: a direct light whose colour carries the cascaded shadow (and a share of the SSAO). */
+class SunLightNode extends THREE.LightingNode {
+  constructor(lighting, { ao = true } = {}) {
+    super();
+    this.L = lighting;
+    this.ao = ao;
+  }
+
+  setup(builder) {
+    const L = this.L, su = L.sun.uniforms, m = builder.material;
+    const lightDirection = normalize(cameraViewMatrix.mul(vec4(su.sunDirW, 0.0)).xyz);
+    const N = normalWorld, ndl = dot(N, su.sunDirW);
+    const c = vec3(0.0).toVar('sunCol');
+    If(ndl.greaterThan(0.0), () => {
+      let P = fragWorldPos();
+      if (m.mcSunShift) P = P.add(su.sunDirW.mul(m.mcSunShift)); // in front of the receiver's own caster (impostor card)
+      c.assign(su.sunColor.mul(L.sun.shadowFn(P, N, ndl)));
+    });
+    if (this.ao && m.aoNode) c.mulAssign(mix(1.0, ambientOcclusion, L.ao.uniforms.aoDirect));
+    builder.lightsNode.setupDirectLight(builder, this, { lightDirection, lightColor: c });
+  }
+}
+
+/** Ambient: the probe GI in place of the hemisphere light, and the sky reflections (PBR). */
+class ProbeLightNode extends THREE.LightingNode {
+  constructor(lighting) {
+    super();
+    this.L = lighting;
+  }
+
+  setup(builder) {
+    const L = this.L, m = builder.material, ctx = builder.context;
+    const amb = L.gi.ambientFn()(fragWorldPos(), normalWorld).toVar('giAmb');
+    ctx.irradiance.addAssign(amb.rgb);
+    if (m.isMeshStandardNodeMaterial && ctx.radiance) {
+      // indirect specular from the sky (no environment map): the sky gradient around the reflected
+      // direction (blurred toward its average with roughness), scaled by the probe sky visibility
+      // so nothing glows under a roof or in the jungle
+      const sk = L.skyU;
+      const rV = reflect(positionViewDirection.negate(), normalView);
+      const rW = normalize(cameraWorldMatrix.mul(vec4(rV, 0.0)).xyz).toVar();
+      const skyR = select(rW.y.greaterThan(0.0), mix(sk.horizon, sk.zenith, sqrt(max(rW.y, 0.0))), sk.horizon.mul(mix(0.45, 0.25, min(rW.y.negate().mul(4.0), 1.0))));
+      const skyAvg = mix(sk.horizon, sk.zenith, 0.55).mul(0.8);
+      const k = m.mcSpecK ?? float(1.0);
+      ctx.radiance.addAssign(mix(skyR, skyAvg, roughness).mul(L.uniforms.skySpec).mul(amb.a).mul(k));
+    }
+  }
+}
+
 export class Lighting {
   constructor(renderer, scene, camera, { quality = 'medium' } = {}) {
     this.renderer = renderer;
@@ -86,23 +163,26 @@ export class Lighting {
     // shadow-only casters (impostor cards facing the sun) live on the cascade layers alone
     for (let i = 0; i < 3; i++) camera.layers.disable(LAYERS.CASCADE + i);
 
-    // shared uniforms: every patched material references these objects
+    // shared uniforms: every material references these nodes
     this.uniforms = {
-      uTime: { value: 0 },
-      windDir: { value: new THREE.Vector2(0.8, 0.6) },
-      windStrength: { value: 0.35 },
-      windSpeed: { value: 1.3 },
-      camPosW: { value: new THREE.Vector3() }, // view camera, set by the distance-faded fields (InstancedField)
-      foliageTransmission: { value: DEFAULT_ENV.foliageTransmission },
-      skySpec: { value: 1 }, // sky radiance scale for the reflections (hemisphere intensity / PI x env)
+      uTime: U(0),
+      windDir: U(new THREE.Vector2(0.8, 0.6)),
+      windStrength: U(0.35),
+      windSpeed: U(1.3),
+      camPosW: U(new THREE.Vector3()), // view camera, set by the distance-faded fields (InstancedField)
+      foliageTransmission: U(DEFAULT_ENV.foliageTransmission),
+      skySpec: U(1), // sky radiance scale for the reflections (hemisphere intensity / PI x env)
     };
     // texture arrays (terrain, surfaces, foliage) and their shader code; loaded by AssetLibrary / World
     this.surfaces = new Surfaces();
     this.sun = new SunShadows(renderer, scene, this.Q.cascades, { distance: this.Q.shadowDistance });
+    // alpha-cut leaves cast / occlude through their cut-out, not as cards
+    this.sun.depthMat.maskNode = this.surfaces.leafMaskNode();
     this.sunDir = this.sun.dir;
     this.sunColor = new THREE.Color();
     // half-res SSAO on the ambient light (+ a little of the sun), see SSAO.js
     this.ao = new SSAO(renderer, scene, { samples: this.Q.ao });
+    this.ao.depthMat = this.sun.depthMat;
     // screen-space reflections on the water (SSR.js; read by Water.js): their own setting, off
     // by default, `?ssr=low|medium|high` (the game's settings take over from there)
     this.ssr = new SSR(renderer, this.ao);
@@ -110,25 +190,24 @@ export class Lighting {
     // baked probe GI (loaded by World when gi/probes.json exists) + auto exposure
     this.gi = new GI(renderer);
     this.baseExposure = 1;
-    // LOD'd instanced fields cast and occlude with one LOD per instance (render/LodFade.js)
-    patchLodDepth(this.sun.depthMatDouble, this.uniforms);
-    patchLodDepth(this.ao.depthMat, this.uniforms);
-    // alpha-cut leaves cast / occlude through their cut-out, not as cards
-    this.surfaces.patchDepth(this.sun.depthMatDouble);
-    this.surfaces.patchDepth(this.ao.depthMat);
 
+    // the ambient of materials drawn without our lights (scene lights: hemisphere only)
     this.hemi = new THREE.HemisphereLight(0xbfdfff, 0x5b4a2e, 1);
     scene.add(this.hemi);
-    scene.fog = new THREE.FogExp2(0xb4dcf5, 0.0014);
+    this.fog = new THREE.FogExp2(0xb4dcf5, 0.0014); // colour / density of the far fog (data: Haze applies it)
     this._makeSky();
-    // near haze + far fog in every patched material (replaces three.js's fog there, see Haze.js);
-    // scene.fog stays for the few unpatched materials and turns the haze on (USE_FOG)
+    // near haze + far fog: the scene's fog node, in every material with `fog` (Haze.js)
     this.haze = new Haze(this);
+    scene.fogNode = this.haze.fogNode;
     // dust specks floating in the sunlit air around the camera
     this.motes = new Motes(this);
-    // sun lens flare (occlusion queries after the main scene, drawn last; see LensFlare.js)
+    // sun lens flare (occlusion queries in the main pass, drawn last; see LensFlare.js)
     this.flare = new LensFlare(renderer, this);
     this.materials = new Map();
+    // the lights of the lit materials: the sun, the probes (+ sky reflections)
+    this.lightsNode = lights([new SunLightNode(this), new ProbeLightNode(this)]);
+    // the first-person view model: same lights without the SSAO (its buffer holds the world behind)
+    this.viewLightsNode = lights([new SunLightNode(this, { ao: false }), new ProbeLightNode(this)]);
     this.setEnvironment(this.env);
   }
 
@@ -209,13 +288,16 @@ export class Lighting {
     this.hemi.color.copy(zenith).lerp(horizon, 0.5).multiplyScalar(1.0);
     this.hemi.groundColor.copy(col(sk.ground)).multiplyScalar(0.35 + 0.65 * day);
     this.hemi.intensity = env.ambient * (0.35 + 0.65 * day) + this.night * 0.6;
+    this.gi.hemi.sky.value.copy(this.hemi.color).multiplyScalar(this.hemi.intensity);
+    this.gi.hemi.ground.value.copy(this.hemi.groundColor).multiplyScalar(this.hemi.intensity);
     this.uniforms.skySpec.value = (this.hemi.intensity / Math.PI) * (env.surface?.skySpecular ?? 1);
-    this.scene.fog.color.copy(horizon); // its density: Haze._apply
+    this.fog.color.copy(horizon); // its density: Haze._apply
     this.haze.fogDensity = env.fogDensity;
     // the near haze is lit like the scene: its colour follows the light (sun + sky) relative to noon
     const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
     const noon = env.sunIntensity * 0.95 + env.ambient * lum(col(sk.dayZenith).lerp(col(sk.dayHorizon), 0.5));
     this.haze.setTimeOfDay(h, this.night, (lum(this.sunColor) + lum(this.hemi.color) * this.hemi.intensity) / Math.max(noon, 1e-3));
+    this.fog.density = this.haze.farDensity;
     this.baseExposure = env.exposure * THREE.MathUtils.lerp(1, env.nightExposure, this.night);
     this.renderer.toneMappingExposure = this.baseExposure * this.gi.exposure * (1 - (this.flare?.dazzle ?? 0));
     this.gi.setLight(this.hemi.color, this.hemi.intensity, this.sunColor, lightDir.x);
@@ -224,73 +306,62 @@ export class Lighting {
 
   _makeSky() {
     const u = (this.skyU = {
-      sunDir: { value: new THREE.Vector3(0, 1, 0) },
-      moonDir: { value: new THREE.Vector3(0, -1, 0) },
-      sunCol: { value: new THREE.Color() },
-      zenith: { value: new THREE.Color() },
-      horizon: { value: new THREE.Color() },
-      night: { value: 0 },
-      cloudCoverage: { value: 0.45 },
-      cloudSpeed: { value: 3 },
+      sunDir: U(new THREE.Vector3(0, 1, 0)),
+      moonDir: U(new THREE.Vector3(0, -1, 0)),
+      sunCol: U(new THREE.Color()),
+      zenith: U(new THREE.Color()),
+      horizon: U(new THREE.Color()),
+      night: U(0),
+      cloudCoverage: U(0.45),
+      cloudSpeed: U(3),
       uTime: this.uniforms.uTime,
     });
+    this.skyClouds = skyCloudsFn(u);
+    const hash3 = Fn(([p0]) => {
+      const p = p0.mul(0.3183099).add(0.1).fract().mul(17.0);
+      return p.x.mul(p.y).mul(p.z).mul(p.x.add(p.y).add(p.z)).fract();
+    });
+    const mat = new THREE.MeshBasicNodeMaterial({ side: THREE.BackSide, depthWrite: false, fog: false });
+    mat.lights = false;
+    // on the far plane (z = w): drawn after the opaque world, only where nothing covers the sky
+    mat.vertexNode = cameraProjectionMatrix.mul(modelViewMatrix.mul(vec4(positionLocal, 1.0))).xyww;
+    const vDir = varying(positionLocal, 'vSkyDir');
+    mat.colorNode = Fn(() => {
+      const d = normalize(vDir).toVar();
+      const h = d.y;
+      const c = select(h.greaterThan(0.0), mix(u.horizon, u.zenith, pow(max(h, 0.0), 0.5)), mix(u.horizon, u.horizon.mul(0.6), min(h.negate().mul(3.0), 1.0))).toVar();
+      const sd = max(dot(d, u.sunDir), 0.0);
+      c.addAssign(u.sunCol.mul(pow(sd, 8.0).mul(0.18).add(pow(sd, 90.0).mul(0.5))));
+      c.addAssign(u.sunCol.mul(smoothstep(0.9993, 0.9996, sd).mul(30.0)));
+      // moon + stars
+      If(u.night.greaterThan(0.0), () => {
+        const md = max(dot(d, u.moonDir), 0.0);
+        c.addAssign(vec3(0.8, 0.85, 1.0).mul(smoothstep(0.999, 0.9993, md).mul(2.5).mul(u.night)));
+        c.addAssign(vec3(0.25, 0.3, 0.45).mul(pow(md, 40.0).mul(0.4).mul(u.night)));
+        If(h.greaterThan(0.0), () => {
+          const p = d.mul(260.0), cc = p.floor();
+          const r = hash3(cc).toVar();
+          If(r.greaterThan(0.986), () => {
+            const s = smoothstep(0.14, 0.0, length(p.fract().sub(0.5)));
+            c.addAssign(vec3(0.9, 0.92, 1.0).mul(s.mul(r.sub(0.986)).mul(180.0).mul(u.night).mul(smoothstep(0.0, 0.2, h))));
+          });
+        });
+      });
+      // clouds (clouds.js)
+      If(h.greaterThan(0.0), () => {
+        const cl = this.skyClouds(d).toVar();
+        const lit = mix(u.horizon.mul(1.1), vec3(1.0), u.night.oneMinus().mul(0.6)).add(u.sunCol.mul(0.15)).toVar();
+        lit.assign(mix(lit, lit.mul(0.7), cl.y.mul(0.5)));
+        c.assign(mix(c, lit.mul(u.night.oneMinus().mul(0.8).add(0.2)), cl.x.mul(0.9)));
+      });
+      return vec4(c, 1.0);
+    })();
     const geo = new THREE.SphereGeometry(1, 32, 16);
-    this.sky = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-      uniforms: u,
-      side: THREE.BackSide,
-      depthWrite: false,
-      depthTest: false,
-      fog: false,
-      vertexShader: /* glsl */ `
-        varying vec3 vDir;
-        void main() {
-          vDir = position;
-          vec4 p = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          gl_Position = p.xyww; // on the far plane
-        }`,
-      fragmentShader: /* glsl */ `
-        uniform vec3 sunDir, moonDir, sunCol, zenith, horizon;
-        uniform float night;
-        varying vec3 vDir;
-        ${CLOUDS_GLSL}
-        float hash3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
-        void main() {
-          vec3 d = normalize(vDir);
-          float h = d.y;
-          vec3 col = h > 0.0 ? mix(horizon, zenith, pow(h, 0.5)) : mix(horizon, horizon * 0.6, min(-h * 3.0, 1.0));
-          float sd = max(dot(d, sunDir), 0.0);
-          col += sunCol * (pow(sd, 8.0) * 0.18 + pow(sd, 90.0) * 0.5);
-          col += sunCol * smoothstep(0.9993, 0.9996, sd) * 30.0;
-          // moon + stars
-          if (night > 0.0) {
-            float md = max(dot(d, moonDir), 0.0);
-            col += vec3(0.8, 0.85, 1.0) * smoothstep(0.9990, 0.9993, md) * 2.5 * night;
-            col += vec3(0.25, 0.3, 0.45) * pow(md, 40.0) * 0.4 * night;
-            if (h > 0.0) {
-              vec3 p = d * 260.0, c = floor(p);
-              float r = hash3(c);
-              if (r > 0.986) {
-                float s = smoothstep(0.14, 0.0, length(fract(p) - 0.5));
-                col += vec3(0.9, 0.92, 1.0) * s * (r - 0.986) * 180.0 * night * smoothstep(0.0, 0.2, h);
-              }
-            }
-          }
-          // clouds (clouds.js)
-          if (h > 0.0) {
-            vec2 c = skyClouds(d);
-            vec3 cloudLit = mix(horizon * 1.1, vec3(1.0), 0.6 * (1.0 - night)) + sunCol * 0.15;
-            cloudLit = mix(cloudLit, cloudLit * 0.7, c.y * 0.5);
-            col = mix(col, cloudLit * (0.2 + 0.8 * (1.0 - night)), c.x * 0.9);
-          }
-          gl_FragColor = vec4(col, 1.0);
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
-        }`,
-    }));
+    this.sky = new THREE.Mesh(geo, mat);
     this.sky.frustumCulled = false;
-    this.sky.renderOrder = -1000;
+    this.sky.renderOrder = 1e6; // last of the opaque world (depth test: only the pixels left empty)
     this.sky.layers.set(LAYERS.FX);
-    this.sky.onBeforeRender = (r, s, cam) => { this.sky.position.copy(cam.position); this.sky.scale.setScalar(cam.far * 0.95); this.sky.updateMatrixWorld(); };
+    this.sky.onBeforeRender = (r, s, cam) => { this.sky.position.copy(cam.position); this.sky.scale.setScalar(cam.far * 0.5); this.sky.updateMatrixWorld(); };
     this.scene.add(this.sky);
     this.sun.onBeforeShadow = () => (this.sky.visible = false);
     this.sun.onAfterShadow = () => (this.sky.visible = true);
@@ -298,7 +369,7 @@ export class Lighting {
 
   /**
    * Shared lit material, cached by options.
-   *  textured:  PBR (MeshStandardMaterial) sampling the texture arrays by the per-vertex `uv` +
+   *  textured:  PBR (MeshStandardNodeMaterial) sampling the texture arrays by the per-vertex `uv` +
    *             `surface` attributes (render/Surfaces.js), normals from the geometry, sky reflections
    *  cutout:    alpha-cut foliage layers (alpha to coverage on the MSAA buffer)
    *  wind:      sway vertices by the `wind` attribute (0 = rigid, 1 = leaf tip)
@@ -319,95 +390,144 @@ export class Lighting {
       color: opts.color ?? 0xffffff,
     };
     m = opts.textured
-      ? new THREE.MeshStandardMaterial({ ...common, roughness: 1, metalness: 0, alphaToCoverage: !!opts.cutout })
-      : new THREE.MeshLambertMaterial({ ...common, flatShading: !opts.smooth && !opts.foliage });
-    this.patch(m, opts);
+      ? new THREE.MeshStandardNodeMaterial({ ...common, roughness: 1, metalness: 0 })
+      : new THREE.MeshLambertNodeMaterial({ ...common, flatShading: !opts.smooth && !opts.foliage });
+    m.alphaToCoverage = !!opts.cutout;
+    m = this.patch(m, opts);
     m.userData.opts = opts; // variants (e.g. a burnt vehicle: same opts + color) share the compiled program
     this.materials.set(key, m);
     return m;
   }
 
-  /** Inject sun + shadows + SSAO + probe GI (+ wind / flat colour / emissive) into a Lambert / Standard material. */
-  patch(mat, opts = {}) {
-    const sun = this.sun, ao = this.ao, gi = this.gi, haze = this.haze, U = this.uniforms, surf = this.surfaces, skyU = this.skyU;
-    const prev = mat.onBeforeCompile;
-    mat.onBeforeCompile = (sh, r) => {
-      prev?.call(mat, sh, r);
-      Object.assign(sh.uniforms, U);
-      sun.inject(sh);
-      ao.inject(sh);
-      gi.inject(sh);
-      haze.inject(sh);
-      if (opts.textured) surf.inject(sh);
-      if (mat.isMeshStandardMaterial) skyReflections(sh, skyU);
-      if (opts.wind) {
-        sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', `#include <common>
-            attribute float wind;
-            uniform float uTime, windStrength, windSpeed;
-            uniform vec2 windDir;`)
-          .replace('#include <begin_vertex>', `#include <begin_vertex>
-            {
-              #ifdef USE_INSTANCING
-                vec3 wO = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-              #else
-                vec3 wO = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-              #endif
-              float ph = uTime * windSpeed + dot(wO.xz, vec2(0.071, 0.093));
-              float gust = 0.65 + 0.35 * sin(uTime * 0.37 + wO.x * 0.01);
-              float sway = (sin(ph) * 0.7 + sin(ph * 2.31 + 1.7) * 0.3) * windStrength * gust * wind;
-              transformed.xz += windDir * sway;
-              transformed.y += sin(ph * 4.7 + position.x * 2.0 + position.z * 2.0) * 0.04 * wind * windStrength;
-            }`);
-      }
-      if (opts.foliage) {
-        // smooth shading from the baked normals (facets for wood, crown normals of length 2 for
-        // leaves); per vertex, leaves get the per-instance tint and the light coming through them
-        // on the shaded side of the crown — folded into the colour: no extra varying
-        sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', `#include <common>
-            uniform vec3 sunDirW;
-            uniform float foliageTransmission;`)
-          .replace('#include <color_vertex>', `#include <color_vertex>
-            #ifdef USE_COLOR
-            if (dot(normal, normal) > 2.0) {
-              #ifdef USE_INSTANCING
-                uvec2 hq = uvec2(ivec2(floor(instanceMatrix[3].xz * 4.0)) + 1048576);
-                uint hh = hq.x * 1597334677u ^ hq.y * 3812015801u;
-                hh = hh * 747796405u + 2891336453u; hh ^= hh >> 16u; hh *= 2246822519u; hh ^= hh >> 13u;
-                float h1 = float(hh & 1023u) / 1023.0, h2 = float((hh >> 10u) & 1023u) / 1023.0;
-                vColor.xyz *= (0.86 + 0.28 * h1) * mix(vec3(1.07, 1.03, 0.8), vec3(0.9, 1.0, 1.1), h2);
-                vec3 fnW = mat3(modelMatrix) * (mat3(instanceMatrix) * normal);
-              #else
-                vec3 fnW = mat3(modelMatrix) * normal;
-              #endif
-              float back = clamp(0.25 - dot(normalize(fnW), sunDirW), 0.0, 1.0) * step(0.0, sunDirW.y);
-              vColor.xyz *= 1.0 + vec3(1.9, 2.0, 1.2) * (foliageTransmission * back);
-            }
-            #endif`);
-        // a leaf's both sides share the outward normal (no back-face flip)
-        sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
-          #ifdef DOUBLE_SIDED
-            normal *= faceDirection;
-          #endif`);
-      }
-      if (opts.flatColor) {
-        sh.vertexShader = sh.vertexShader.replace('#include <color_pars_vertex>', '#if defined(USE_COLOR) || defined(USE_COLOR_ALPHA) || defined(USE_INSTANCING_COLOR) || defined(USE_BATCHING_COLOR)\nflat varying vec4 vColor;\n#endif');
-        sh.fragmentShader = sh.fragmentShader.replace('#include <color_pars_fragment>', '#if defined(USE_COLOR) || defined(USE_COLOR_ALPHA)\nflat varying vec4 vColor;\n#endif');
-      }
-      if (opts.emissive) {
-        sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nattribute float emissive;\nvarying float vEmis;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEmis = emissive;');
-        sh.fragmentShader = sh.fragmentShader
-          .replace('#include <common>', '#include <common>\nvarying float vEmis;')
-          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * vEmis * 3.0;');
-      }
-    };
-    const prevKey = mat.customProgramCacheKey?.bind(mat);
-    mat.customProgramCacheKey = () => `${prevKey ? prevKey() : ''}|mc|${opts.wind ? 'w' : ''}${opts.flatColor ? 'f' : ''}${opts.emissive ? 'e' : ''}${opts.foliage ? 'l' : ''}${opts.textured ? 't' : ''}${opts.cutout ? 'c' : ''}`;
+  /** Light a material like the world (sun + shadows + SSAO + probe GI + haze, + wind / flat colour /
+   *  emissive / textures from opts). Plain three.js materials (glTF, Lambert...) are converted to
+   *  node materials: use the returned material. view: the first-person view model (no SSAO). */
+  patch(mat, opts = {}, { view = false } = {}) {
+    if (!mat.isNodeMaterial) mat = toNodeMaterial(mat);
+    mat.mcOpts = opts;
+    // our colour node reads them (foliage tint folded in)
+    const vertexColors = mat.mcVertexColors ??= mat.vertexColors;
+    mat.vertexColors = false;
+    mat.lightsNode = view ? this.viewLightsNode : this.lightsNode;
+    if (!view) mat.aoNode = this.ao.aoNode();
+    this.setupVertex(mat, opts);
+    this.setupFragment(mat, opts, { vertexColors });
     mat.needsUpdate = true;
     return mat;
+  }
+
+  /** The vertex work, as the material's position node (the depth passes inherit it): distance
+   *  fade (shrink), wind sway, our instancing and the LOD collapse (opts.lod, LodFade.js). */
+  setupVertex(m, opts) {
+    const U2 = this.uniforms, fade = opts.fadeRange ?? null;
+    m.mcOpts = opts;
+    m.mcFade = fade;
+    m.positionNode = Fn((builder) => {
+      const inst = isInstanced(builder), geo = builder.geometry;
+      const p = positionLocal.toVar();
+      const M = inst ? instanceMatrix().toVar() : null;
+      const origin = inst ? modelWorldMatrix.mul(vec4(attribute('iM3', 'vec4').xyz, 1.0)).xyz : modelWorldMatrix.mul(vec4(0, 0, 0, 1)).xyz;
+      if (fade) p.mulAssign(float(1.0).sub(smoothstep(fade.x, fade.y, distance(origin, U2.camPosW))));
+      if (opts.deform) p.assign(opts.deform(p, builder)); // asset-space deformation (bird wings)
+      if (opts.wind && geo?.attributes?.wind) {
+        const wind = attribute('wind', 'float');
+        const ph = U2.uTime.mul(U2.windSpeed).add(dot(origin.xz, vec2(0.071, 0.093))).toVar();
+        const gust = sin(U2.uTime.mul(0.37).add(origin.x.mul(0.01))).mul(0.35).add(0.65);
+        const sway = sin(ph).mul(0.7).add(sin(ph.mul(2.31).add(1.7)).mul(0.3)).mul(U2.windStrength).mul(gust).mul(wind);
+        p.xz.addAssign(U2.windDir.mul(sway));
+        p.y.addAssign(sin(ph.mul(4.7).add(positionLocal.x.mul(2.0)).add(positionLocal.z.mul(2.0))).mul(0.04).mul(wind).mul(U2.windStrength));
+      }
+      if (!inst) return p;
+      if (geo?.attributes?.normal) normalLocal.assign(transformNormal(normalLocal, M));
+      const q = M.mul(vec4(p, 1.0)).xyz;
+      // instances outside the LOD's range collapse to a point (nothing rasterized)
+      return opts.lod ? select(lodVisible(U2.camPosW), q, vec3(0.0)) : q;
+    })();
+  }
+
+  /** Colour / normal / roughness / metalness / emissive + the debug views. Textured assets
+   *  (opts.textured) shade from the texture arrays (Surfaces.js); other materials keep three.js'
+   *  own colour / normal / roughness maps (characters, glTF view models). */
+  setupFragment(m, opts, { vertexColors = true } = {}) {
+    const U2 = this.uniforms, surf = this.surfaces, sunU = this.sun.uniforms;
+    const standard = m.isMeshStandardNodeMaterial;
+    const doubleSided = m.side === THREE.DoubleSide;
+    const a2c = !!m.alphaToCoverage;
+    const iM3 = () => attribute('iM3', 'vec4').xyz;
+    // per-vertex colour, the foliage tint and the light through the leaves folded in (one varying)
+    const vColor = Fn((builder) => {
+      const geo = builder.geometry;
+      const c = (vertexColors && geo?.attributes?.color ? attribute('color', 'vec3') : vec3(1.0)).toVar();
+      if (geo?.attributes?.iTint) c.mulAssign(attribute('iTint', 'vec3')); // per-instance tint
+      if (opts.foliage && geo?.attributes?.normal) {
+        const n = normalGeometry;
+        If(dot(n, n).greaterThan(2.0), () => {
+          let fnW;
+          if (isInstanced(builder)) {
+            c.mulAssign(instanceTint(iM3()));
+            fnW = mat3(modelWorldMatrix).mul(mat3(instanceMatrix()).mul(n));
+          } else fnW = mat3(modelWorldMatrix).mul(n);
+          const back = clamp(float(0.25).sub(dot(normalize(fnW), sunU.sunDirW)), 0.0, 1.0).mul(step(0.0, sunU.sunDirW.y));
+          c.mulAssign(vec3(1.9, 2.0, 1.2).mul(U2.foliageTransmission.mul(back)).add(1.0));
+        });
+      }
+      return c;
+    });
+    const vc = varying(vColor(), 'vColor');
+    if (opts.flatColor) vc.setInterpolation('flat');
+    m.mcColorVarying = vc; // debug views
+    if (!opts.textured) {
+      const mc = vec4(materialColor);
+      m.colorNode = vec4(mc.rgb.mul(vc), mc.a);
+      // a leaf's both sides share the outward normal (no back-face flip)
+      if (opts.foliage && doubleSided) m.normalNode = normalViewGeometry;
+      m.mcSpecK = null;
+    } else {
+      m.mcSpecK = ST.specK;
+      m.colorNode = Fn((builder) => {
+        ST.color.assign(materialColor.rgb.mul(vc));
+        ST.alpha.assign(1.0);
+        ST.rough.assign(materialRoughness);
+        ST.metal.assign(materialMetalness);
+        ST.leaf.assign(0.0);
+        ST.specK.assign(1.0);
+        ST.normal.assign(doubleSided && !opts.foliage ? normalViewGeometry.mul(faceDirection) : normalViewGeometry);
+        if (builder.geometry?.attributes?.surface) surf.sample(ST, { alphaToCoverage: a2c, doubleSided: doubleSided && !opts.foliage });
+        return vec4(ST.color, ST.alpha);
+      })();
+      m.normalNode = ST.normal;
+      if (standard) {
+        m.roughnessNode = ST.rough;
+        m.metalnessNode = ST.metal;
+      }
+    }
+    m.emissiveNode = Fn((builder) => {
+      let e = materialEmissive;
+      if (opts.emissive && builder.geometry?.attributes?.emissive) e = e.add(diffuseColor.rgb.mul(varying(attribute('emissive', 'float'), 'vEmis')).mul(3.0));
+      return e;
+    })();
+    this.setupDebug(m);
+  }
+
+  /** Light a material that brings its own colour / vertex nodes (terrain, impostors): the world's
+   *  lights, the SSAO and the debug views only. */
+  light(m, { view = false, ao = true } = {}) {
+    m.lightsNode = view ? this.viewLightsNode : this.lightsNode;
+    if (ao && !view) m.aoNode = this.ao.aoNode();
+    this.setupDebug(m);
+    return m;
+  }
+
+  /** Debug views over the lit output (F2): GI irradiance alone, SSAO alone, sun cascades tint. */
+  setupDebug(m, { gi = true, ao = true, sun = true } = {}) {
+    const giU = this.gi.uniforms, aoU = this.ao.uniforms, sunU = this.sun.uniforms, tint = this.sun.tintFn;
+    m.outputNode = Fn((builder) => {
+      const o = vec4(output).toVar();
+      if (gi) If(giU.giDebug.greaterThan(0.5), () => { o.rgb.assign(giDbg.mul(1 / Math.PI)); });
+      if (ao && builder.material.aoNode) If(aoU.aoDebug.greaterThan(0.5).and(aoU.aoEnabled.greaterThan(0.5)), () => { o.rgb.assign(vec3(ambientOcclusion)); });
+      if (sun) If(sunU.sunDebug.greaterThan(0.5), () => { o.rgb.mulAssign(tint(fragWorldPos())); });
+      return o;
+    })();
   }
 
   /** Advance the clock (and the day cycle when env.dayLengthMinutes > 0). */
@@ -442,21 +562,24 @@ export class Lighting {
   }
 }
 
-/** Indirect specular from the sky (no environment map): the sky gradient around the reflected
- *  direction (blurred toward its average with roughness), scaled by the probe sky visibility
- *  (GI.js giOcc) so nothing glows under a roof or in the jungle. */
-export function skyReflections(sh, skyU) {
-  sh.uniforms.skyZen = skyU.zenith;
-  sh.uniforms.skyHor = skyU.horizon;
-  sh.fragmentShader = sh.fragmentShader
-    .replace('#include <common>', '#include <common>\nuniform vec3 skyZen, skyHor;\nuniform float skySpec;\nfloat surfSpecK = 1.0; // leaves: 0.15 (Surfaces.js)')
-    .replace('#include <lights_fragment_maps>', `#include <lights_fragment_maps>
-      #if defined( RE_IndirectSpecular )
-      {
-        vec3 rW = normalize((vec4(reflect(-geometryViewDir, geometryNormal), 0.0) * viewMatrix).xyz);
-        vec3 skyR = rW.y > 0.0 ? mix(skyHor, skyZen, sqrt(rW.y)) : skyHor * mix(0.45, 0.25, min(-rW.y * 4.0, 1.0));
-        vec3 skyAvg = mix(skyHor, skyZen, 0.55) * 0.8;
-        radiance += mix(skyR, skyAvg, material.roughness) * skySpec * giOcc * surfSpecK;
-      }
-      #endif`);
+/** Clone of a lit material, with our own properties (mc*: options, specular share...). */
+export function cloneMaterial(base) {
+  const m = base.clone();
+  for (const k of Object.keys(base)) if (k.startsWith('mc')) m[k] = base[k];
+  return m;
 }
+
+/** A node material with the properties of a plain three.js material (glTF imports, Lambert / Standard
+ *  materials made in code). */
+export function toNodeMaterial(mat) {
+  const C = mat.isMeshStandardMaterial ? THREE.MeshStandardNodeMaterial : mat.isMeshLambertMaterial ? THREE.MeshLambertNodeMaterial : mat.isMeshPhongMaterial ? THREE.MeshPhongNodeMaterial : THREE.MeshBasicNodeMaterial;
+  const n = new C();
+  for (const k of ['name', 'side', 'transparent', 'opacity', 'alphaTest', 'alphaToCoverage', 'depthWrite', 'depthTest', 'blending', 'flatShading', 'toneMapped', 'fog', 'visible', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap', 'roughness', 'metalness', 'envMapIntensity', 'wireframe']) {
+    if (mat[k] !== undefined && k in n) n[k] = mat[k];
+  }
+  for (const k of ['color', 'emissive', 'normalScale']) if (mat[k] && n[k]) n[k].copy(mat[k]);
+  n.vertexColors = mat.vertexColors;
+  n.userData = mat.userData;
+  return n;
+}
+

@@ -7,6 +7,7 @@
 import { LAYERS } from '../../engine/render/layers.js';
 import { GIProbeView } from '../../engine/render/GIProbeView.js';
 import { FOG_STRENGTH } from '../../engine/render/Haze.js';
+import { pipelineCount } from '../../engine/world/World.js';
 
 export class DebugPanel {
   constructor(app, perfOverlay) {
@@ -65,7 +66,7 @@ export class DebugPanel {
     I.triangles = `${(s.triangles / 1000).toFixed(1)}k`;
     I.geometries = r.info.memory.geometries;
     I.textures = r.info.memory.textures;
-    I.programs = r.info.programs?.length ?? 0;
+    I.programs = pipelineCount(r); // render pipelines (WebGPU)
     I.lateShaders = world?.warmUpStats ? I.programs - world.warmUpStats.total : '-';
     const m = performance.memory; // Chromium only
     I.heap = m ? `${(m.usedJSHeapSize / 1048576).toFixed(0)} / ${(m.totalJSHeapSize / 1048576).toFixed(0)} MB` : 'n/a';
@@ -311,17 +312,17 @@ export class DebugPanel {
       get ssr() { return L.ssr.level; }, set ssr(v) { if (game) game.saveSettings({ ssr: v }); else L.ssr.setLevel(v); },
       get stats() { return overlay?.visible ?? false; }, set stats(v) { overlay?.setVisible(v); },
       get maxFps() { return engine.maxFps; }, set maxFps(v) { if (game) game.saveSettings({ fpsLimit: v }); else engine.maxFps = v; },
-      // fixed when the WebGL context is created: reload with ?aa=
+      // fixed when the renderer is created: reload with ?aa=
       get aa() { return engine.aaMode; }, set aa(v) { const u = new URL(location.href); u.searchParams.set('aa', v); location.href = u.href; },
       wireframe: false,
     };
     f.add(gfx, 'stats').name('stats (F3)');
     f.add(gfx, 'maxFps', { auto: 0, '30 fps': 30, '60 fps': 60, '90 fps': 90, '120 fps': 120, '144 fps': 144 }).name('FPS limit');
     f.add(gfx, 'quality', ['low', 'medium', 'high', 'ultra']).name('quality');
-    f.add(gfx, 'aa', ['msaa2', 'msaa4', 'msaa8', 'fxaa', 'off']).name('antialias (reloads)');
+    f.add(gfx, 'aa', ['msaa4', 'fxaa', 'off']).name('antialias (reloads)');
     f.add(gfx, 'resScale', 0.3, 1, 0.01).name('resolution scale');
     this._sunShadows(f, gfx);
-    const ao = L.ao, aoU = ao.aoMat.uniforms;
+    const ao = L.ao, aoU = ao.u;
     const fa = f.addFolder('SSAO');
     fa.add(gfx, 'ao').name('enabled');
     fa.add(aoU.intensity, 'value', 0, 8, 0.05).name('intensity');

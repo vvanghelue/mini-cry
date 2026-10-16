@@ -1,5 +1,5 @@
 import { render } from 'preact';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { EditorCore, S, log } from './core.js';
 import { App } from './ui/App.jsx';
 import { Data } from '../engine/core/Data.js';
@@ -14,14 +14,15 @@ Object.assign(EditorCore.prototype, {
       if (this._thumbQ.length === 1) requestAnimationFrame(() => this._thumbNext());
     });
   },
-  _thumbNext() {
+  async _thumbNext() {
     const job = this._thumbQ[0];
     if (!job) return;
     const size = 96;
     const r = this.engine.renderer;
     if (!this._thumbRT) {
-      this._thumbRT = new THREE.WebGLRenderTarget(size, size, { samples: 4 });
-      this._thumbRT.texture.colorSpace = THREE.SRGBColorSpace;
+      // tone mapped + sRGB in the materials (flagged as an output target, render/Grade.js)
+      this._thumbRT = new THREE.RenderTarget(size, size, { samples: 4 });
+      this._thumbRT.mcOutput = true;
     }
     if (!this._thumbScene) {
       const sc = (this._thumbScene = new THREE.Scene());
@@ -41,22 +42,21 @@ Object.assign(EditorCore.prototype, {
       const rad = Math.max(s.x, s.y, s.z) * 0.75 + 0.05;
       this._thumbCam.position.set(c.x + rad * 1.6, c.y + rad * 1.0, c.z + rad * 1.9);
       this._thumbCam.lookAt(c);
-      const prev = r.getRenderTarget(), prevTM = r.toneMapping;
+      const prev = r.getRenderTarget(), prevClear = r.getClearColor(new THREE.Color()), prevAlpha = r.getClearAlpha();
       r.setRenderTarget(this._thumbRT);
-      r.setClearColor(0x2a313a, 1);
-      r.clear();
+      // the target holds display values: the clear colour as is
+      r.setClearColor(new THREE.Color().setRGB(0x2a / 255, 0x31 / 255, 0x3a / 255, THREE.LinearSRGBColorSpace), 1);
       r.render(this._thumbScene, this._thumbCam);
-      const px = new Uint8Array(size * size * 4);
-      r.readRenderTargetPixels(this._thumbRT, 0, 0, size, size, px);
       r.setRenderTarget(prev);
-      r.setClearColor(0x000000, 0);
-      r.toneMapping = prevTM;
+      r.setClearColor(prevClear, prevAlpha);
       this._thumbScene.remove(mesh);
+      // WebGPU rows run top-down: no flip
+      const px = await r.readRenderTargetPixelsAsync(this._thumbRT, 0, 0, size, size);
       const cv = document.createElement('canvas');
       cv.width = cv.height = size;
       const ctx = cv.getContext('2d');
       const img = ctx.createImageData(size, size);
-      for (let y = 0; y < size; y++) img.data.set(px.subarray((size - 1 - y) * size * 4, (size - y) * size * 4), y * size * 4);
+      img.data.set(px.subarray(0, size * size * 4));
       ctx.putImageData(img, 0, 0);
       url = cv.toDataURL();
     } catch (e) { console.warn('thumb', job.name, e); }

@@ -1,9 +1,8 @@
 // Atmosphere: a near haze (exponential height fog, the air denser low down: valleys, the sea, the
 // beach) on top of the far fog, so mid distances get some air without the horizon going white.
-// Both are computed per vertex in every lit material (Lighting.patch replaces three.js's fog
-// chunks, the water shader calls the same function) and applied before tone mapping, in the same
-// linear space as the sky: the far fog is the sky's horizon colour + its sun glow, so distant
-// silhouettes melt into the sky.
+// Both are the scene's fog node (scene.fogNode: every material with `fog` gets it, the water calls
+// the same function) and are applied before tone mapping, in the same linear space as the sky: the
+// far fog is the sky's horizon colour + its sun glow, so distant silhouettes melt into the sky.
 //
 //  - haze: extinction `density` (per m) at `base` height, divided by e every `height` m above it,
 //    integrated along the ray from `start` m out; its opacity rolls off toward `max` (past it the far
@@ -25,7 +24,9 @@
 // banks are two fetches of a baked tiling noise texture, whatever depends on the camera alone (the
 // air around it, the density at its height) is computed on the CPU, the sun glows are powers by
 // squaring, and nothing is computed with the fog off.
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { Fn, If, float, vec2, vec3, vec4, max, min, abs, exp, length, dot, select, texture, varying, output, cameraPosition, positionWorld, positionView, cameraWorldMatrix } from 'three/tsl';
+import { U } from './tsl.js';
 
 // player setting: x the optical depth of the haze and the far fog (Options menu, F2, ?fog=<strength>)
 export const FOG_STRENGTH = 0.2;
@@ -52,57 +53,6 @@ export const HAZE_DEFAULTS = {
 // between them, NOISE_TEXELS texels a side (linear filtering in between)
 const NOISE_CELLS = 32, NOISE_TEXELS = 256;
 
-/** Vertex code: `hazeVertex(mvPosition.xyz)` writes vHaze, the haze's opacity (one float: on a
- *  tile GPU every varying is paid per triangle; a vec4 here cost ~1 ms of the frame). */
-export const HAZE_VERT_GLSL = /* glsl */ `
-uniform vec4 hazeA; // density (time of day, breathing, strength), 1 / height, base, max opacity
-uniform vec4 hazeB; // start (m), far fog density, variation x 1.6, 1 / bank size
-uniform vec4 hazeC; // sun glow, density factor at the camera's height, the banks around the camera
-uniform vec4 hazeDrift; // the two noise octaves' offsets (wind)
-uniform sampler2D hazeNoise;
-varying float vHaze;
-void hazeVertex(vec3 mv) {
-  vHaze = 0.0;
-  if (hazeA.x <= 0.0) return; // no haze (fog off, or the far fog alone)
-  vec3 rel = (vec4(mv, 0.0) * viewMatrix).xyz; // camera -> vertex, world space
-  float d = length(rel);
-  vec3 rd = rel / max(d, 1e-4);
-  // drifting banks where the ray ends (hazier / clearer stretches of the landscape); those around
-  // the camera (the air you stand in) come from the CPU: hazeC.z
-  vec2 q = (cameraPosition.xz + rd.xz * min(d, 2000.0)) * (hazeB.w * ${(1 / NOISE_CELLS).toFixed(6)});
-  float n = texture2D(hazeNoise, q + hazeDrift.xy).r * 0.65 + texture2D(hazeNoise, q * 2.3 + hazeDrift.zw).r * 0.35 - 0.5;
-  float dens = hazeA.x * max(1.0 + hazeC.z + hazeB.z * n, 0.0);
-  float mx = min(hazeA.w * max(1.0 + hazeB.z * 1.4 * n, 0.2), 0.95);
-  // exponential height fog integrated along the ray, past the start distance (hazeC.y: the
-  // density factor at the camera's height)
-  float t = max(d - hazeB.x, 0.0);
-  float k = max(hazeA.y * rd.y * t, -20.0);
-  float od = dens * hazeC.y * t * (abs(k) > 1e-3 ? (1.0 - exp(-k)) / k : 1.0 - 0.5 * k);
-  vHaze = mx * (1.0 - exp(-od / max(mx, 1e-3)));
-}
-`;
-
-/** Fragment code: `hazeFrag(rel)` (rel: camera -> point, world space) = (light scattered in,
- *  transmittance): the haze of vHaze + the far fog, coloured toward the sun, per pixel. */
-export const HAZE_FRAG_GLSL = /* glsl */ `
-uniform vec4 hazeA, hazeB, hazeC;
-uniform vec3 hazeCol, hazeFogCol, hazeSunCol, hazeSunDir;
-varying float vHaze;
-vec4 hazeFrag(vec3 rel) {
-  if (hazeA.x <= 0.0 && hazeB.y <= 0.0) return vec4(0.0, 0.0, 0.0, 1.0); // fog off
-  float d = length(rel);
-  float fd = hazeB.y * d;
-  float far = 1.0 - exp(-fd * fd);
-  // colours: the far fog is the sky at the horizon (Lighting.js sky: horizon + the sun's glow,
-  // cos^8 and cos^90), the haze's glow cos^6
-  float s1 = max(dot(rel, hazeSunDir) / max(d, 1e-4), 0.0);
-  float s2 = s1 * s1, s4 = s2 * s2, s6 = s4 * s2, s8 = s4 * s4, s16 = s8 * s8, s64 = s16 * s16; s64 *= s64;
-  vec3 fogC = hazeFogCol + hazeSunCol * (s8 * 0.18 + s64 * s16 * s8 * s2 * 0.5);
-  vec3 hzC = hazeCol + hazeSunCol * (hazeC.x * s6);
-  return vec4(hzC * (vHaze * (1.0 - far)) + fogC * far, (1.0 - vHaze) * (1.0 - far));
-}
-`;
-
 function bakeNoise() {
   let seed = 0x6d2b79f5;
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -110,12 +60,12 @@ function bakeNoise() {
   const lat = Float32Array.from({ length: C * C }, rnd);
   const at = (i, j) => lat[(j % C) * C + (i % C)];
   const sm = (x) => x * x * (3 - 2 * x);
-  const data = new Uint8Array(N * N);
+  const data = new Uint8Array(N * N * 4);
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / T, v = y / T, i = Math.floor(u), j = Math.floor(v), fx = sm(u - i), fy = sm(v - j);
       const a = at(i, j) + (at(i + 1, j) - at(i, j)) * fx, b = at(i, j + 1) + (at(i + 1, j + 1) - at(i, j + 1)) * fx;
-      data[y * N + x] = Math.round((a + (b - a) * fy) * 255);
+      data[(y * N + x) * 4] = Math.round((a + (b - a) * fy) * 255);
     }
   }
   return data;
@@ -128,25 +78,26 @@ export class Haze {
   constructor(lighting) {
     this.lighting = lighting;
     const skyU = lighting.skyU;
-    // shared by every patched material (and the water)
+    // shared by every material (and the water)
     this.uniforms = {
-      hazeA: { value: new THREE.Vector4() },
-      hazeB: { value: new THREE.Vector4() },
-      hazeC: { value: new THREE.Vector4() },
-      hazeDrift: { value: new THREE.Vector4() },
-      hazeCol: { value: new THREE.Color() },
+      hazeA: U(new THREE.Vector4()), // density (time of day, breathing, strength), 1 / height, base, max opacity
+      hazeB: U(new THREE.Vector4()), // start (m), far fog density, variation x 1.6, 1 / bank size
+      hazeC: U(new THREE.Vector4()), // sun glow, density factor at the camera's height, the banks around the camera
+      hazeDrift: U(new THREE.Vector4()), // the two noise octaves' offsets (wind)
+      hazeCol: U(new THREE.Color()),
       hazeFogCol: skyU.horizon,
       hazeSunCol: skyU.sunCol,
       hazeSunDir: skyU.sunDir,
-      hazeNoise: { value: null },
+      hazeNoise: null,
     };
-    this.noise = bakeNoise();
-    const tex = new THREE.DataTexture(this.noise, NOISE_TEXELS, NOISE_TEXELS, THREE.RedFormat, THREE.UnsignedByteType);
+    const rgba = bakeNoise();
+    this.noise = rgba.filter((_, i) => i % 4 === 0);
+    const tex = new THREE.DataTexture(rgba, NOISE_TEXELS, NOISE_TEXELS, THREE.RGBAFormat, THREE.UnsignedByteType);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.minFilter = tex.magFilter = THREE.LinearFilter;
     tex.generateMipmaps = false;
     tex.needsUpdate = true;
-    this.uniforms.hazeNoise.value = tex;
+    this.uniforms.hazeNoise = texture(tex);
     this.cfg = structuredClone(HAZE_DEFAULTS.haze);
     this.time = 0;
     this.factor = 1; // time of day multiplier of the density (debug / tools)
@@ -154,6 +105,10 @@ export class Haze {
     this.strength = FOG_STRENGTH;
     const p = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('fog') : null;
     if (p !== null) { this.enabled = p !== '0'; if (+p > 0) this.strength = +p; }
+    this.vertexFn = this._vertexFn();
+    this.fragFn = this._fragFn();
+    // the scene's fog: the haze over everything drawn with `fog` (lit materials, decals, the water)
+    this.fogNode = this.node();
   }
 
   /** Player setting: fog (haze + far fog) on / off. */
@@ -193,6 +148,7 @@ export class Haze {
     u.hazeA.value.set(c.density * this.factor * breath * k, 1 / height, c.base, 1 - (1 - Math.min(c.max, 0.95)) ** k);
     // exp2: the density scales the distance, so x sqrt(k) = x k optical depth
     const far = (this.fogDensity ?? 0) * (1 + (this.night ?? 0) * 0.6) * Math.sqrt(k);
+    this.farDensity = far;
     const V = c.variation * 1.6, inv = 1 / Math.max(c.scale, 1);
     u.hazeB.value.set(c.start, far, V, inv);
     // what depends on the camera alone: the density at its height, the banks around it
@@ -200,8 +156,6 @@ export class Haze {
     const x = (cam.x * inv) / NOISE_CELLS, z = (cam.z * inv) / NOISE_CELLS;
     const n = this._noise(x + dr.x, z + dr.y) * 0.65 + this._noise(x * 2.3 + dr.z, z * 2.3 + dr.w) * 0.35 - 0.5;
     u.hazeC.value.set(c.sun, Math.exp(-Math.max(cam.y - c.base, -30) / height), V * n, 0);
-    // the few unpatched materials (tracers) and the light halos' fade read three.js's fog
-    if (this.lighting.scene.fog) this.lighting.scene.fog.density = far;
   }
 
   /** The noise texture as the GPU filters it (uv in texture repeats). */
@@ -226,32 +180,64 @@ export class Haze {
     this._apply();
   }
 
-  /** Replace three.js's fog with the haze in a material's shader (onBeforeCompile). */
-  inject(sh) {
-    Object.assign(sh.uniforms, this.uniforms);
-    // the view position: lit materials pass it already (vViewPosition), unlit ones get their own
-    const own = !sh.vertexShader.includes('varying vec3 vViewPosition');
-    const view = own ? 'varying vec3 vHazeView;\n#define HAZE_VIEW vHazeView' : '#define HAZE_VIEW vViewPosition';
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <fog_pars_vertex>', `#ifdef USE_FOG\n${HAZE_VERT_GLSL}\n${own ? 'varying vec3 vHazeView;' : ''}\n#endif`)
-      .replace('#include <fog_vertex>', `#ifdef USE_FOG\nhazeVertex(mvPosition.xyz);\n${own ? 'vHazeView = -mvPosition.xyz;' : ''}\n#endif`);
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <fog_pars_fragment>', `#ifdef USE_FOG\n${HAZE_FRAG_GLSL}\n${view}\n#endif`)
-      .replace('#include <fog_fragment>', '')
-      // linear, before tone mapping (the sky's space)
-      .replace('#include <tonemapping_fragment>', `#ifdef USE_FOG
-        { vec4 hz = hazeFrag((vec4(-HAZE_VIEW, 0.0) * viewMatrix).xyz); gl_FragColor.rgb = gl_FragColor.rgb * hz.a + hz.rgb; }
-        #endif
-        #include <tonemapping_fragment>`);
+  /** Vertex stage: fn(rel = camera -> vertex, world) -> the haze's opacity. */
+  _vertexFn() {
+    const u = this.uniforms;
+    return Fn(([rel]) => {
+      const out = float(0.0).toVar();
+      If(u.hazeA.x.greaterThan(0.0), () => {
+        const d = length(rel).toVar();
+        const rd = rel.div(max(d, 1e-4)).toVar();
+        // drifting banks where the ray ends (hazier / clearer stretches of the landscape); those around
+        // the camera (the air you stand in) come from the CPU: hazeC.z
+        const q = cameraPosition.xz.add(rd.xz.mul(min(d, 2000.0))).mul(u.hazeB.w.mul(1 / NOISE_CELLS)).toVar();
+        const n = u.hazeNoise.sample(q.add(u.hazeDrift.xy)).level(0).r.mul(0.65).add(u.hazeNoise.sample(q.mul(2.3).add(u.hazeDrift.zw)).level(0).r.mul(0.35)).sub(0.5).toVar();
+        const dens = u.hazeA.x.mul(max(float(1.0).add(u.hazeC.z).add(u.hazeB.z.mul(n)), 0.0));
+        const mx = min(u.hazeA.w.mul(max(float(1.0).add(u.hazeB.z.mul(1.4).mul(n)), 0.2)), 0.95).toVar();
+        // exponential height fog integrated along the ray, past the start distance (hazeC.y: the
+        // density factor at the camera's height)
+        const t = max(d.sub(u.hazeB.x), 0.0);
+        const k = max(u.hazeA.y.mul(rd.y).mul(t), -20.0).toVar();
+        const od = dens.mul(u.hazeC.y).mul(t).mul(select(abs(k).greaterThan(1e-3), float(1.0).sub(exp(k.negate())).div(k), float(1.0).sub(k.mul(0.5))));
+        out.assign(mx.mul(float(1.0).sub(exp(od.negate().div(max(mx, 1e-3))))));
+      });
+      return out;
+    });
   }
 
-  /** The haze on an unlit (MeshBasic) material, e.g. decals. */
-  patch(mat) {
-    const prev = mat.onBeforeCompile;
-    mat.onBeforeCompile = (sh, r) => { prev?.call(mat, sh, r); this.inject(sh); };
-    const pk = mat.customProgramCacheKey?.bind(mat);
-    mat.customProgramCacheKey = () => (pk ? pk() : '') + '|haze';
-    mat.needsUpdate = true;
-    return mat;
+  /** Fragment: fn(rel = camera -> point, world; haze opacity) -> vec4(light scattered in,
+   *  transmittance): the haze + the far fog, coloured toward the sun, per pixel. */
+  _fragFn() {
+    const u = this.uniforms;
+    return Fn(([rel, vHaze]) => {
+      const res = vec4(0.0, 0.0, 0.0, 1.0).toVar();
+      If(u.hazeA.x.greaterThan(0.0).or(u.hazeB.y.greaterThan(0.0)), () => {
+        const d = length(rel).toVar();
+        const fd = u.hazeB.y.mul(d);
+        const far = float(1.0).sub(exp(fd.mul(fd).negate())).toVar();
+        // colours: the far fog is the sky at the horizon (Lighting.js sky: horizon + the sun's glow,
+        // cos^8 and cos^90), the haze's glow cos^6
+        const s1 = max(dot(rel, u.hazeSunDir).div(max(d, 1e-4)), 0.0);
+        const s2 = s1.mul(s1), s4 = s2.mul(s2), s6 = s4.mul(s2), s8 = s4.mul(s4), s16 = s8.mul(s8), s32 = s16.mul(s16), s64 = s32.mul(s32);
+        const fogC = u.hazeFogCol.add(u.hazeSunCol.mul(s8.mul(0.18).add(s64.mul(s16).mul(s8).mul(s2).mul(0.5))));
+        const hzC = u.hazeCol.add(u.hazeSunCol.mul(u.hazeC.x.mul(s6)));
+        res.assign(vec4(hzC.mul(vHaze.mul(far.oneMinus())).add(fogC.mul(far)), vHaze.oneMinus().mul(far.oneMinus())));
+      });
+      return res;
+    });
+  }
+
+  /** Camera -> fragment (world), from the view position the lit materials already pass. */
+  relFrag() { return cameraWorldMatrix.mul(vec4(positionView, 0.0)).xyz; }
+
+  /** The fog node: output.rgb x transmittance + scattered light. */
+  node() {
+    return Fn(() => {
+      const vHaze = varying(this.vertexFn(positionWorld.sub(cameraPosition)), 'vHaze');
+      const hz = this.fragFn(this.relFrag(), vHaze);
+      return vec4(output.rgb.mul(hz.a).add(hz.rgb), output.a);
+    })();
   }
 }
+
+export { vec2, vec3 };
