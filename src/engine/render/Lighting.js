@@ -32,6 +32,7 @@ import { skyCloudsFn } from './clouds.js';
 import { Surfaces } from './Surfaces.js';
 import { U, isInstanced, instanceMatrix, instanceTint } from './tsl.js';
 import { lodVisible } from './LodFade.js';
+import { FOLIAGE_BASE } from '../assets/surfaces.js';
 
 // ao: SSAO samples per pixel (0 = off)
 export const QUALITY = {
@@ -131,6 +132,7 @@ class ProbeLightNode extends THREE.LightingNode {
   setup(builder) {
     const L = this.L, m = builder.material, ctx = builder.context;
     const amb = L.gi.ambientFn()(fragWorldPos(), normalWorld).toVar('giAmb');
+    giDbg.assign(amb.rgb);
     ctx.irradiance.addAssign(amb.rgb);
     if (m.isMeshStandardNodeMaterial && ctx.radiance) {
       // indirect specular from the sky (no environment map): the sky gradient around the reflected
@@ -380,6 +382,14 @@ export class Lighting {
    *  smooth:    smooth shading (characters) instead of faceted (untextured Lambert path)
    */
   material(opts = {}) {
+    if (opts.textured) {
+      // one shader for most assets: wind and the foliage look are per-vertex data (wind 0 = rigid,
+      // crown normals of length 2 = leaves), so they don't split materials (pipelines, draws);
+      // emissive stays an option (its varying costs on tile GPUs), cut-out / two sides are
+      // pipeline state
+      const cutout = !!opts.cutout;
+      opts = { textured: true, cutout, doubleSided: !!opts.doubleSided || cutout, emissive: !!opts.emissive, wind: true, foliage: true, ...(opts.color !== undefined && { color: opts.color }), ...(opts.transparent && { transparent: true }), ...(opts.vertexColors === false && { vertexColors: false }) };
+    }
     const key = JSON.stringify(opts);
     let m = this.materials.get(key);
     if (m) return m;
@@ -491,8 +501,11 @@ export class Lighting {
         ST.metal.assign(materialMetalness);
         ST.leaf.assign(0.0);
         ST.specK.assign(1.0);
-        ST.normal.assign(doubleSided && !opts.foliage ? normalViewGeometry.mul(faceDirection) : normalViewGeometry);
-        if (builder.geometry?.attributes?.surface) surf.sample(ST, { alphaToCoverage: a2c, doubleSided: doubleSided && !opts.foliage });
+        // two-sided: flip the back faces' normal, but a leaf's both sides share the outward normal
+        const hasSurf = !!builder.geometry?.attributes?.surface;
+        const leaf = hasSurf ? surf.varyings().sId.greaterThan(FOLIAGE_BASE - 0.5) : null;
+        ST.normal.assign(!doubleSided ? normalViewGeometry : leaf ? select(leaf, normalViewGeometry, normalViewGeometry.mul(faceDirection)) : normalViewGeometry.mul(faceDirection));
+        if (hasSurf) surf.sample(ST, { alphaToCoverage: a2c, doubleSided });
         return vec4(ST.color, ST.alpha);
       })();
       m.normalNode = ST.normal;

@@ -13,7 +13,7 @@ import * as THREE from 'three/webgpu';
 import { Fn, If, float, int, ivec2, vec2, vec3, vec4, max, abs, pow, mix, clamp, length, normalize, smoothstep, sign, select, uniformArray, renderGroup, texture, attribute, varying, positionLocal, normalLocal, modelWorldMatrix, cameraPosition, cameraViewMatrix, mat3 } from 'three/tsl';
 import { TERRAIN_MATERIALS } from '../world/TerrainData.js';
 import { surfRel, luma } from './Surfaces.js';
-import { U } from './tsl.js';
+import { U, tex } from './tsl.js';
 import { ST } from './Lighting.js';
 
 const N = 16; // material slots (TERRAIN_MATERIALS ids)
@@ -42,7 +42,7 @@ export function terrainMaterial(lighting, terrain) {
   ids.needsUpdate = true;
   const arr = (a) => uniformArray(a, 'vec4').setGroup(renderGroup);
   const u = {
-    terIds: texture(ids),
+    terIds: tex(ids),
     terMat: arr(info), // rgb: palette colour (linear), a: layer
     terMat2: arr(info2), // x: uv per m, y: roughness scale, z: normal strength, w: chroma
     terMean: arr(means), // per layer: 1 / mean albedo, mean luminance
@@ -55,32 +55,46 @@ export function terrainMaterial(lighting, terrain) {
   const vCol = varying(attribute('color', 'vec3'), 'vColor');
 
   // one layer: albedo (a = height) + normal (world) + roughness, top or triplanar projection,
-  // near detail scale mixed with a large scale that breaks the tiling with distance
-  const layer = (id, P, Nw, bw, tri, far) => {
-    const mi = u.terMat.element(id).toVar(), m2 = u.terMat2.element(id).toVar();
-    const L = int(mi.a), k = m2.x;
-    const alb = vec4(0.0).toVar(), nW = vec3(0.0).toVar(), nt = vec4(0.0).toVar();
-    If(tri.not(), () => {
+  // near detail scale mixed with a large scale that breaks the tiling with distance. Two WGSL
+  // functions (albedo, normal + roughness): each samples its own texture array only.
+  const IN = [{ name: 'id', type: 'int' }, { name: 'P', type: 'vec3' }, { name: 'Nw', type: 'vec3' }, { name: 'bw', type: 'vec3' }, { name: 'tri', type: 'float' }, { name: 'far', type: 'float' }];
+  const terAlb = Fn(([id, P, Nw, bw, tri, far]) => {
+    const mi = u.terMat.element(id).toVar(), k = u.terMat2.element(id).x;
+    const L = int(mi.a).toVar();
+    const alb = vec4(0.0).toVar();
+    If(tri.lessThan(0.5), () => {
       const uv = P.xz.mul(k).toVar();
       alb.assign(SU.terAlbedo.sample(uv).depth(L));
-      nt.assign(SU.terNormal.sample(uv).depth(L));
       If(far.greaterThan(0.0), () => {
         const a2 = SU.terAlbedo.sample(uv.mul(0.173).add(vec2(0.31, 0.77))).depth(L);
         alb.rgb.assign(mix(alb.rgb, a2.rgb, far.mul(0.55)));
       });
+    }).Else(() => {
+      alb.assign(SU.terAlbedo.sample(P.zy.mul(k)).depth(L).mul(bw.x).add(SU.terAlbedo.sample(P.xz.mul(k)).depth(L).mul(bw.y)).add(SU.terAlbedo.sample(P.xy.mul(k)).depth(L).mul(bw.z)));
+    });
+    alb.rgb.assign(mi.rgb.mul(surfRel(alb.rgb, u.terMean.element(L), u.terMat2.element(id).w, 1.0)));
+    return alb;
+  }).setLayout({ name: 'terAlbedo', type: 'vec4', inputs: IN });
+  const terNrm = Fn(([id, P, Nw, bw, tri]) => {
+    const m2 = u.terMat2.element(id).toVar();
+    const L = int(u.terMat.element(id).a).toVar(), k = m2.x;
+    const nW = vec3(0.0).toVar(), nt = vec4(0.0).toVar();
+    If(tri.lessThan(0.5), () => {
+      nt.assign(SU.terNormal.sample(P.xz.mul(k)).depth(L));
       const t = nt.xy.mul(2.0).sub(1.0).mul(m2.z);
       nW.assign(vec3(t.x, 0.0, t.y));
     }).Else(() => {
-      const ux = P.zy.mul(k), uy = P.xz.mul(k), uz = P.xy.mul(k);
-      alb.assign(SU.terAlbedo.sample(ux).depth(L).mul(bw.x).add(SU.terAlbedo.sample(uy).depth(L).mul(bw.y)).add(SU.terAlbedo.sample(uz).depth(L).mul(bw.z)));
-      const nx = SU.terNormal.sample(ux).depth(L).toVar(), ny = SU.terNormal.sample(uy).depth(L).toVar(), nz = SU.terNormal.sample(uz).depth(L).toVar();
+      const nx = SU.terNormal.sample(P.zy.mul(k)).depth(L).toVar(), ny = SU.terNormal.sample(P.xz.mul(k)).depth(L).toVar(), nz = SU.terNormal.sample(P.xy.mul(k)).depth(L).toVar();
       nt.assign(nx.mul(bw.x).add(ny.mul(bw.y)).add(nz.mul(bw.z)));
       const tx = nx.xy.mul(2.0).sub(1.0).mul(m2.z), ty = ny.xy.mul(2.0).sub(1.0).mul(m2.z), tz = nz.xy.mul(2.0).sub(1.0).mul(m2.z);
       nW.assign(vec3(0.0, tx.y, tx.x.mul(sign(Nw.x))).mul(bw.x).add(vec3(ty.x, 0.0, ty.y).mul(bw.y)).add(vec3(tz.x.mul(sign(Nw.z)), tz.y, 0.0).mul(bw.z)));
     });
-    alb.rgb.assign(mi.rgb.mul(surfRel(alb.rgb, u.terMean.element(L), m2.w, 1.0)));
-    const rough = clamp(nt.b.mul(m2.y), 0.04, 1.0);
-    return { alb, nW, rough };
+    return vec4(nW, clamp(nt.b.mul(m2.y), 0.04, 1.0));
+  }).setLayout({ name: 'terNormal', type: 'vec4', inputs: IN.slice(0, 5) });
+  const layer = (id, P, Nw, bw, tri, far) => {
+    const alb = terAlb(id, P, Nw, bw, tri, far).toVar();
+    const nr = terNrm(id, P, Nw, bw, tri).toVar();
+    return { alb, nW: nr.xyz, rough: nr.w };
   };
 
   mat.colorNode = Fn(() => {
@@ -93,11 +107,11 @@ export function terrainMaterial(lighting, terrain) {
     const id = (o) => int(u.terIds.load(c0.add(ivec2(...o))).r.mul(255.0).add(0.5)).toVar();
     const i0 = id([0, 0]), i1 = id([1, 0]), i2 = id([0, 1]), i3 = id([1, 1]);
     // projection: top on gentle ground, triplanar on slopes
-    const tri = Nw.y.lessThan(0.78).toVar();
+    const tri = select(Nw.y.lessThan(0.78), float(1.0), float(0.0)).toVar();
     const bw0 = pow(abs(Nw), vec3(4.0));
     const bw = bw0.div(bw0.x.add(bw0.y).add(bw0.z)).toVar();
     const dist = length(P.sub(cameraPosition)).toVar();
-    const far = select(tri, float(0.0), smoothstep(12.0, 90.0, dist)).toVar();
+    const far = select(tri.greaterThan(0.5), float(0.0), smoothstep(12.0, 90.0, dist)).toVar();
     const col = vec3(0.0).toVar(), nAcc = vec3(0.0).toVar(), rAcc = float(1.0).toVar();
     const l0 = layer(i0, P, Nw, bw, tri, far);
     // Written out without arrays or loops: the generic 4-layer loop (local arrays indexed in a

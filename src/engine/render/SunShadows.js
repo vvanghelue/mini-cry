@@ -28,7 +28,7 @@
 import * as THREE from 'three/webgpu';
 import { Fn, If, float, ivec2, vec2, vec3, vec4, mix, min, max, length, smoothstep, select, texture, cameraPosition } from 'three/tsl';
 import { LAYERS } from './layers.js';
-import { U, ndcToUv } from './tsl.js';
+import { U, T, ndcToUv, tex } from './tsl.js';
 import { lodPassMode } from './LodFade.js';
 
 const MAX = 3;
@@ -53,7 +53,7 @@ export class SunShadows {
       sunSplit: U(new THREE.Vector2(1e8, 2e8)), // past these horizontal distances only the last cascade (it alone has the far trees)
       sunBlend: U(0.06), // blend band at a cascade's border (fraction of its width, edge distance in uv)
       sunDebug: U(0), // 1: tint by cascade (debug panel)
-      sunMap: Array.from({ length: MAX }, () => texture(dummy)),
+      sunMap: Array.from({ length: MAX }, (_, i) => T(tex(dummy), `SunMap${i}`)),
     };
     this.casterReach = new Map(); // caster set -> distance its far casters stop at (setCasterReach)
     // live tuning (debug panel): fade length (fraction of the distance), the distance clamp to the
@@ -275,64 +275,60 @@ export class SunShadows {
 
   // --- shader side ------------------------------------------------------------------------------
 
-  /** fn(P world, N world geometry normal, NdL) -> shadow factor (1 = lit). */
+  /** fn(P world, N world normal, NdL) -> shadow factor (1 = lit). Real WGSL functions (layouts),
+   *  not inlined TSL: one copy of the code per shader, small graphs to build. */
   _shadowFn() {
     const u = this.uniforms;
-    const pcf = (i, c) => {
-      // rotated 4-tap pattern (each tap is a hardware 2x2 bilinear compare)
-      const p = u.sunParams[i], t = vec2(p.y.mul(p.w)), m = u.sunMap[i];
-      const tap = (dx, dy) => m.sample(c.xy.add(vec2(t.x.mul(dx), t.y.mul(dy)))).compare(c.z);
-      return tap(-1, -0.5).add(tap(0.5, -1)).add(tap(1, 0.5)).add(tap(-0.5, 1)).mul(0.25);
-    };
-    const coord = (i, P, N, NdL) => {
+    const P3 = [{ name: 'P', type: 'vec3' }, { name: 'N', type: 'vec3' }, { name: 'NdL', type: 'float' }];
+    // cascade i: vec2(shadow, edge distance in uv; <= 0 outside), the PCF taps only inside
+    const cascade = (i) => Fn(([P, N, NdL]) => {
       const p = u.sunParams[i];
       const nb = p.x.mul(NdL.oneMinus().mul(2.5).add(1.0)).mul(max(p.w, 1.0));
-      const c = u.sunMat[i].mul(vec4(P.add(N.mul(nb)), 1.0));
-      return vec3(ndcToUv(c), c.z.sub(p.z));
-    };
-    const edge = (c) => select(c.z.greaterThanEqual(1.0).or(c.z.lessThanEqual(0.0)), float(-1.0), min(min(c.x, c.x.oneMinus()), min(c.y, c.y.oneMinus())));
-    // written out per cascade, no loop over an index (loops picking samplers / uniform arrays by
-    // index compile badly on Apple GPUs). Smallest cascade containing the point; across the blend
-    // band at its border, mix with the next one (or fade out after the last).
-    const next = (i, P, N, NdL) => Fn(() => {
+      const c4 = u.sunMat[i].mul(vec4(P.add(N.mul(nb)), 1.0));
+      const c = vec3(ndcToUv(c4), c4.z.sub(p.z)).toVar();
+      const e = select(c.z.greaterThanEqual(1.0).or(c.z.lessThanEqual(0.0)).or(u.sunCascades.lessThanEqual(i)), float(-1.0), min(min(c.x, c.x.oneMinus()), min(c.y, c.y.oneMinus()))).toVar();
       const s = float(1.0).toVar();
-      If(u.sunCascades.greaterThan(i), () => {
-        const c = coord(i, P, N, NdL).toVar();
-        If(edge(c).greaterThan(0.0), () => { s.assign(pcf(i, c)); });
+      If(e.greaterThan(0.0), () => {
+        // rotated 4-tap pattern (each tap is a hardware 2x2 bilinear compare)
+        const t = vec2(p.y.mul(p.w)).toVar(), m = u.sunMap[i];
+        const tap = (dx, dy) => m.sample(c.xy.add(vec2(t.x.mul(dx), t.y.mul(dy)))).compare(c.z);
+        s.assign(tap(-1, -0.5).add(tap(0.5, -1)).add(tap(1, 0.5)).add(tap(-0.5, 1)).mul(0.25));
       });
-      return s;
-    })();
+      return vec2(s, e);
+    }).setLayout({ name: `sunCascade${i}`, type: 'vec2', inputs: P3 });
+    const C = [cascade(0), cascade(1), cascade(2)];
+    // smallest cascade containing the point; across the blend band at its border, mix with the
+    // next one (or fade out after the last)
     const cascaded = Fn(([P, N, NdL]) => {
       const s = float(1.0).toVar();
-      const c0 = coord(0, P, N, NdL).toVar(), e0 = edge(c0).toVar();
-      If(e0.greaterThan(0.0), () => {
-        const s0 = pcf(0, c0).toVar();
-        If(e0.greaterThanEqual(u.sunBlend), () => { s.assign(s0); }).Else(() => { s.assign(mix(next(1, P, N, NdL), s0, smoothstep(0.0, u.sunBlend, e0))); });
+      const c0 = C[0](P, N, NdL).toVar();
+      If(c0.y.greaterThan(0.0), () => {
+        If(c0.y.greaterThanEqual(u.sunBlend), () => { s.assign(c0.x); }).Else(() => {
+          const c1 = C[1](P, N, NdL).toVar();
+          s.assign(mix(select(c1.y.greaterThan(0.0), c1.x, float(1.0)), c0.x, smoothstep(0.0, u.sunBlend, c0.y)));
+        });
       }).Else(() => {
-        If(u.sunCascades.greaterThanEqual(2), () => {
-          const c1 = coord(1, P, N, NdL).toVar(), e1 = edge(c1).toVar();
-          If(e1.greaterThan(0.0), () => {
-            const s1 = pcf(1, c1).toVar();
-            If(e1.greaterThanEqual(u.sunBlend), () => { s.assign(s1); }).Else(() => { s.assign(mix(next(2, P, N, NdL), s1, smoothstep(0.0, u.sunBlend, e1))); });
-          }).Else(() => {
-            If(u.sunCascades.greaterThanEqual(3), () => {
-              const c2 = coord(2, P, N, NdL).toVar(), e2 = edge(c2).toVar();
-              If(e2.greaterThan(0.0), () => { s.assign(mix(1.0, pcf(2, c2), smoothstep(0.0, u.sunBlend, e2))); });
-            });
+        const c1 = C[1](P, N, NdL).toVar();
+        If(c1.y.greaterThan(0.0), () => {
+          If(c1.y.greaterThanEqual(u.sunBlend), () => { s.assign(c1.x); }).Else(() => {
+            const c2 = C[2](P, N, NdL).toVar();
+            s.assign(mix(select(c2.y.greaterThan(0.0), c2.x, float(1.0)), c1.x, smoothstep(0.0, u.sunBlend, c1.y)));
           });
+        }).Else(() => {
+          const c2 = C[2](P, N, NdL).toVar();
+          If(c2.y.greaterThan(0.0), () => { s.assign(mix(1.0, c2.x, smoothstep(0.0, u.sunBlend, c2.y))); });
         });
       });
       return s;
-    });
+    }).setLayout({ name: 'sunCascaded', type: 'float', inputs: P3 });
+    // past the split: the last cascade alone (it has the far trees' impostor shadows)
     const last = Fn(([P, N, NdL]) => {
-      const s = float(1.0).toVar();
-      const one = (i) => {
-        const c = coord(i, P, N, NdL).toVar(), e = edge(c).toVar();
-        If(e.greaterThan(0.0), () => { s.assign(mix(1.0, pcf(i, c), smoothstep(0.0, u.sunBlend, e))); });
-      };
-      If(u.sunCascades.greaterThan(2), () => { one(2); }).ElseIf(u.sunCascades.greaterThan(1), () => { one(1); }).Else(() => { one(0); });
-      return s;
-    });
+      const c = vec2(1.0, -1.0).toVar();
+      If(u.sunCascades.greaterThan(2), () => { c.assign(C[2](P, N, NdL)); })
+        .ElseIf(u.sunCascades.greaterThan(1), () => { c.assign(C[1](P, N, NdL)); })
+        .Else(() => { c.assign(C[0](P, N, NdL)); });
+      return select(c.y.greaterThan(0.0), mix(1.0, c.x, smoothstep(0.0, u.sunBlend, c.y)), float(1.0));
+    }).setLayout({ name: 'sunLast', type: 'float', inputs: P3 });
     return Fn(([P, N, NdL]) => {
       const s = float(1.0).toVar();
       If(u.sunShadowOn.greaterThan(0.5).and(u.sunCascades.greaterThanEqual(1)), () => {
@@ -344,7 +340,7 @@ export class SunShadows {
         });
       });
       return s;
-    });
+    }).setLayout({ name: 'sunShadow', type: 'float', inputs: P3 });
   }
 
   /** Vertex stage variant (dust motes): one point-sampled tap of the first cascade containing P
@@ -391,7 +387,7 @@ export class SunShadows {
       const lastT = select(u.sunCascades.greaterThan(2), tintOf(2, P), select(u.sunCascades.greaterThan(1), tintOf(1, P), tintOf(0, P)));
       t.assign(mix(t, lastT, smoothstep(u.sunSplit.x, u.sunSplit.y, d)));
       return mix(t, vec3(1.0), smoothstep(u.sunFade.x, u.sunFade.y, d));
-    });
+    }).setLayout({ name: 'sunCascadeTint', type: 'vec3', inputs: [{ name: 'P', type: 'vec3' }] });
   }
 }
 

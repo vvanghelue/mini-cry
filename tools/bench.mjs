@@ -19,8 +19,10 @@
 // times; each half is the median of the per-frame GPU timer samples, and saved = base - off over
 // the pairs, so slow drift (thermal throttling of a fanless laptop, other apps) cancels out. --only
 // picks switches; --veg adds one switch per vegetation LOD level and per species. "res 50%" tells
-// fill-rate cost from geometry cost. Per-pass GPU timer queries are not used on purpose: on
-// ANGLE / Metal each query splits the pass and adds ~3 ms, more than most passes cost.
+// fill-rate cost from geometry cost. GPU ms = WebGPU timestamps around every pass, the time they
+// cover per frame (Perf.js). Without vsync a GPU-bound page runs ahead until WebGPU's command buffer
+// fills and then stalls ~20-40 ms every few dozen frames: that is the `worst` column (with vsync
+// the frames are even).
 // --veg-stats: per view, vegetation instances submitted / in their LOD range / tiny on screen,
 // vertex invocations and triangles rasterized per species and LOD (Vegetation.lodStats).
 import { ensureServer, launch, openApp, frames } from './lib/browser.js';
@@ -112,19 +114,14 @@ try {
     else await page.evaluate((v) => window.__mc.setView(v), v);
     await frames(page, 60); // settle (LODs, shader compiles, shadow cascades)
     const r = await page.evaluate(async (sec) => {
-      const e = window.__mc.engine;
-      const t0 = performance.now();
-      let n = 0, worst = 0, last = t0;
-      await new Promise((res) => {
-        const f = () => {
-          const now = performance.now();
-          worst = Math.max(worst, now - last);
-          last = now;
-          n++;
-          if (now - t0 < sec * 1000) requestAnimationFrame(f); else res();
-        };
-        requestAnimationFrame(f);
-      });
+      // rendered frames (not rAF ticks: Engine's frame pacing may hold a frame back, Engine.start)
+      const e = window.__mc.engine, prev = e.perf.onFrame;
+      const t0 = performance.now(), f0 = e.frameCount;
+      let worst = 0;
+      e.perf.onFrame = (cpu, fm) => { worst = Math.max(worst, fm); prev?.(cpu, fm); };
+      await new Promise((res) => setTimeout(res, sec * 1000));
+      e.perf.onFrame = prev;
+      const n = e.frameCount - f0;
       const s = e.perf.snapshot();
       // p95 frame time (ignores one-off hitches like a teleport)
       return { fps: +(n / ((performance.now() - t0) / 1000)).toFixed(1), worstMs: +worst.toFixed(1), cpuMs: s.cpuMs, gpuMs: s.gpuMs, calls: s.calls, tris: s.triangles, marks: s.marks };

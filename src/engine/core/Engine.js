@@ -8,6 +8,7 @@
 // Call `await engine.init()` once before rendering (WebGPU adapter / device).
 import * as THREE from 'three/webgpu';
 import { Fn, vec4, texture } from 'three/tsl';
+import { tex } from '../render/tsl.js';
 import { fxaa } from 'three/addons/tsl/display/FXAANode.js';
 import { Lighting, QUALITY } from '../render/Lighting.js';
 import { LAYERS } from '../render/layers.js';
@@ -46,6 +47,8 @@ export class Engine {
     this.lighting = new Lighting(renderer, this.scene, this.camera, { quality: this.quality });
     this.perf = new Perf(renderer);
     this.systems = [];
+    this.maxFramesInFlight = Number(new URLSearchParams(location.search).get('inflight')) || 4; // (frame pacing, _paced)
+    this._inFlight = 0;
     this.timeScale = 1;
     this.paused = false;
     this.running = false;
@@ -126,9 +129,31 @@ export class Engine {
         if (t < this._nextFrame - 2) return;
         this._nextFrame = t - this._nextFrame > step ? t + step : this._nextFrame + step;
       }
-      this.frame(t);
+      if (this._inFlight >= this.maxFramesInFlight) { this._held = t; return; }
+      this._paced(t);
     };
     this._raf = requestAnimationFrame(loop);
+  }
+
+  /**
+   * Frame pacing: at most `maxFramesInFlight` frames queued for the GPU. Without vsync (benches,
+   * tests) nothing else stops the page from queuing frames faster than a busy GPU runs them: Chrome
+   * then lets ~5 frames pile up in the Metal queue and blocks ~25 ms inside a WebGPU call while
+   * they drain, every few dozen frames. A frame held back is drawn as soon as the GPU catches up
+   * (not at the next rAF: a rAF that draws nothing falls back to a slow tick). With vsync no frame
+   * is held unless the GPU is slower than the display.
+   */
+  _paced(t) {
+    this._held = null;
+    this.frame(t);
+    const queue = this.renderer.backend?.device?.queue;
+    if (!queue) return;
+    this._inFlight++;
+    const done = () => {
+      this._inFlight--;
+      if (this._held != null && this.running) this._paced(performance.now());
+    };
+    queue.onSubmittedWorkDone().then(done, done);
   }
 
   stop() {
@@ -146,6 +171,7 @@ export class Engine {
     this.elapsed += dt;
     this.frameCount++;
     this.renderer.info.reset();
+    this.renderer.info.frame = this.frameCount; // (three only counts frames in its own loop: GPU timestamps per frame, Perf.js)
     for (const s of this.systems) if (s.update && s.enabled !== false) s.update(dt, this);
     for (const s of this.systems) if (s.lateUpdate && s.enabled !== false) s.lateUpdate(dt, this);
     this.render();
@@ -193,7 +219,7 @@ export class Engine {
     if (!f) {
       const rt = new THREE.RenderTarget(size.x, size.y, { type: THREE.UnsignedByteType, depthBuffer: true, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
       rt.mcOutput = true;
-      const src = texture(rt.texture);
+      const src = tex(rt.texture);
       const mat = new THREE.NodeMaterial();
       mat.fragmentNode = Fn(() => vec4(fxaa(src).rgb, 1.0))();
       mat.depthTest = mat.depthWrite = false;

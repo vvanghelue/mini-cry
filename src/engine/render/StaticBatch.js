@@ -69,7 +69,8 @@ export class StaticBatch {
     for (const it of s.items) {
       let b;
       try { b = this.assets.build(it.asset, { quality: q }); } catch { continue; }
-      const key = `${b.hasWind ? 'w' : ''}${b.hasEmissive ? 'e' : ''}${b.doubleSided ? 'd' : ''}${b.hasFoliage ? 'l' : ''}${b.hasCutout ? 'c' : ''}`;
+      // one mesh per shared material (wind, leaves... are per-vertex data: Lighting.material)
+      const key = this.assets.material(b).id;
       let list = byMat.get(key);
       if (!list) byMat.set(key, (list = { b, parts: [] }));
       list.parts.push({ b, matrix: it.matrix });

@@ -50,13 +50,14 @@ Object.assign(EditorCore.prototype, {
       r.setRenderTarget(prev);
       r.setClearColor(prevClear, prevAlpha);
       this._thumbScene.remove(mesh);
-      // WebGPU rows run top-down: no flip
+      // WebGPU rows run top-down (no flip) and all but the last are padded to 256 bytes (96 px: 512)
       const px = await r.readRenderTargetPixelsAsync(this._thumbRT, 0, 0, size, size);
       const cv = document.createElement('canvas');
       cv.width = cv.height = size;
       const ctx = cv.getContext('2d');
       const img = ctx.createImageData(size, size);
-      img.data.set(px.subarray(0, size * size * 4));
+      const row = size * 4, stride = px.length > row * size ? Math.ceil(row / 256) * 256 : row;
+      for (let y = 0; y < size; y++) img.data.set(px.subarray(y * stride, y * stride + row), y * row);
       ctx.putImageData(img, 0, 0);
       url = cv.toDataURL();
     } catch (e) { console.warn('thumb', job.name, e); }

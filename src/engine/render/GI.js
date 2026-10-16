@@ -18,7 +18,7 @@ import {
   Fn, If, int, ivec2, vec3, vec4, max, min, abs, clamp, mix, log2, dot, select, texture, texture3D, screenCoordinate, property, luminance,
 } from 'three/tsl';
 import { GIFieldData, GI_LAYERS, GI_H0, GI_RATIO, GI_VOL_CELL, keyBlend, sliceCount, evalSH, luminance as lumCPU } from './GIField.js';
-import { U } from './tsl.js';
+import { U, T, tex, tex3D } from './tsl.js';
 
 const SLICES = 3 * GI_LAYERS; // field 3D texture: channel r, g, b x layers
 
@@ -57,15 +57,15 @@ export class GI {
     const di = new THREE.DataTexture(new Uint16Array(1), 1, 1, THREE.RedFormat, THREE.HalfFloatType);
     di.needsUpdate = true;
     this.uniforms = {
-      giField: texture3D(d3),
-      giBase: texture(d2),
+      giField: T(tex3D(d3), 'GiField'),
+      giBase: T(tex(d2), 'GiBase'),
       giGrid: U(new THREE.Vector4(0, 0, 1, 0)), // world -> uv: x, z offset, 1 / size; w = on
       giLayer: U(new THREE.Vector4(GI_H0, 1 / Math.log2(GI_RATIO), GI_LAYERS - 1, this.cfg.bias)), // H0, 1 / log2(ratio), layers - 1, normal offset (m)
       giDebug: U(0),
       giFloor: U(this.cfg.floor),
-      giVolField: texture3D(d3),
-      giVolIndex: texture(di),
-      giVols: texture(dv),
+      giVolField: T(tex3D(d3), 'GiVolField'),
+      giVolIndex: T(tex(di), 'GiVolIndex'),
+      giVols: T(tex(dv), 'GiVols'),
       giVolGrid: U(new THREE.Vector4(0, 0, 1, 0)), // world -> index uv: x, z offset, 1 / size; w = on
       giVolAtlas: U(new THREE.Vector3(1, 1, 1)), // 1 / atlas width, 1 / atlas height, atlas layers
     };
@@ -187,7 +187,7 @@ export class GI {
   _blendMaterial() {
     const da = new THREE.DataArrayTexture(new Uint8Array(4), 1, 1, 1);
     da.needsUpdate = true;
-    const terms = texture(da);
+    const terms = tex(da);
     const bu = (this.bu = {
       terms, chan: U(0), layer: U(0), n: U(1), kA: U(0), kB: U(0),
       wSky: U(new THREE.Vector3()), wA: U(new THREE.Vector3()), wB: U(new THREE.Vector3()),
@@ -304,7 +304,7 @@ export class GI {
       const b = u.giField.sample(vec3(uv, w.add((2 * GI_LAYERS) / SLICES)));
       const k = vec4(1.0, N);
       return max(vec3(dot(r, k), dot(g, k), dot(b, k)), vec3(0.0));
-    });
+    }).setLayout({ name: 'giIrradiance', type: 'vec3', inputs: [{ name: 'P0', type: 'vec3' }, { name: 'N', type: 'vec3' }] });
   }
 
   /** fn(P, N, world irradiance) -> the interior volume covering P (if any), faded into the world
@@ -337,21 +337,23 @@ export class GI {
         });
       });
       return e;
-    });
+    }).setLayout({ name: 'giVolume', type: 'vec3', inputs: [{ name: 'P', type: 'vec3' }, { name: 'N', type: 'vec3' }, { name: 'world', type: 'vec3' }] });
   }
 
   /** fn(P, N world) -> vec4(irradiance, sky visibility giOcc): the probes in place of the
-   *  hemisphere light, a share of it kept as a floor (artistic: nothing goes pitch black). */
+   *  hemisphere light, a share of it kept as a floor (artistic: nothing goes pitch black). One
+   *  function shared by every material (WGSL function). */
   ambientFn() {
+    if (this._ambientFn) return this._ambientFn;
     const u = this.uniforms, irr = this.irradianceFn(), vol = this.volumeFn(), hemi = this.hemi;
-    return Fn(([P, N]) => {
+    const fn = Fn(([P, N]) => {
       const h = mix(hemi.ground, hemi.sky, N.y.mul(0.5).add(0.5)).toVar();
       const e = h.toVar();
       If(u.giGrid.w.greaterThan(0.5), () => { e.assign(mix(vol(P, N, irr(P, N)), h, u.giFloor)); });
       const occ = clamp(luminance(e).div(max(luminance(h), 1e-4)), 0.0, 1.0);
-      giDbg.assign(e);
       return vec4(e, occ);
-    });
+    }).setLayout({ name: 'giAmbient', type: 'vec4', inputs: [{ name: 'P', type: 'vec3' }, { name: 'N', type: 'vec3' }] });
+    return (this._ambientFn = fn);
   }
 
   dispose() {

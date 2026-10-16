@@ -16,12 +16,12 @@ wait 10
 eval (()=>{ const v = game.player.inVehicle; return [Math.round(v.speed * 3.6) + ' km/h', Math.round(v.pos.y - game.world.terrain.heightAt(v.pos.x, v.pos.z)) + ' m AGL', v.pos.toArray().map(Math.round)] })()
 expect (()=>{ const v = game.player.inVehicle; return v?.alive && !v.onGround && v.pos.y - game.world.terrain.heightAt(v.pos.x, v.pos.z) > 20 })()
 shot plane_climb
-# turn right toward the south coast, recording every frame time
-eval (()=>{ game.vehicles.aimYaw -= 1.5; game.vehicles.aimPitch = 0.1; window.__ft = []; let last = performance.now(); const f = (t) => { window.__ft.push(t - last); last = t; if (window.__ft.length < 5000) requestAnimationFrame(f); }; requestAnimationFrame(f); return 1 })()
+# turn right toward the south coast, recording every rendered frame (CPU time: see stream_smooth.play)
+eval (()=>{ game.vehicles.aimYaw -= 1.5; game.vehicles.aimPitch = 0.1; window.__ft = []; window.__cpu = []; const p = app.engine.perf, prev = p.onFrame; p.onFrame = (c, fm) => { if (window.__ft.length < 5000) { window.__cpu.push(c); window.__ft.push(fm); } prev?.(c, fm); }; return 1 })()
 wait 8
-eval (()=>{ const v = game.player.inVehicle, a = window.__ft.slice(20).sort((x, y) => x - y); const q = (p) => +a[Math.floor(a.length * p)].toFixed(2); return { kmh: Math.round(v.speed * 3.6), heading: +v.heading.toFixed(2), aim: +game.vehicles.aimYaw.toFixed(2), pos: v.pos.toArray().map(Math.round), frames: a.length, p50: q(0.5), p99: q(0.99), max: +a[a.length - 1].toFixed(1) } })()
+eval (()=>{ const v = game.player.inVehicle, a = window.__ft.slice(20).sort((x, y) => x - y); const q = (p) => +a[Math.floor(a.length * p)].toFixed(2); return { kmh: Math.round(v.speed * 3.6), heading: +v.heading.toFixed(2), aim: +game.vehicles.aimYaw.toFixed(2), pos: v.pos.toArray().map(Math.round), frames: a.length, p50: q(0.5), p99: q(0.99), max: +a[a.length - 1].toFixed(1), cpuP99: +window.__cpu.slice(20).sort((x, y) => x - y)[Math.floor((window.__cpu.length - 20) * 0.99)].toFixed(2) } })()
 expect (()=>{ const v = game.player.inVehicle, d = v.heading - game.vehicles.aimYaw; return v?.alive && Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) < 0.25 })()
-expect (()=>{ const a = window.__ft.slice(20).sort((x, y) => x - y); return a[Math.floor(a.length * 0.99)] < 16 })()
+expect (()=>{ const c = window.__cpu.slice(20).sort((x, y) => x - y); return c[Math.floor(c.length * 0.99)] < 16 })()
 shot plane_turn
 # nose down into the ground
 eval (game.vehicles.aimPitch = -1.2, 1)

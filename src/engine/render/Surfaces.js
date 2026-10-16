@@ -18,7 +18,7 @@ import {
 } from 'three/tsl';
 import { Data } from '../core/Data.js';
 import { setSurfaceManifest, FOLIAGE_BASE } from '../assets/surfaces.js';
-import { U } from './tsl.js';
+import { U, T, tex } from './tsl.js';
 
 const MAX_SURF = 32, MAX_FOL = 16;
 
@@ -110,7 +110,7 @@ export const surfRel = Fn(([t, info, chroma, amount]) => {
   const dl = min(lt.div(info.w), 2.6); // very dark layers: bright specks / cracks must not blow up
   const dc = clamp(t.div(max(lt, 1e-4)).mul(info.w).mul(info.xyz), 0.0, 3.0);
   return mix(vec3(1.0), mix(vec3(1.0), dc, chroma).mul(dl), amount);
-});
+}).setLayout({ name: 'surfRel', type: 'vec3', inputs: [{ name: 't', type: 'vec3' }, { name: 'info', type: 'vec4' }, { name: 'chroma', type: 'float' }, { name: 'amount', type: 'float' }] });
 
 export class Surfaces {
   constructor() {
@@ -119,9 +119,9 @@ export class Surfaces {
     const v4 = (n) => Array.from({ length: n }, () => new THREE.Vector4(1, 1, 1, 0.6));
     const arr = (n) => uniformArray(v4(n), 'vec4').setGroup(renderGroup);
     this.uniforms = {
-      surfAlbedo: texture(placeholder(true)),
-      surfNormal: texture(placeholder(false)),
-      folAlbedo: texture(placeholder(true)),
+      surfAlbedo: T(tex(placeholder(true)), 'SurfAlbedo'),
+      surfNormal: T(tex(placeholder(false)), 'SurfNormal'),
+      folAlbedo: T(tex(placeholder(true)), 'FolAlbedo'),
       surfInfo: arr(MAX_SURF), // xyz: 1 / mean albedo, w: mean luminance
       surfParams: arr(MAX_SURF), // x: metalness, y: chroma (share of the texture's own hue variation), z: detail amount, w: roughness scale
       folInfo: arr(MAX_FOL), // xyz: 1 / mean albedo, w: mean luminance
@@ -129,9 +129,9 @@ export class Surfaces {
       folCut: U(0.5),
       surfNormalScale: U(1),
       surfDetail: U(1), // 0 = flat vertex colours (A/B), 1 = textured
-      terAlbedo: texture(placeholder(true)),
-      terNormal: texture(placeholder(false)),
-      waterNormal: texture(flatNormal()),
+      terAlbedo: T(tex(placeholder(true)), 'TerAlbedo'),
+      terNormal: T(tex(placeholder(false)), 'TerNormal'),
+      waterNormal: T(tex(flatNormal()), 'WaterNormal'),
     };
   }
 
@@ -177,10 +177,11 @@ export class Surfaces {
 
   /** Varyings of a textured asset: uv and the surface id (flat). */
   varyings() {
-    return {
+    // the same nodes everywhere: two varying nodes of one name in a shader would clash
+    return (this._varyings ??= {
       sUv: varying(uv(), 'vSurfUv'),
       sId: varying(attribute('surface', 'float'), 'vSurf').setInterpolation('flat'),
-    };
+    });
   }
 
   /** Fragment mask of the depth passes: false on the cut-out part of a leaf texture. Only for

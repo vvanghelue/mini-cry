@@ -137,7 +137,7 @@ export class World {
     geo.setAttribute('wind', tri(1, [0]));
     geo.setAttribute('emissive', tri(1, [0]));
     // every option combination AssetLibrary.material() can ask for, even if nothing used it yet
-    for (let k = 0; k < 32; k++) this.lighting.material({ textured: true, cutout: !!(k & 16), wind: !!(k & 1), emissive: !!(k & 2), doubleSided: !!(k & 4) || !!(k & 16), foliage: !!(k & 8) });
+    for (let k = 0; k < 8; k++) this.lighting.material({ textured: true, cutout: !!(k & 4), emissive: !!(k & 2), doubleSided: !!(k & 1) });
     const tmp = [];
     const add = (m, plain) => {
       const b = new InstancedBatch(geo, m, 1);
@@ -162,11 +162,9 @@ export class World {
     if (e.overlay?.scene) show(e.overlay.scene);
     try {
       // main-pass pipelines compile in parallel
-      if (new URLSearchParams(location.search).get('warmup') !== 'sync') {
-        await r.compileAsync(scene, camera);
-        if (e.overlay?.scene) await r.compileAsync(e.overlay.scene, e.overlay.camera);
-        for (const s of this.lighting.flare.scenes) await r.compileAsync(s, camera); // drawn only when the sun shows
-      }
+      await r.compileAsync(scene, camera);
+      if (e.overlay?.scene) await r.compileAsync(e.overlay.scene, e.overlay.camera);
+      for (const s of this.lighting.flare.scenes) await r.compileAsync(s, camera); // drawn only when the sun shows
       // depth-pass (override material) variants: draw the cascades and the SSAO pre-pass once
       for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
       e.render();

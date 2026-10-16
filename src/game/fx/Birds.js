@@ -104,13 +104,13 @@ class Species {
     geo.setAttribute('position', b.geometry.attributes.position);
     geo.setAttribute('color', b.geometry.attributes.color);
     this.max = cfg.max;
-    this.wing = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    this.wing = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 2), 2);
     const span = Math.max(-b.bounds.min.x, b.bounds.max.x);
     this.pivot = (b.bounds.min.y + b.bounds.max.y) / 2; // body centre (asset origin = feet)
     this.material = birdMaterial(world.lighting, new THREE.Vector2(cfg.shoulder, span));
     const mesh = (this.mesh = new InstancedBatch(geo, this.material, this.max));
     mesh.name = `Birds:${id}`;
-    this.tint = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 3).fill(1), 3).setUsage(THREE.DynamicDrawUsage);
+    this.tint = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 3).fill(1), 3);
     mesh.geometry.setAttribute('iTint', this.tint);
     mesh.geometry.setAttribute('aWing', this.wing);
     mesh.layers.set(LAYERS.FX);

@@ -3,7 +3,7 @@
 // sky also dims its flare. Reads Lighting.skyU.cloudCoverage / cloudSpeed and the clock uTime.
 import { Fn, vec2, float, fract, sin, dot, floor, mix, smoothstep, select } from 'three/tsl';
 
-const cloudHash = Fn(([p]) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453)));
+const cloudHash = Fn(([p]) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453))).setLayout({ name: 'cloudHash', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
 
 const cloudNoise = Fn(([p]) => {
   const i = floor(p), f0 = fract(p);
@@ -11,7 +11,7 @@ const cloudNoise = Fn(([p]) => {
   const a = mix(cloudHash(i), cloudHash(i.add(vec2(1, 0))), f.x);
   const b = mix(cloudHash(i.add(vec2(0, 1))), cloudHash(i.add(vec2(1, 1))), f.x);
   return mix(a, b, f.y);
-});
+}).setLayout({ name: 'cloudNoise', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
 
 /** skyU: Lighting.skyU. Returns fn(d: unit direction) -> vec2(cloud density 0..1, raw noise). */
 export function skyCloudsFn(skyU) {
@@ -25,5 +25,5 @@ export function skyCloudsFn(skyU) {
     const c = float(1.0).sub(cloudCoverage);
     const dens = smoothstep(c, c.add(0.25), n).mul(smoothstep(0.0, 0.18, h));
     return vec2(select(h.greaterThan(0.0), dens, 0.0), n);
-  });
+  }).setLayout({ name: 'skyClouds', type: 'vec2', inputs: [{ name: 'd', type: 'vec3' }] });
 }

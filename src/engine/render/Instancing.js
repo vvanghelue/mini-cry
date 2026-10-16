@@ -27,10 +27,10 @@ export function setInstanceBuffer(g, buffer) {
   INSTANCE_ATTRS.forEach((k, i) => g.setAttribute(k, new THREE.InterleavedBufferAttribute(buffer, 4, i * 4)));
 }
 
+/** (Static usage: WebGPU three re-uploads DynamicDrawUsage buffers whole at every draw; changes go
+ *  up through needsUpdate + update ranges instead, InstanceBlocks.js.) */
 export function instanceBuffer(capacity) {
-  const b = new THREE.InstancedInterleavedBuffer(new Float32Array(Math.max(1, capacity) * 16), 16, 1);
-  b.setUsage(THREE.DynamicDrawUsage);
-  return b;
+  return new THREE.InstancedInterleavedBuffer(new Float32Array(Math.max(1, capacity) * 16), 16, 1);
 }
 
 export class InstancedBatch extends THREE.Mesh {

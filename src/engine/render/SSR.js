@@ -20,7 +20,7 @@
 // sky reflection.
 import * as THREE from 'three/webgpu';
 import { Fn, If, Loop, Break, float, int, ivec2, vec2, vec3, vec4, min, sqrt, mix, cos, sin, fract, dot, clamp, smoothstep, texture, select } from 'three/tsl';
-import { U, ndcToUv } from './tsl.js';
+import { U, ndcToUv, tex } from './tsl.js';
 
 export const SSR_DEFAULTS = {
   // screen-space reflections on the water: strength, blur (0 = mirror .. 1 = very glossy)
@@ -53,8 +53,8 @@ export class SSR {
     this._full = new THREE.Vector2();
     this._prevViewProj = new THREE.Matrix4();
     this.uniforms = {
-      ssrColor: texture(this.colorTex),
-      ssrDepth: texture(ao.depthRT.depthTexture),
+      ssrColor: tex(this.colorTex),
+      ssrDepth: tex(ao.depthRT.depthTexture),
       ssrDepthSize: ao.u.size,
       ssrOn: U(0),
       ssrIntensity: U(1),

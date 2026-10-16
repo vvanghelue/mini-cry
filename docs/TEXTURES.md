@@ -49,10 +49,10 @@ The same views with the former flat-shaded low-poly look and with the textured r
 
 ## Packing
 
-Each group is **one tall strip image** (layers stacked vertically) uploaded straight into a WebGL2
-texture array — `texImage3D` slices an image source by layer height — so a group is one fetch and
-one decode, with no per-layer canvas work (`src/engine/render/Surfaces.js`). Mipmaps are generated
-on the GPU, sampling is trilinear + 8x anisotropic.
+Each group is **one tall strip image** (layers stacked vertically), decoded once and copied layer by
+layer straight into a GPU texture array (WebGPU `copyExternalImageToTexture`), so a group is one fetch
+and one decode, with no per-layer canvas work (`src/engine/render/Surfaces.js`). Mipmaps are
+generated on the GPU, sampling is trilinear + 8x anisotropic.
 
 | file | content |
 |---|---|

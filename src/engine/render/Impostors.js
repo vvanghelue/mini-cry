@@ -15,7 +15,7 @@ import {
   Fn, If, Discard, float, vec2, vec3, vec4, mat3, max, clamp, normalize, cross, dot, length, select, floor, abs, fwidth, step,
   texture, attribute, varying, positionGeometry, normalGeometry, modelWorldMatrix, cameraViewMatrix, inverse,
 } from 'three/tsl';
-import { U, instanceMatrix, instanceTint } from './tsl.js';
+import { U, instanceMatrix, instanceTint, tex } from './tsl.js';
 import { lodVisible, lodDist } from './LodFade.js';
 import { ST } from './Lighting.js';
 
@@ -65,8 +65,8 @@ export class Impostors {
     this.albedo = rt(true);
     this.normal = rt(false);
     this.geometry = QUAD;
-    this.albedoTex = texture(this.albedo.texture);
-    this.normalTex = texture(this.normal.texture);
+    this.albedoTex = tex(this.albedo.texture);
+    this.normalTex = tex(this.normal.texture);
     this.materials = builds.map((b, v) => this._material(b, v));
     this.casterMaterials = builds.map((b, v) => this._casterMaterial(b, v));
   }

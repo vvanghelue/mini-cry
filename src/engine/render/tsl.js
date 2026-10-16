@@ -8,10 +8,47 @@
 //  - instancing: our own instanced attributes (render/Instancing.js), not three's InstancedMesh, so
 //    every instanced mesh of a material shares one shader (three keys InstancedMesh shaders per
 //    object).
-import { Fn, uniform, renderGroup, float, int, ivec2, vec2, vec3, vec4, mat4, uvec2, uint, mix, attribute, modelWorldMatrix, positionGeometry } from 'three/tsl';
+import { NodeBuilder, FunctionNode } from 'three/webgpu';
+import { Fn, uniform, renderGroup, texture, texture3D, float, int, ivec2, vec2, vec3, vec4, mat4, uvec2, uint, mix, attribute, modelWorldMatrix, positionGeometry } from 'three/tsl';
 
-/** Uniform shared by every material of a render call (`.value` like the old uniform objects). */
-export const U = (v, type) => uniform(v, type).setGroup(renderGroup);
+// WGSL functions (Fn().setLayout) are generated once per backend in three.js r186 and their code
+// reused by every later shader, without visiting their body again: the uniforms and textures they
+// read are then missing from those shaders. Ours read the engine's shared uniforms (sun, GI,
+// haze...), so the code is generated once per shader instead (still one copy per shader, called
+// from every call site, instead of the body inlined at each call), per stage (a function used in
+// the vertex stage declares its textures there).
+NodeBuilder.prototype.buildFunctionNode = function (shaderNode) {
+  const caches = (this.mcFunctions ??= {});
+  const cache = (caches[this.shaderStage] ??= new Map());
+  let fn = cache.get(shaderNode);
+  if (fn === undefined) {
+    fn = new FunctionNode();
+    const previous = this.currentFunctionNode;
+    this.currentFunctionNode = fn;
+    fn.code = this.buildFunctionCode(shaderNode);
+    this.currentFunctionNode = previous;
+    cache.set(shaderNode, fn);
+  }
+  return fn;
+};
+
+let _uid = 0;
+
+/** Uniform shared by every material of a render call (`.value` like the old uniform objects). Named:
+ *  WGSL functions (Fn().setLayout) are generated once and reused by every shader, so the uniforms
+ *  they read need the same name everywhere. */
+export const U = (v, type) => uniform(v, type).setGroup(renderGroup).setName(`mcU${++_uid}`);
+
+/** A texture node sampled with explicit coordinates: no uv transform (three adds a per-object mat3
+ *  uniform to every sample of a texture node made without uv: uploaded with each draw). In the
+ *  shared render bind group, not the per-object one (three's default): Dawn / Metal then binds a
+ *  material's textures once per pass instead of re-binding all of them (texture arrays, shadow
+ *  cascades, GI volumes, SSAO...) at every draw — that cost most of the GPU process' time. */
+export const tex = (t) => texture(t).setUpdateMatrix(false).setGroup(renderGroup);
+export const tex3D = (t) => texture3D(t).setGroup(renderGroup); // (3D texture nodes never transform their uv)
+
+/** A texture node with a stable name (see U), in the render bind group (see tex). */
+export const T = (node, name) => { node.updateMatrix = false; return node.setGroup(renderGroup).setName(`mc${name}${++_uid}`); };
 
 /** Clip / NDC xy -> texture uv of a render target (WebGPU: v down). */
 export const ndcToUv = (p) => vec2(p.x.mul(0.5).add(0.5), p.y.mul(-0.5).add(0.5));
@@ -23,7 +60,7 @@ export const bayer4 = Fn(([p]) => {
   const lo = xy.bitAnd(1).shiftLeft(1).bitOr(y.bitAnd(1));
   const hi = xy.shiftRight(1).bitAnd(1).shiftLeft(1).bitOr(y.shiftRight(1).bitAnd(1));
   return float(lo.shiftLeft(2).bitOr(hi)).add(0.5).div(16.0);
-});
+}).setLayout({ name: 'bayer4', type: 'float', inputs: [{ name: 'p', type: 'vec2' }] });
 
 /** Same pattern as an integer 0..15 (SSAO rotations). */
 export const bayer4i = Fn(([p]) => {
@@ -32,7 +69,7 @@ export const bayer4i = Fn(([p]) => {
   const lo = xy.bitAnd(1).shiftLeft(1).bitOr(y.bitAnd(1));
   const hi = xy.shiftRight(1).bitAnd(1).shiftLeft(1).bitOr(y.shiftRight(1).bitAnd(1));
   return lo.shiftLeft(2).bitOr(hi);
-});
+}).setLayout({ name: 'bayer4i', type: 'int', inputs: [{ name: 'p', type: 'ivec2' }] });
 
 /** Per-instance leaf tint from the instance position (same hash as the old GLSL). */
 export const instanceTint = Fn(([pos]) => {
@@ -45,7 +82,7 @@ export const instanceTint = Fn(([pos]) => {
   const h1 = float(hh.bitAnd(uint(1023))).div(1023.0);
   const h2 = float(hh.shiftRight(uint(10)).bitAnd(uint(1023))).div(1023.0);
   return mix(vec3(1.07, 1.03, 0.8), vec3(0.9, 1.0, 1.1), h2).mul(h1.mul(0.28).add(0.86));
-});
+}).setLayout({ name: 'instanceTint', type: 'vec3', inputs: [{ name: 'pos', type: 'vec3' }] });
 
 // --- instancing ---------------------------------------------------------------------------------
 

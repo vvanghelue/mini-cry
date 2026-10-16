@@ -16,7 +16,7 @@ import {
   attribute, varyingProperty, positionLocal, positionView, modelWorldMatrix, cameraWorldMatrix, cameraViewMatrix, cameraPosition, screenCoordinate, texture, toneMappingExposure, sRGBTransferOETF,
 } from 'three/tsl';
 import { LAYERS } from '../render/layers.js';
-import { U } from '../render/tsl.js';
+import { U, tex } from '../render/tsl.js';
 import { grade } from '../render/Grade.js';
 import { SSR } from '../render/SSR.js';
 
@@ -71,7 +71,7 @@ export class Water {
 
   _material(u, river) {
     const L = this.lighting, sk = L.skyU, sunU = L.sun.uniforms, haze = L.haze, ssr = L.ssr.uniforms;
-    const uTime = L.uniforms.uTime, heightTex = texture(this.heightTex), waterNormal = L.surfaces.uniforms.waterNormal;
+    const uTime = L.uniforms.uTime, heightTex = tex(this.heightTex), waterNormal = L.surfaces.uniforms.waterNormal;
     const vWaveN = varyingProperty('vec3', 'vWaveN'), vCrest = varyingProperty('float', 'vCrest'), vHaze = varyingProperty('float', 'vHaze');
     const vFlow = varyingProperty('vec2', 'vFlow');
     const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, fog: false });

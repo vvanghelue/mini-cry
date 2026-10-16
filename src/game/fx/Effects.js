@@ -11,7 +11,6 @@ const HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 class Pool {
   constructor(geo, mat, max, layer) {
     this.mesh = new THREE.InstancedMesh(geo, mat, max);
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3);
     this.mesh.frustumCulled = false;
     this.mesh.layers.set(layer);

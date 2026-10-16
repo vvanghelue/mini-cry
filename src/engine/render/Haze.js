@@ -26,7 +26,7 @@
 // squaring, and nothing is computed with the fog off.
 import * as THREE from 'three/webgpu';
 import { Fn, If, float, vec2, vec3, vec4, max, min, abs, exp, length, dot, select, texture, varying, output, cameraPosition, positionWorld, positionView, cameraWorldMatrix } from 'three/tsl';
-import { U } from './tsl.js';
+import { U, T, tex } from './tsl.js';
 
 // player setting: x the optical depth of the haze and the far fog (Options menu, F2, ?fog=<strength>)
 export const FOG_STRENGTH = 0.2;
@@ -92,12 +92,12 @@ export class Haze {
     };
     const rgba = bakeNoise();
     this.noise = rgba.filter((_, i) => i % 4 === 0);
-    const tex = new THREE.DataTexture(rgba, NOISE_TEXELS, NOISE_TEXELS, THREE.RGBAFormat, THREE.UnsignedByteType);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.minFilter = tex.magFilter = THREE.LinearFilter;
-    tex.generateMipmaps = false;
-    tex.needsUpdate = true;
-    this.uniforms.hazeNoise = texture(tex);
+    const noise = new THREE.DataTexture(rgba, NOISE_TEXELS, NOISE_TEXELS, THREE.RGBAFormat, THREE.UnsignedByteType);
+    noise.wrapS = noise.wrapT = THREE.RepeatWrapping;
+    noise.minFilter = noise.magFilter = THREE.LinearFilter;
+    noise.generateMipmaps = false;
+    noise.needsUpdate = true;
+    this.uniforms.hazeNoise = T(tex(noise), 'HazeNoise');
     this.cfg = structuredClone(HAZE_DEFAULTS.haze);
     this.time = 0;
     this.factor = 1; // time of day multiplier of the density (debug / tools)
@@ -202,7 +202,7 @@ export class Haze {
         out.assign(mx.mul(float(1.0).sub(exp(od.negate().div(max(mx, 1e-3))))));
       });
       return out;
-    });
+    }); // inlined (not a WGSL function): it samples a texture, and lives in the vertex stage
   }
 
   /** Fragment: fn(rel = camera -> point, world; haze opacity) -> vec4(light scattered in,
@@ -224,7 +224,7 @@ export class Haze {
         res.assign(vec4(hzC.mul(vHaze.mul(far.oneMinus())).add(fogC.mul(far)), vHaze.oneMinus().mul(far.oneMinus())));
       });
       return res;
-    });
+    }).setLayout({ name: 'hazeFrag', type: 'vec4', inputs: [{ name: 'rel', type: 'vec3' }, { name: 'vHaze', type: 'float' }] });
   }
 
   /** Camera -> fragment (world), from the view position the lit materials already pass. */

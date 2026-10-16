@@ -20,7 +20,7 @@
 import * as THREE from 'three/webgpu';
 import { Fn, If, Loop, float, int, ivec2, vec2, vec3, vec4, max, min, abs, clamp, mix, cos, sin, pow, round, normalize, cross, dot, inverseSqrt, smoothstep, select, texture, screenCoordinate, positionView } from 'three/tsl';
 import { LAYERS } from './layers.js';
-import { U, bayer4i } from './tsl.js';
+import { U, bayer4i, tex } from './tsl.js';
 import { lodPassMode } from './LodFade.js';
 
 const DEPTH_LAYERS = (1 << LAYERS.STATIC) | (1 << LAYERS.DYNAMIC) | (1 << LAYERS.OCCLUDER);
@@ -60,13 +60,13 @@ export class SSAO {
       fadeFar: U(fadeFar),
       samples: U(Math.max(1, samples)),
     };
-    this.tDepth = texture(this.depthRT.depthTexture);
-    this.tAO = texture(this.aoRT.texture);
+    this.tDepth = tex(this.depthRT.depthTexture);
+    this.tAO = tex(this.aoRT.texture);
     this.aoQuad = new THREE.QuadMesh(this._aoMaterial());
     this.blurQuad = new THREE.QuadMesh(this._blurMaterial());
 
     this.uniforms = {
-      aoTex: texture(this.blurRT.texture),
+      aoTex: tex(this.blurRT.texture),
       aoScale: U(new THREE.Vector2(0.5, 0.5)),
       aoSize: this.u.size,
       aoEnabled: U(0),

@@ -37,7 +37,6 @@ export class GIProbeView {
     const geo = new THREE.IcosahedronGeometry(1, 2);
     this.attrs = ['giR', 'giG', 'giB'].map((name) => {
       const a = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
-      a.setUsage(THREE.DynamicDrawUsage);
       geo.setAttribute(name, a);
       return a;
     });
@@ -47,7 +46,6 @@ export class GIProbeView {
     const gi = max(vec3(dot(attribute('giR', 'vec4'), k), dot(attribute('giG', 'vec4'), k), dot(attribute('giB', 'vec4'), k)), 0.0).mul(1 / Math.PI);
     mat.colorNode = vec4(varying(gi, 'vGi'), 1.0);
     const mesh = (this.mesh = new THREE.InstancedMesh(geo, mat, cap));
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
     mesh.frustumCulled = false;
     mesh.layers.set(LAYERS.FX);
