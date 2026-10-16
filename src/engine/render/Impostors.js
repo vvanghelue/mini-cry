@@ -115,6 +115,7 @@ export class Impostors {
         c.mulAssign(vTint.mul(vec3(1.9, 2.0, 1.2).mul(LU.foliageTransmission.mul(back)).add(1.0)));
       });
       ST.specK.assign(select(leaf, float(0.15), float(0.5)));
+      ST.leaf.assign(select(leaf, float(1.0), float(0.0)));
       // the baked normal (thin leaves also get light from above)
       const n = normalize(cameraViewMatrix.mul(vec4(nW, 0.0)).xyz).toVar();
       If(leaf, () => { n.assign(normalize(n.add(cameraViewMatrix.mul(vec4(0.0, 1.0, 0.0, 0.0)).xyz.mul(0.9)))); });
@@ -123,6 +124,7 @@ export class Impostors {
     })();
     m.normalNode = ST.normal;
     m.mcSpecK = ST.specK;
+    m.mcLeaf = ST.leaf; // no sun specular on leaves, like the near LODs
     m.mcSunShift = vR; // receivers look their shadow up in front of their own card
     m.mcCustomVertex = true; // its own position node (LodFade.lodMaterial keeps it)
     // sun, cascades, SSAO, probe GI, sky reflections

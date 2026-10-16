@@ -118,7 +118,16 @@ class SunLightNode extends THREE.LightingNode {
       c.assign(su.sunColor.mul(L.sun.shadowFn(P, N, ndl)));
     });
     if (this.ao && m.aoNode) c.mulAssign(mix(1.0, ambientOcclusion, L.ao.uniforms.aoDirect));
-    builder.lightsNode.setupDirectLight(builder, this, { lightDirection, lightColor: c });
+    if (!m.mcLeaf) {
+      builder.lightsNode.setupDirectLight(builder, this, { lightDirection, lightColor: c });
+      return;
+    }
+    // leaves: no sun specular. Both sides share the outward (and upward-bent) normal, so against
+    // the light it faces away from the eye and GGX at grazing turns their backs white
+    const { lightingModel, reflectedLight } = builder.context;
+    const spec = vec3(0.0).toVar('sunSpec');
+    lightingModel.direct({ lightDirection, lightColor: c, lightNode: this, reflectedLight: { ...reflectedLight, directSpecular: spec } }, builder);
+    reflectedLight.directSpecular.addAssign(spec.mul(float(1.0).sub(m.mcLeaf)));
   }
 }
 
@@ -492,8 +501,10 @@ export class Lighting {
       // a leaf's both sides share the outward normal (no back-face flip)
       if (opts.foliage && doubleSided) m.normalNode = normalViewGeometry;
       m.mcSpecK = null;
+      m.mcLeaf = null;
     } else {
       m.mcSpecK = ST.specK;
+      m.mcLeaf = ST.leaf; // no sun specular on leaves (SunLightNode)
       m.colorNode = Fn((builder) => {
         ST.color.assign(materialColor.rgb.mul(vc));
         ST.alpha.assign(1.0);
