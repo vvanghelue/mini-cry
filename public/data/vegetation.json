@@ -18,7 +18,7 @@
           "quality": 0.5
         },
         {
-          "distance": 950,
+          "distance": 3200,
           "quality": 0.25
         }
       ],
@@ -62,7 +62,7 @@
           "quality": 0.5
         },
         {
-          "distance": 950,
+          "distance": 3200,
           "quality": 0.25
         }
       ],
@@ -105,7 +105,7 @@
           "quality": 0.5
         },
         {
-          "distance": 1100,
+          "distance": 3200,
           "quality": 0.25
         }
       ],
@@ -147,7 +147,7 @@
           "quality": 0.5
         },
         {
-          "distance": 800,
+          "distance": 3200,
           "quality": 0.25
         }
       ],
@@ -190,7 +190,7 @@
           "quality": 0.5
         },
         {
-          "distance": 450,
+          "distance": 1600,
           "quality": 0.25
         }
       ],
@@ -486,7 +486,7 @@
           "quality": 0.5
         },
         {
-          "distance": 1200,
+          "distance": 2000,
           "quality": 0.25
         }
       ],
@@ -562,7 +562,7 @@
           "quality": 0.5
         },
         {
-          "distance": 600,
+          "distance": 2400,
           "quality": 0.25
         }
       ],
@@ -605,7 +605,7 @@
           "quality": 0.5
         },
         {
-          "distance": 900,
+          "distance": 3200,
           "quality": 0.25
         }
       ],

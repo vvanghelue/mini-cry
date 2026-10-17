@@ -53,7 +53,7 @@ export function syncBlocks(m, want, lenOf, write) {
       m.instanceMatrix.needsUpdate = true;
       u.hw = o; u.holes = 0;
       setCount(m, o);
-      m.visible = o > 0;
+      setVisible(m, o > 0);
       return;
     }
     for (const [bk, v] of want) {
@@ -88,12 +88,18 @@ export function syncBlocks(m, want, lenOf, write) {
   }
   attr.needsUpdate = true;
   setCount(m, u.hw);
-  m.visible = u.hw > u.holes;
+  setVisible(m, u.hw > u.holes);
 }
 
 function setCount(m, n) {
   m.instances = n;
   for (const t of m.userData.twins ?? []) t.instances = n;
+}
+
+// (twins: shadow-only meshes drawing the same instances)
+function setVisible(m, v) {
+  m.visible = v;
+  for (const t of m.userData.twins ?? []) t.visible = v;
 }
 
 /** Live instances of a mesh driven by syncBlocks (count minus zeroed holes). */

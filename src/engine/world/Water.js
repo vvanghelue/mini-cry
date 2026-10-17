@@ -123,7 +123,11 @@ export class Water {
       const F = float(0.02).add(pow(float(1.0).sub(NdV), 5.0).mul(0.98)).toVar();
       // body: absorbed toward the deep colour with depth, lit by the sun and the sky
       const dk = float(1.0).sub(exp(max(depth, 0.0).negate().mul(river ? 0.45 : 0.16))).toVar();
-      const sunDir = sunU.sunDirW, sunColor = sunU.sunColor;
+      // the far shadows (render/FarShadows.js): mountains and the trees on the shore shade the water
+      const far = vec2(1.0).toVar();
+      // (at the undisplaced surface: the swell would streak a shadow's grazing edge)
+      If(L.sun.far.uniforms.farOn.greaterThan(0.5), () => { far.assign(L.sun.far.sampleFn('any')(vWorld.sub(vec3(0.0, vCrest.mul(u.waveAmp), 0.0)), float(1.0))); });
+      const sunDir = sunU.sunDirW, sunColor = sunU.sunColor.mul(min(far.x, far.y)).toVar();
       const sunUp = clamp(sunDir.y.mul(2.0), 0.0, 1.0);
       const lightC = sunColor.mul(sunUp.mul(0.16).add(0.12)).add(sk.zenith.mul(0.35)).add(sk.horizon.mul(0.15)).toVar();
       const body = mix(u.shallow, u.deep, dk).mul(lightC).mul(mix(1.0, 0.25, u.night)).toVar();

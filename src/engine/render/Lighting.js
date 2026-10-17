@@ -115,7 +115,7 @@ class SunLightNode extends THREE.LightingNode {
     If(ndl.greaterThan(0.0), () => {
       let P = fragWorldPos();
       if (m.mcSunShift) P = P.add(su.sunDirW.mul(m.mcSunShift)); // in front of the receiver's own caster (impostor card)
-      c.assign(su.sunColor.mul(L.sun.shadowFn(P, N, ndl)));
+      c.assign(su.sunColor.mul(L.sun.shadowFnFor(m.mcFarKind ?? 'any')(P, N, ndl)));
     });
     if (this.ao && m.aoNode) c.mulAssign(mix(1.0, ambientOcclusion, L.ao.uniforms.aoDirect));
     if (!m.mcLeaf) {
@@ -549,7 +549,11 @@ export class Lighting {
       const o = vec4(output).toVar();
       if (gi) If(giU.giDebug.greaterThan(0.5), () => { o.rgb.assign(giDbg.mul(1 / Math.PI)); });
       if (ao && builder.material.aoNode) If(aoU.aoDebug.greaterThan(0.5).and(aoU.aoEnabled.greaterThan(0.5)), () => { o.rgb.assign(vec3(ambientOcclusion)); });
-      if (sun) If(sunU.sunDebug.greaterThan(0.5), () => { o.rgb.mulAssign(tint(fragWorldPos())); });
+      if (sun) {
+        // 1: cascades tint, 2: the sun's visibility alone (cascades + far shadows)
+        If(sunU.sunDebug.greaterThan(1.5), () => { o.rgb.assign(vec3(this.sun.shadowFnFor(builder.material.mcFarKind ?? 'any')(fragWorldPos(), normalWorld, 1.0))); })
+          .ElseIf(sunU.sunDebug.greaterThan(0.5), () => { o.rgb.mulAssign(tint(fragWorldPos())); });
+      }
       return o;
     })();
   }
