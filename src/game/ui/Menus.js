@@ -31,14 +31,60 @@ export class Menus {
     addEventListener('keydown', (e) => {
       if (e.code === 'Escape' && this.mapOpen) { e.preventDefault(); this.toggleMap(); }
     });
+    // controls help, prompts and the focused item follow the device in use (keyboard / gamepad)
+    game.input.onDevice.add((d) => {
+      const help = this.panel.querySelector('.help');
+      if (help) help.innerHTML = this._help();
+      if (d === 'pad' && this.open && !this.panel.contains(document.activeElement)) { this._padFirst()?.focus(); this._padWake = true; }
+      if (this.mapOpen) this._drawMap();
+    });
   }
 
   hideAll() { this.root.classList.remove('show'); }
+  get open() { return this.root.classList.contains('show'); }
 
   _show(html, actions) {
     this.panel.innerHTML = html;
     for (const [sel, fn] of Object.entries(actions ?? {})) this.panel.querySelector(sel)?.addEventListener('click', (e) => { this.game.audio?.resume?.(); this.game.audio?.play('ui_click', { volume: 0.4 }); fn(e); });
     this.root.classList.add('show');
+    if (this.game.input.device === 'pad') this._padFirst()?.focus();
+  }
+
+  _items() { return [...this.panel.querySelectorAll('button, input, select')]; }
+  /** The item a gamepad starts on ([data-pad-focus], else the first). */
+  _padFirst() { return this.panel.querySelector('[data-pad-focus]') ?? this._items()[0]; }
+
+  /** Gamepad: D-pad / left stick move the focus, A activates, ◀ ▶ change a slider or a list, B goes back. */
+  pad(inp) {
+    if (this.mapOpen) return this._padMap(inp);
+    if (!this.open) return;
+    if (this._padWake) { this._padWake = false; return; } // the press that switched to the pad only focuses
+    const items = this._items();
+    if (!items.length) return;
+    const a = inp.keyHit('Pad:A') || (!this.game.started && inp.keyHit('Pad:Start'));
+    const i = items.indexOf(document.activeElement);
+    if (i < 0) { if (a || inp.nav.x || inp.nav.y) this._padFirst().focus(); return; }
+    const el = items[i];
+    if (inp.nav.y) { items[(i + inp.nav.y + items.length) % items.length].focus(); return; }
+    if (inp.nav.x && el.type === 'range') {
+      const step = Math.max(Number(el.step) || 1, (el.max - el.min) / 40);
+      el.value = Number(el.value) + inp.nav.x * step;
+      el.dispatchEvent(new Event('input'));
+    } else if ((inp.nav.x || a) && el.tagName === 'SELECT') {
+      const n = el.options.length;
+      el.selectedIndex = inp.nav.x ? Math.min(n - 1, Math.max(0, el.selectedIndex + inp.nav.x)) : (el.selectedIndex + 1) % n;
+      el.dispatchEvent(new Event('input'));
+      el.dispatchEvent(new Event('change'));
+    } else if (a) el.click(); // buttons, checkboxes
+    if (inp.keyHit('Pad:B')) this.panel.querySelector('.b-back, .b-res')?.click();
+  }
+
+  /** Controls help line for the device in use. */
+  _help() {
+    const g = this.game, inp = g.input, L = (a) => inp.label(a);
+    if (inp.device === 'pad') return `Left stick move (${L('sprint')} sprint) · Right stick look · ${L('fire')} fire · ${L('aim')} aim · ${L('reload')} reload / use · ${L('jump')} jump · ${L('crouch')} crouch · ${L('grenade')} grenade · ${inp.padLabel('RB')} / ${inp.padLabel('RS')} machete · ${L('nextWeapon')} / ${inp.padLabel('Left')} ${inp.padLabel('Right')} weapons · ${L('binoculars')} binoculars · ${L('flashlight')} flashlight · ${L('map')} map · ${L('pause')} pause`;
+    if (g.app.mobile) return 'Left stick move (push to the edge to sprint) · Drag the right side to look · FIRE (drag it to aim while firing) · AIM / CROUCH toggle · USE when a prompt shows · ⇄ next weapon · R reload · G grenade · V machete';
+    return 'WASD/ZQSD move · Mouse look · Click / T fire · Right-click aim · R reload · E use · G grenade · V machete strike · Shift sprint · Ctrl crouch · Space jump · B binoculars · M map · 1-5 / Q (A on AZERTY) / wheel weapons · Gamepad: press a button';
   }
 
   showMain() {
@@ -49,10 +95,10 @@ export class Menus {
       <div class="logo">MINI <span>CRY</span></div>
       <div class="tag">Isla Sombra — an open-world FPS</div>
       <button class="b-new">New game</button>
-      ${cont ? '<button class="b-cont">Continue</button>' : ''}
+      ${cont ? '<button class="b-cont" data-pad-focus>Continue</button>' : ''}
       <button class="b-opt">Options</button>
       <button class="b-edit">Editor</button>
-      <div class="help">${g.app.mobile ? 'Left stick move (push to the edge to sprint) · Drag the right side to look · FIRE (drag it to aim while firing) · AIM / CROUCH toggle · USE when a prompt shows · ⇄ next weapon · R reload · G grenade · V machete' : `WASD/ZQSD move · Mouse look · Click / T fire · Right-click aim · R reload · E use · G grenade · V machete strike · Shift sprint · Ctrl crouch · Space jump · B binoculars · M map · 1-5 / Q (A on AZERTY) / wheel weapons`}</div>
+      <div class="help">${this._help()}</div>
       <div class="load">${g.loadMs ? `Loaded in ${(g.loadMs / 1000).toFixed(1)} s` : ''}</div>`, {
       '.b-new': () => { try { localStorage.removeItem('minicry.save.v1'); } catch { /* */ } g.newGame(); },
       '.b-cont': () => g.newGame({ fromCheckpoint: true }),
@@ -117,7 +163,7 @@ export class Menus {
       <label>Dust motes <input name="motes" type="checkbox" ${s.motes !== false ? 'checked' : ''}></label>
       <label>Water reflections (SSR) <select name="ssr">${[['off', 'off'], ['ultralow', 'ultra low'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']].map(([q, l]) => `<option value="${q}" ${q === (s.ssr === true ? 'medium' : s.ssr || 'off') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       <label>Difficulty <select name="difficulty">${DIFFICULTY_LABELS.map(([q, l]) => `<option value="${q}" ${q === s.difficulty ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-      <label>${g.app.mobile ? 'Look sensitivity' : 'Mouse sensitivity'} <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>
+      <label>${g.app.mobile || g.input.device === 'pad' ? 'Look sensitivity' : 'Mouse sensitivity'} <input name="sensitivity" type="range" min="0.3" max="2.5" step="0.05" value="${s.sensitivity}"></label>
       <label>Field of view <input name="fov" type="range" min="60" max="95" step="1" value="${s.fov}"></label>
       <label>Invert Y axis <input name="invertY" type="checkbox" ${s.invertY ? 'checked' : ''}></label>
       <label>Volume <input name="volume" type="range" min="0" max="1" step="0.05" value="${s.volume}"></label>
@@ -142,6 +188,7 @@ export class Menus {
     this.mapEl.classList.toggle('show', this.mapOpen);
     if (this.mapOpen) {
       this.hideAll();
+      this._padSel = -1;
       g.input.unlock();
       g.engine.timeScale = 0;
       this._drawMap();
@@ -197,18 +244,37 @@ export class Menus {
     ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
+    // gamepad: the fast travel destination picked with the D-pad
+    const pad = g.input.device === 'pad', inp = g.input;
+    const sel = pad && this._fast[this._padSel];
+    if (sel) { ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sel.x, sel.y, 13, 0, Math.PI * 2); ctx.stroke(); }
+    const how = pad ? `${inp.padLabel('Left')} ${inp.padLabel('Right')} pick a liberated outpost (blue), ${inp.padLabel('A')} to travel there.` : (g.app.mobile ? 'Tap' : 'Click') + ' a liberated outpost (blue) to travel there.';
+    const close = pad ? `${inp.padLabel('B')} / ${inp.label('map')}` : g.app.mobile ? 'MAP' : 'M / Esc';
     const m = g.missions.focus && g.missions.defs.get(g.missions.focus);
-    this.mapInfo.innerHTML = `<b>${m?.title ?? 'Free roam'}</b><br>${m ? (m.objectives[g.missions.state[m.id]?.obj]?.text ?? '') : ''}<br><small>${this._fast.length ? (g.app.mobile ? 'Tap' : 'Click')+' a liberated outpost (blue) to travel there.' : 'Liberate outposts to unlock fast travel.'} · ${g.app.mobile ? 'MAP' : 'M / Esc'} to close</small>`;
+    this.mapInfo.innerHTML = `<b>${m?.title ?? 'Free roam'}</b><br>${m ? (m.objectives[g.missions.state[m.id]?.obj]?.text ?? '') : ''}<br><small>${this._fast.length ? how : 'Liberate outposts to unlock fast travel.'} · ${close} to close</small>`;
   }
 
   _mapClick(e) {
     const r = this.mapCanvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     const f = (this._fast ?? []).find((o) => Math.hypot(o.x - x, o.y - y) < 12);
-    if (f) {
-      this.toggleMap();
-      this.game.fastTravel(f.id);
-      if (this.game.paused) this.game.resume(); // the click is a user gesture: the pointer lock comes back
+    if (f) this._travel(f);
+  }
+
+  _padMap(inp) {
+    if (inp.keyHit('Pad:B')) { this.toggleMap(); return; }
+    const f = this._fast ?? [], step = inp.nav.x || inp.nav.y;
+    if (!f.length) return;
+    if (step) {
+      this._padSel = this._padSel >= 0 ? (this._padSel + step + f.length) % f.length : step > 0 ? 0 : f.length - 1;
+      this._drawMap();
     }
+    if (inp.keyHit('Pad:A') && f[this._padSel]) this._travel(f[this._padSel]);
+  }
+
+  _travel(f) {
+    this.toggleMap();
+    this.game.fastTravel(f.id);
+    if (this.game.paused) this.game.resume(); // a click is a user gesture: the pointer lock comes back
   }
 }

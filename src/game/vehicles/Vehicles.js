@@ -78,7 +78,7 @@ export class Vehicles {
       this.aimYaw = v.heading;
       this.aimPitch = 0;
       this._camOffset = null;
-      if (!this._flightHint) { this._flightHint = true; g.hud?.notify('Plane: W / S throttle, mouse to steer, A / D roll, Space brakes. Look up past 80 km/h to take off', 9000); }
+      if (!this._flightHint) { this._flightHint = true; g.hud?.notify(g.input.device === 'pad' ? `Plane: ${g.input.padLabel('RT')} / ${g.input.padLabel('LT')} throttle, right stick to steer, left stick roll, ${g.input.label('jump')} brakes. Look up past 80 km/h to take off` : 'Plane: W / S throttle, mouse to steer, A / D roll, Space brakes. Look up past 80 km/h to take off', 9000); }
     }
   }
 
@@ -119,9 +119,11 @@ export class Vehicles {
   updateDriving(dt, inp) {
     const v = this.driving, g = this.game;
     if (!v) return;
-    const l = inp.locked ? inp.look() : (inp.look(), { yaw: 0, pitch: 0 });
+    const l = inp.active ? inp.look() : (inp.look(), { yaw: 0, pitch: 0 });
     const mv = inp.move();
-    const thr = mv.f, st = -mv.s;
+    // gamepad: RT accelerates / LT brakes and reverses (else the left stick)
+    const tr = inp.padRT - inp.padLT;
+    const thr = Math.abs(tr) > 0.05 ? tr : mv.f, st = -mv.s;
     const p = g.player;
     if (v.kind === 'plane') this._pilot(v, dt, inp, l, thr, st);
     else {

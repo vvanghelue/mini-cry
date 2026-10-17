@@ -10,7 +10,7 @@ export class FlyCamera {
     this.yaw = 0;
     this.pitch = -0.2;
     this.enabled = true;
-    this.lookActive = () => input.locked;
+    this.lookActive = () => input.active;
     this.minHeightFn = null; // (x, z) -> min camera y (terrain clearance)
   }
 

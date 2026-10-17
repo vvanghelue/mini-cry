@@ -141,6 +141,10 @@ export class Game {
       if (this.keepRunningOnUnlock) { this.keepRunningOnUnlock = false; return; }
       if (this.started && !this.paused && this.player.alive && !this.menus.mapOpen) this.pause();
     });
+    // the gamepad played without the pointer lock: losing it pauses like losing the lock
+    addEventListener('gamepaddisconnected', () => {
+      if (this.started && !this.paused && this.player.alive && !this.menus.mapOpen && !this.input.locked) this.pause();
+    });
     // direct start (tools, editor "play here")
     if (this.params.has('autostart') || this.params.has('at') || this.params.has('spawn')) {
       const sp = this.params.get('spawn');
@@ -210,7 +214,13 @@ export class Game {
     this.frame++;
     nextCharacterFrame();
     const inp = this.input;
+    const ui = this.menus.mapOpen || this.menus.open;
+    inp.poll(ui);
     if (inp.hit('map') && this.started && this.player.alive) this.menus.toggleMap();
+    // gamepad: Start pauses / resumes, menus and the map are driven with the pad
+    if (inp.keyHit('Pad:Start') && this.started && this.player.alive && !this.menus.mapOpen) { if (this.paused) this.resume(); else this.pause(); }
+    else this.menus.pad(inp);
+    if (ui) inp.endFrame(); // presses that drove a menu / the map don't reach the game too
     if (this.paused || !this.started) { inp.endFrame(); this.audio?.update?.(0, this.engine.camera, this._ambientState()); return; }
     this.time += dt;
     this.stats.playTime += dt;
@@ -287,7 +297,8 @@ export class Game {
     const vehicle = !best && !p.inVehicle ? this.vehicles.nearby(p) : null;
     const canExit = p.inVehicle && this.vehicles.canExit();
     const text = best ? best.interact.prompt?.() : vehicle ? `${vehicle.spec.verb ?? 'Drive'} (${vehicle.label})` : canExit ? 'Exit vehicle' : null;
-    this.hud.setPrompt(text ? `<kbd>E</kbd>${text}` : null);
+    this.interactPrompt = text; // gamepad: X uses while a prompt shows, else reloads (Weapons)
+    this.hud.setPrompt(text ? `<kbd>${inp.label('use')}</kbd>${text}` : null);
     if (inp.hit('use')) {
       if (p.inVehicle) { if (canExit) this.vehicles.exit(); }
       else if (best && text) best.use?.();
@@ -315,7 +326,7 @@ export class Game {
     if (it.grenades) w.grenades = Math.min(p.cfg.maxGrenades, w.grenades + it.grenades);
     if (it.collectible) { this.collected[it.collectible] = (this.collected[it.collectible] ?? 0) + 1; this.hud.notify(`${it.label} (${this.collected[it.collectible]})`); }
     if (it.key || it.tool) this.inventory.add(itemId);
-    if (it.tool === 'binoculars') this.hud.notify('Binoculars: press B to scout and tag enemies', 6000);
+    if (it.tool === 'binoculars') this.hud.notify(`Binoculars: press ${this.input.label('binoculars')} to scout and tag enemies`, 6000);
     this.hud.notify(`+ ${it.label}`, 2000);
     this.audio?.play(it.sound ?? 'pickup_item', { volume: 0.6 });
     this.hud.refreshWeapon();

@@ -160,7 +160,9 @@ export class Effects {
     }
     const cam = this.game.engine.camera.position;
     const d = cam.distanceTo(pos);
-    this.shake = Math.max(this.shake, THREE.MathUtils.clamp(1.2 - d / (radius * 5), 0, 1));
+    const k = THREE.MathUtils.clamp(1.2 - d / (radius * 5), 0, 1);
+    this.shake = Math.max(this.shake, k);
+    if (k > 0.05) this.game.input.rumble(k, k * 0.8, 250 + 400 * k);
   }
 
   fire(pos, scale = 1) {

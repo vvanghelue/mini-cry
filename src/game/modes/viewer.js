@@ -36,7 +36,7 @@ export async function startViewMode(app, params) {
   fly.setFrom(new THREE.Vector3(start[0], start[1] + 3, start[2]), world.data.player?.yaw ?? 0, -0.1);
   app.setView({ cam: params.get('cam'), at: params.get('at'), tod: params.get('tod') ?? undefined, dist: params.get('dist') ?? undefined, yaw: params.get('yaw') ?? undefined });
   world.advanceDay = params.has('daycycle');
-  engine.addSystem({ update: (dt) => { fly.update(dt); input.endFrame(); } });
+  engine.addSystem({ update: (dt) => { input.poll(); fly.update(dt); input.endFrame(); } });
   engine.canvas.addEventListener('click', () => input.lock());
 }
 
