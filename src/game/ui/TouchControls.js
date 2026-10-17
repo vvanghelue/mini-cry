@@ -84,8 +84,9 @@ export class TouchControls {
     for (const ev of ['touchmove', 'gesturestart']) document.addEventListener(ev, (e) => { if (!e.target.closest?.('.menus select, .menus input, .menu-panel')) e.preventDefault(); }, { passive: false });
     addEventListener('contextmenu', (e) => e.preventDefault());
     this._visible = null;
-    const tick = () => { this._update(); requestAnimationFrame(tick); };
-    requestAnimationFrame(tick);
+    // updated with the game's frames (an rAF loop of its own would run during the loading too:
+    // without vsync it starves the shader warm-up, which yields to the main thread between pipelines)
+    game.engine.addSystem({ update: () => this._update() });
   }
 
   _bindButton(b, action, kind) {

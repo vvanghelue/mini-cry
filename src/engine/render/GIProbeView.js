@@ -3,7 +3,8 @@
 // white diffuse ball would look like there, like "vue irradiance seule"). One instanced draw on
 // the FX layer (no shadow, no SSAO), refilled only when the camera changes cell, the light changes
 // or a setting changes. Add it as an engine system while shown.
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { vec3, vec4, dot, max, attribute, varying, normalGeometry } from 'three/tsl';
 import { GI_LAYERS, layerHeight, volumeProbePos } from './GIField.js';
 import { LAYERS } from './layers.js';
 
@@ -36,25 +37,15 @@ export class GIProbeView {
     const geo = new THREE.IcosahedronGeometry(1, 2);
     this.attrs = ['giR', 'giG', 'giB'].map((name) => {
       const a = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
-      a.setUsage(THREE.DynamicDrawUsage);
       geo.setAttribute(name, a);
       return a;
     });
-    const mat = new THREE.MeshBasicMaterial({ fog: false });
+    const mat = new THREE.MeshBasicNodeMaterial({ fog: false });
     // colour = irradiance of the probe's L1 SH for the vertex normal / PI (instances are not rotated)
-    mat.onBeforeCompile = (sh) => {
-      sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec4 giR, giG, giB;\nvarying vec3 vGi;')
-        .replace('#include <begin_vertex>', `#include <begin_vertex>
-          vec4 giK = vec4(1.0, normal);
-          vGi = max(vec3(dot(giR, giK), dot(giG, giK), dot(giB, giK)), 0.0) * RECIPROCAL_PI;`);
-      sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nvarying vec3 vGi;')
-        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( vGi, opacity );');
-    };
-    mat.customProgramCacheKey = () => 'giProbeView';
+    const k = vec4(1.0, normalGeometry);
+    const gi = max(vec3(dot(attribute('giR', 'vec4'), k), dot(attribute('giG', 'vec4'), k), dot(attribute('giB', 'vec4'), k)), 0.0).mul(1 / Math.PI);
+    mat.colorNode = vec4(varying(gi, 'vGi'), 1.0);
     const mesh = (this.mesh = new THREE.InstancedMesh(geo, mat, cap));
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
     mesh.frustumCulled = false;
     mesh.layers.set(LAYERS.FX);

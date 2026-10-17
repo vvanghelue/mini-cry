@@ -10,7 +10,7 @@ const BASE = (import.meta.env?.BASE_URL ?? '/') + 'models/fp/';
 /** manifest: viewmodels.json; arms: player.json arms.model. -> { arms: gltf | null, weapons: { asset: gltf } } */
 export async function loadViewModels(manifest, arms, renderer) {
   const loader = new GLTFLoader();
-  const aniso = Math.min(8, renderer?.capabilities.getMaxAnisotropy() ?? 1);
+  const aniso = Math.min(8, renderer?.getMaxAnisotropy?.() ?? 16);
   const load = async (file) => {
     try {
       const g = await loader.loadAsync(BASE + file + '.glb');

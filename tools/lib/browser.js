@@ -54,7 +54,7 @@ export async function launch({ width = 1440, height = 900, dpr = 1, headless = t
   const browser = await chromium.launch({
     ...(exe ? { executablePath: exe } : { channel: 'chrome' }),
     headless,
-    args: ['--enable-gpu', mac ? '--use-angle=metal' : '--use-angle=default', '--enable-unsafe-swiftshader', '--disable-gpu-vsync', '--disable-frame-rate-limit', '--enable-unsafe-webgpu', '--ignore-gpu-blocklist'],
+    args: ['--enable-gpu', mac ? '--use-angle=metal' : '--use-angle=default', '--enable-unsafe-swiftshader', '--disable-gpu-vsync', '--disable-frame-rate-limit', '--enable-unsafe-webgpu', '--enable-webgpu-developer-features', '--ignore-gpu-blocklist'],
   });
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: dpr });
   const logs = [];

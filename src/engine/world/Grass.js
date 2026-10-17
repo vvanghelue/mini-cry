@@ -6,6 +6,9 @@ import { hash2 } from '../math/random.js';
 import { MATERIAL_ID } from './TerrainData.js';
 import { LAYERS } from '../render/layers.js';
 import { syncBlocks } from '../render/InstanceBlocks.js';
+import { InstancedBatch } from '../render/Instancing.js';
+import { cloneMaterial } from '../render/Lighting.js';
+import { U } from '../render/tsl.js';
 
 const TILE = 8;
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
@@ -25,34 +28,16 @@ export class Grass {
     this.tiles = new Map(); // key -> Float32Array per variant
     this.variants = def.variants ?? 3;
     const lighting = world.lighting;
-    const camU = (lighting.uniforms.camPosW ??= { value: new THREE.Vector3() });
-    this.fade = { value: new THREE.Vector2(this.radius * 0.6, this.radius) };
+    // shrunk to nothing between 60 % and 100 % of the radius (vertex stage)
+    this.fade = U(new THREE.Vector2(this.radius * 0.6, this.radius));
     this.meshes = [];
     for (let v = 0; v < this.variants; v++) {
       const b = assets.build(def.asset ?? 'grass_tuft', { quality: 1, variant: v });
       const base = assets.material(b);
-      const mat = base.clone();
-      const prev = base.onBeforeCompile, fade = this.fade;
-      mat.onBeforeCompile = (sh, r) => {
-        prev.call(mat, sh, r);
-        sh.uniforms.camPosW = camU;
-        sh.uniforms.fadeRange = fade;
-        sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform vec3 camPosW;\nuniform vec2 fadeRange;')
-          .replace('#include <begin_vertex>', `#include <begin_vertex>
-            {
-              vec3 fO = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-              transformed *= 1.0 - smoothstep(fadeRange.x, fadeRange.y, distance(fO, camPosW));
-            }`);
-      };
-      const pk = base.customProgramCacheKey.bind(base);
-      mat.customProgramCacheKey = () => pk() + '|fade';
-      const mesh = new THREE.InstancedMesh(b.geometry, mat, 4096);
-      mesh.count = 0;
-      mesh.frustumCulled = false;
+      const mat = cloneMaterial(base);
+      lighting.setupVertex(mat, { ...(base.mcOpts ?? {}), fadeRange: this.fade });
+      const mesh = new InstancedBatch(b.geometry, mat, 4096);
       mesh.layers.set(LAYERS.DETAIL);
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      mesh.userData.capacity = 4096;
       this.group.add(mesh);
       this.meshes.push(mesh);
     }
@@ -116,7 +101,7 @@ export class Grass {
     }
     this.meshes.forEach((m, v) => {
       syncBlocks(m, wants[v], (k, a) => a.length / 16, (k, a, dst, at) => dst.set(a, at * 16));
-      m.visible = m.count > m.userData.holes;
+      m.visible = m.instances > m.userData.holes;
     });
   }
 }

@@ -3,10 +3,11 @@
 // zeroed (a zero matrix collapses the instance to a point, nothing is rasterized) and its slots
 // are reused. Only changed ranges are uploaded; the mesh is repacked contiguously only when it
 // must grow or holes pile up. This keeps streaming (moving camera) uploads to a few KB per frame.
-import * as THREE from 'three';
+// Meshes are InstancedBatch (render/Instancing.js): `instanceMatrix` is their instance buffer,
+// `instances` the drawn count, resize(capacity) a new, bigger buffer.
 
 /**
- * mesh.userData.capacity must hold the instanceMatrix capacity (instances).
+ * mesh.userData.capacity must hold the instance buffer capacity (instances).
  * want: Map(key -> value); lenOf(key, value) -> instance count;
  * write(key, value, dst: Float32Array, dstInstance) copies the block's matrices.
  */
@@ -34,12 +35,7 @@ export function syncBlocks(m, want, lenOf, write) {
       let total = 0;
       for (const [bk, v] of want) total += lenOf(bk, v);
       const fresh = total > u.capacity;
-      if (fresh) {
-        const cap = Math.ceil(total * 1.5);
-        m.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(cap * 16), 16);
-        m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        u.capacity = cap;
-      }
+      if (fresh) m.resize(Math.ceil(total * 1.5));
       const a2 = m.instanceMatrix.array;
       blocks.clear(); free.length = 0;
       let o = 0;
@@ -56,7 +52,7 @@ export function syncBlocks(m, want, lenOf, write) {
       }
       m.instanceMatrix.needsUpdate = true;
       u.hw = o; u.holes = 0;
-      m.count = o;
+      setCount(m, o);
       m.visible = o > 0;
       return;
     }
@@ -91,9 +87,14 @@ export function syncBlocks(m, want, lenOf, write) {
     }
   }
   attr.needsUpdate = true;
-  m.count = u.hw;
+  setCount(m, u.hw);
   m.visible = u.hw > u.holes;
 }
 
+function setCount(m, n) {
+  m.instances = n;
+  for (const t of m.userData.twins ?? []) t.instances = n;
+}
+
 /** Live instances of a mesh driven by syncBlocks (count minus zeroed holes). */
-export const liveCount = (m) => m.count - (m.userData.holes ?? 0);
+export const liveCount = (m) => m.instances - (m.userData.holes ?? 0);

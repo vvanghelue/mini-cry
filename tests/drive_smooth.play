@@ -1,10 +1,11 @@
 # Frame pacing while driving fast through the island (terrain / vegetation / props streaming):
-# p99 frame time must stay low (no streaming hitches).
+# p99 CPU time of the rendered frames must stay low (no streaming hitches; see stream_smooth.play
+# for why not the rAF intervals).
 eval (()=>{ game.player.godMode = true; game.player.godInvisible = true; const v = game.world.entities.get('jeep_river'); game.player.teleport([v.pos[0] + 1.5, v.pos[1] + 0.5, v.pos[2] + 1.5]); return 1 })()
 wait 0.5
 press KeyE
 wait 0.5
-eval (()=>{ window.__ft = []; let last = performance.now(); const f = (t) => { window.__ft.push(t - last); last = t; if (window.__ft.length < 5000) requestAnimationFrame(f); }; requestAnimationFrame(f); return 1 })()
+eval (()=>{ window.__ft = []; window.__cpu = []; const p = app.engine.perf, prev = p.onFrame; p.onFrame = (c, fm) => { if (window.__ft.length < 5000) { window.__cpu.push(c); window.__ft.push(fm); } prev?.(c, fm); }; return 1 })()
 key KeyW 6
-eval (()=>{ const a = window.__ft.slice(20).sort((x, y) => x - y); const q = (p) => +a[Math.floor(a.length * p)].toFixed(2); return { frames: a.length, p50: q(0.5), p95: q(0.95), p99: q(0.99), max: +a[a.length - 1].toFixed(1), speedKmh: Math.round((game.player.inVehicle?.speed ?? 0) * 3.6) } })()
-expect (()=>{ const a = window.__ft.slice(20).sort((x, y) => x - y); return a[Math.floor(a.length * 0.99)] < 16 })()
+eval (()=>{ const a = window.__ft.slice(20).sort((x, y) => x - y), c = window.__cpu.slice(20).sort((x, y) => x - y); const q = (a, p) => +a[Math.floor(a.length * p)].toFixed(2); return { frames: a.length, p50: q(a, 0.5), p95: q(a, 0.95), p99: q(a, 0.99), max: +a[a.length - 1].toFixed(1), cpuP50: q(c, 0.5), cpuP99: q(c, 0.99), cpuMax: +c[c.length - 1].toFixed(1), speedKmh: Math.round((game.player.inVehicle?.speed ?? 0) * 3.6) } })()
+expect (()=>{ const c = window.__cpu.slice(20).sort((x, y) => x - y); return c[Math.floor(c.length * 0.99)] < 16 })()

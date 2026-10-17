@@ -1,6 +1,7 @@
 // Cascaded sun shadows done by hand (ported from three-rigged-game/src/lighting/sun.js), without
-// any three.js light: the sun is injected into the lit materials' shader (RE_Direct) and the
-// cascade depth maps are sampled with hardware PCF.
+// any three.js shadow: the sun is a light of our own (Lighting.js SunLight) whose colour node
+// carries the cascaded shadow, and the cascade depth maps are sampled with hardware PCF
+// (comparison sampler, each tap a 2x2 bilinear compare).
 //
 // - Up to 3 cascades (near / mid / far) follow the camera, texel-snapped (no shimmering). Cascade i
 //   is re-rendered every `every[i]` frames, so the far ones cost less. A cascade with every <= 2 is
@@ -21,113 +22,16 @@
 //   radii, depth range and shadow distance x `scale`.
 // - Cascade i only sees LAYERS.STATIC + DYNAMIC + CASCADE + i (grass, water, FX don't cast; LOD'd
 //   instance fields put each LOD mesh in the cascades it can land in, reach()).
-import * as THREE from 'three';
+// - The depth passes draw everything with one override material (DepthMaterial, shared with the
+//   SSAO pre-pass): it inherits each object's position node (instancing, wind, LOD collapse) and
+//   cuts alpha-tested leaves through their texture.
+import * as THREE from 'three/webgpu';
+import { Fn, If, float, ivec2, vec2, vec3, vec4, mix, min, max, length, smoothstep, select, texture, cameraPosition } from 'three/tsl';
 import { LAYERS } from './layers.js';
+import { U, T, ndcToUv, tex } from './tsl.js';
+import { lodPassMode } from './LodFade.js';
 
 const MAX = 3;
-
-export const SUN_GLSL = /* glsl */ `
-uniform vec3 sunDirW;
-uniform vec3 sunColor;
-uniform int sunCascades;
-uniform float sunShadowOn;
-uniform mat4 sunMat[${MAX}];
-uniform vec4 sunParams[${MAX}]; // x: world texel size, y: 1/res, z: depth bias, w: kernel step (texels)
-uniform vec2 sunFade; // shadows fade out between these horizontal distances from the camera
-uniform vec2 sunSplit; // past these horizontal distances only the last cascade (it alone has the far trees)
-uniform float sunBlend; // blend band at a cascade's border (fraction of its width, edge distance in uv)
-uniform float sunDebug; // 1: tint by cascade (debug panel)
-uniform sampler2DShadow sunMap0;
-uniform sampler2DShadow sunMap1;
-uniform sampler2DShadow sunMap2;
-
-float sunPCF(sampler2DShadow m, vec3 c, vec4 p) {
-  // rotated 4-tap pattern (each tap is a hardware 2x2 bilinear compare)
-  vec2 t = vec2(p.y * p.w);
-  float s = texture(m, vec3(c.xy + vec2(-t.x, -t.y * 0.5), c.z));
-  s += texture(m, vec3(c.xy + vec2( t.x * 0.5, -t.y), c.z));
-  s += texture(m, vec3(c.xy + vec2( t.x,  t.y * 0.5), c.z));
-  s += texture(m, vec3(c.xy + vec2(-t.x * 0.5,  t.y), c.z));
-  return s * 0.25;
-}
-vec3 sunCoord(int i, vec3 P, vec3 N, float NdL) {
-  vec4 p = sunParams[i];
-  float nb = p.x * (1.0 + 2.5 * (1.0 - NdL)) * max(p.w, 1.0);
-  vec3 c = (sunMat[i] * vec4(P + N * nb, 1.0)).xyz * 0.5 + 0.5;
-  c.z -= p.z;
-  return c;
-}
-float sunEdge(vec3 c) {
-  if (c.z >= 1.0 || c.z <= 0.0) return -1.0;
-  return min(min(c.x, 1.0 - c.x), min(c.y, 1.0 - c.y));
-}
-// Written out per cascade, no loop over an index (loops picking samplers / uniform arrays by
-// index compile badly on Apple GPUs, see TerrainMaterial.js). Smallest cascade containing the
-// point; across the blend band at its border, mix with the next one (or fade out after the last).
-float sunNext(int i, vec3 P, vec3 N, float NdL) {
-  if (i >= sunCascades) return 1.0;
-  vec3 c = sunCoord(i, P, N, NdL);
-  if (sunEdge(c) <= 0.0) return 1.0;
-  return i == 1 ? sunPCF(sunMap1, c, sunParams[1]) : sunPCF(sunMap2, c, sunParams[2]);
-}
-float sunCascaded(vec3 P, vec3 N, float NdL) {
-  vec3 c = sunCoord(0, P, N, NdL);
-  float e = sunEdge(c);
-  if (e > 0.0) {
-    float s = sunPCF(sunMap0, c, sunParams[0]);
-    return e >= sunBlend ? s : mix(sunNext(1, P, N, NdL), s, smoothstep(0.0, sunBlend, e));
-  }
-  if (sunCascades < 2) return 1.0;
-  c = sunCoord(1, P, N, NdL);
-  e = sunEdge(c);
-  if (e > 0.0) {
-    float s = sunPCF(sunMap1, c, sunParams[1]);
-    return e >= sunBlend ? s : mix(sunNext(2, P, N, NdL), s, smoothstep(0.0, sunBlend, e));
-  }
-  if (sunCascades < 3) return 1.0;
-  c = sunCoord(2, P, N, NdL);
-  e = sunEdge(c);
-  if (e > 0.0) {
-    float s = sunPCF(sunMap2, c, sunParams[2]);
-    return e >= sunBlend ? s : mix(1.0, s, smoothstep(0.0, sunBlend, e));
-  }
-  return 1.0;
-}
-float sunLast(vec3 P, vec3 N, float NdL) {
-  vec3 c;
-  float s;
-  if (sunCascades > 2) { c = sunCoord(2, P, N, NdL); if (sunEdge(c) <= 0.0) return 1.0; s = sunPCF(sunMap2, c, sunParams[2]); }
-  else if (sunCascades > 1) { c = sunCoord(1, P, N, NdL); if (sunEdge(c) <= 0.0) return 1.0; s = sunPCF(sunMap1, c, sunParams[1]); }
-  else { c = sunCoord(0, P, N, NdL); if (sunEdge(c) <= 0.0) return 1.0; s = sunPCF(sunMap0, c, sunParams[0]); }
-  return mix(1.0, s, smoothstep(0.0, sunBlend, sunEdge(c)));
-}
-float sunShadow(vec3 P, vec3 N, float NdL) {
-  if (sunShadowOn < 0.5 || sunCascades < 1) return 1.0;
-  float d = length(P.xz - cameraPosition.xz);
-  if (d >= sunFade.y) return 1.0;
-  float s = d < sunSplit.y ? sunCascaded(P, N, NdL) : 1.0;
-  if (d > sunSplit.x) s = mix(s, sunLast(P, N, NdL), smoothstep(sunSplit.x, sunSplit.y, d));
-  return mix(s, 1.0, smoothstep(sunFade.x, sunFade.y, d));
-}
-// debug view: near cascade red, mid green, far blue, no shadow white (bands and the fade mixed in)
-vec3 sunTintOf(int i, vec3 P) {
-  if (i >= sunCascades || sunEdge(sunCoord(i, P, vec3(0.0), 1.0)) <= 0.0) return vec3(1.0);
-  return i == 0 ? vec3(1.0, 0.3, 0.25) : i == 1 ? vec3(0.3, 1.0, 0.3) : vec3(0.3, 0.5, 1.0);
-}
-vec3 sunTintBand(int i, vec3 P, float e) { return mix(sunTintOf(i + 1, P), sunTintOf(i, P), smoothstep(0.0, sunBlend, e)); }
-vec3 sunCascadeTint(vec3 P) {
-  vec3 t = vec3(1.0);
-  float e0 = sunEdge(sunCoord(0, P, vec3(0.0), 1.0));
-  float e1 = sunCascades > 1 ? sunEdge(sunCoord(1, P, vec3(0.0), 1.0)) : -1.0;
-  float e2 = sunCascades > 2 ? sunEdge(sunCoord(2, P, vec3(0.0), 1.0)) : -1.0;
-  if (e0 > 0.0) t = sunTintBand(0, P, e0);
-  else if (e1 > 0.0) t = sunTintBand(1, P, e1);
-  else if (e2 > 0.0) t = sunTintBand(2, P, e2);
-  float d = length(P.xz - cameraPosition.xz);
-  t = mix(t, sunCascades > 2 ? sunTintOf(2, P) : sunCascades > 1 ? sunTintOf(1, P) : sunTintOf(0, P), smoothstep(sunSplit.x, sunSplit.y, d));
-  return mix(t, vec3(1.0), smoothstep(sunFade.x, sunFade.y, d));
-}
-`;
 
 export class SunShadows {
   /** cascades: [{ radius, res, every }] smallest first; distance: shadow distance (m) */
@@ -137,22 +41,19 @@ export class SunShadows {
     this.dir = new THREE.Vector3(0, 1, 0);
     this.enabled = true;
     this.frame = 0;
-    this.depthMat = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.BackSide });
-    this.depthMatDouble = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide });
+    const dummy = this._dummy();
     this.uniforms = {
-      sunDirW: { value: this.dir },
-      sunColor: { value: new THREE.Color(1, 1, 1) },
-      sunCascades: { value: 0 },
-      sunShadowOn: { value: 1 },
-      sunMat: { value: Array.from({ length: MAX }, () => new THREE.Matrix4()) },
-      sunParams: { value: Array.from({ length: MAX }, () => new THREE.Vector4(0.1, 1 / 1024, 0, 1)) },
-      sunFade: { value: new THREE.Vector2(1e8, 2e8) },
-      sunSplit: { value: new THREE.Vector2(1e8, 2e8) },
-      sunBlend: { value: 0.06 },
-      sunDebug: { value: 0 },
-      sunMap0: { value: null },
-      sunMap1: { value: null },
-      sunMap2: { value: null },
+      sunDirW: U(this.dir),
+      sunColor: U(new THREE.Color(1, 1, 1)),
+      sunCascades: U(0),
+      sunShadowOn: U(1),
+      sunMat: Array.from({ length: MAX }, () => U(new THREE.Matrix4())),
+      sunParams: Array.from({ length: MAX }, () => U(new THREE.Vector4(0.1, 1 / 1024, 0, 1))), // x: world texel size, y: 1/res, z: depth bias, w: kernel step (texels)
+      sunFade: U(new THREE.Vector2(1e8, 2e8)), // shadows fade out between these horizontal distances from the camera
+      sunSplit: U(new THREE.Vector2(1e8, 2e8)), // past these horizontal distances only the last cascade (it alone has the far trees)
+      sunBlend: U(0.06), // blend band at a cascade's border (fraction of its width, edge distance in uv)
+      sunDebug: U(0), // 1: tint by cascade (debug panel)
+      sunMap: Array.from({ length: MAX }, (_, i) => T(tex(dummy), `SunMap${i}`)),
     };
     this.casterReach = new Map(); // caster set -> distance its far casters stop at (setCasterReach)
     // live tuning (debug panel): fade length (fraction of the distance), the distance clamp to the
@@ -168,7 +69,10 @@ export class SunShadows {
     this.altitude = { ref: 25, max: 8 };
     this.scale = 1;
     this.version = 0; // bumped when the cascades or the shadow distance change
+    this.depthMat = new DepthMaterial(); // set by Lighting (needs the foliage textures)
     this.setCascades(cascades, { distance });
+    this.shadowFn = this._shadowFn();
+    this.tintFn = this._tintFn();
   }
 
   /** distance: where shadows end (fading out over its last `fade`, 20 %), Infinity = the far cascade's border. */
@@ -183,9 +87,9 @@ export class SunShadows {
     this._setDistance();
     const u = this.uniforms;
     u.sunCascades.value = this.cascades.length;
-    // unused slots point at a valid depth texture so the samplers stay bound
+    // unused slots point at a valid depth texture so the bindings stay valid
     const dummy = this.cascades[0]?.rt.depthTexture ?? this._dummy();
-    for (let i = 0; i < MAX; i++) u['sunMap' + i].value = this.cascades[i]?.rt.depthTexture ?? dummy;
+    for (let i = 0; i < MAX; i++) u.sunMap[i].value = this.cascades[i]?.rt.depthTexture ?? dummy;
     this.cascades.forEach((c, i) => this._setParams(i, c));
     this.frame = 0;
     this.version++;
@@ -197,7 +101,7 @@ export class SunShadows {
   }
 
   _make(radius, res, every, depth) {
-    const rt = new THREE.WebGLRenderTarget(res, res, { format: THREE.RedFormat, type: THREE.UnsignedByteType, depthBuffer: true, generateMipmaps: false });
+    const rt = new THREE.RenderTarget(res, res, { format: THREE.RedFormat, type: THREE.UnsignedByteType, depthBuffer: true, generateMipmaps: false });
     rt.depthTexture = new THREE.DepthTexture(res, res, THREE.UnsignedIntType);
     rt.depthTexture.format = THREE.DepthFormat;
     rt.depthTexture.compareFunction = THREE.LessEqualCompare;
@@ -220,7 +124,7 @@ export class SunShadows {
 
   _setParams(i, c) {
     const step = THREE.MathUtils.clamp(0.05 / c.texel, 1, 2.5) * this.softness;
-    this.uniforms.sunParams.value[i].set(c.texel * this.bias, 1 / c.res, (c.texel * 0.8 * this.bias) / c.span, step);
+    this.uniforms.sunParams[i].value.set(c.texel * this.bias, 1 / c.res, (c.texel * 0.8 * this.bias) / c.span, step);
   }
 
   /** Altitude scale for the camera: 1 near the ground, x sqrt(2) per half octave of height above
@@ -319,20 +223,23 @@ export class SunShadows {
 
   _render(c, index) {
     const r = this.renderer, scene = this.scene;
-    const prevOverride = scene.overrideMaterial, prevTarget = r.getRenderTarget(), prevFog = scene.fog, prevBg = scene.background;
-    scene.overrideMaterial = this.depthMatDouble;
-    scene.fog = null;
+    const prevOverride = scene.overrideMaterial, prevTarget = r.getRenderTarget(), prevFog = scene.fogNode, prevBg = scene.background, prevAuto = r.autoClear;
+    scene.overrideMaterial = this.depthMat;
+    scene.fogNode = null;
     scene.background = null;
+    lodPassMode.value = 1;
     this.onBeforeShadow?.();
+    r.autoClear = true;
     r.setRenderTarget(c.rt);
-    r.clear(true, true, false);
     r.render(scene, c.cam);
     r.setRenderTarget(prevTarget);
+    r.autoClear = prevAuto;
     this.onAfterShadow?.();
+    lodPassMode.value = 0;
     scene.overrideMaterial = prevOverride;
-    scene.fog = prevFog;
+    scene.fogNode = prevFog;
     scene.background = prevBg;
-    this.uniforms.sunMat.value[index].multiplyMatrices(c.cam.projectionMatrix, c.cam.matrixWorldInverse);
+    this.uniforms.sunMat[index].value.multiplyMatrices(c.cam.projectionMatrix, c.cam.matrixWorldInverse);
     c.rendered = true;
   }
 
@@ -366,32 +273,135 @@ export class SunShadows {
     });
   }
 
-  /** Inject the sun (direct light + cascaded shadow) into a built-in lit material's shader. */
-  inject(sh) {
-    Object.assign(sh.uniforms, this.uniforms);
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + SUN_GLSL)
-      .replace(
-        '#include <lights_fragment_begin>',
-        `#include <lights_fragment_begin>
-        {
-          vec3 sP = (vec4(-vViewPosition, 0.0) * viewMatrix).xyz + cameraPosition;
-          #ifdef SUN_RECEIVER_SHIFT
-            sP += sunDirW * SUN_RECEIVER_SHIFT; // in front of the receiver's own caster (impostor card)
-          #endif
-          vec3 sN = normalize((vec4(geometryNormal, 0.0) * viewMatrix).xyz);
-          float sNdL = dot(sN, sunDirW);
-          if (sNdL > 0.0) {
-            IncidentLight sunL;
-            sunL.direction = normalize((viewMatrix * vec4(sunDirW, 0.0)).xyz);
-            sunL.color = sunColor * sunShadow(sP, sN, sNdL);
-            sunL.visible = true;
-            RE_Direct(sunL, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight);
-          }
-        }`,
-      )
-      .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-        if (sunDebug > 0.5) gl_FragColor.rgb *= sunCascadeTint((vec4(-vViewPosition, 0.0) * viewMatrix).xyz + cameraPosition);`);
+  // --- shader side ------------------------------------------------------------------------------
+
+  /** fn(P world, N world normal, NdL) -> shadow factor (1 = lit). Real WGSL functions (layouts),
+   *  not inlined TSL: one copy of the code per shader, small graphs to build. */
+  _shadowFn() {
+    const u = this.uniforms;
+    const P3 = [{ name: 'P', type: 'vec3' }, { name: 'N', type: 'vec3' }, { name: 'NdL', type: 'float' }];
+    // cascade i: vec2(shadow, edge distance in uv; <= 0 outside), the PCF taps only inside
+    const cascade = (i) => Fn(([P, N, NdL]) => {
+      const p = u.sunParams[i];
+      const nb = p.x.mul(NdL.oneMinus().mul(2.5).add(1.0)).mul(max(p.w, 1.0));
+      const c4 = u.sunMat[i].mul(vec4(P.add(N.mul(nb)), 1.0));
+      const c = vec3(ndcToUv(c4), c4.z.sub(p.z)).toVar();
+      const e = select(c.z.greaterThanEqual(1.0).or(c.z.lessThanEqual(0.0)).or(u.sunCascades.lessThanEqual(i)), float(-1.0), min(min(c.x, c.x.oneMinus()), min(c.y, c.y.oneMinus()))).toVar();
+      const s = float(1.0).toVar();
+      If(e.greaterThan(0.0), () => {
+        // rotated 4-tap pattern (each tap is a hardware 2x2 bilinear compare)
+        const t = vec2(p.y.mul(p.w)).toVar(), m = u.sunMap[i];
+        const tap = (dx, dy) => m.sample(c.xy.add(vec2(t.x.mul(dx), t.y.mul(dy)))).compare(c.z);
+        s.assign(tap(-1, -0.5).add(tap(0.5, -1)).add(tap(1, 0.5)).add(tap(-0.5, 1)).mul(0.25));
+      });
+      return vec2(s, e);
+    }).setLayout({ name: `sunCascade${i}`, type: 'vec2', inputs: P3 });
+    const C = [cascade(0), cascade(1), cascade(2)];
+    // smallest cascade containing the point; across the blend band at its border, mix with the
+    // next one (or fade out after the last)
+    const cascaded = Fn(([P, N, NdL]) => {
+      const s = float(1.0).toVar();
+      const c0 = C[0](P, N, NdL).toVar();
+      If(c0.y.greaterThan(0.0), () => {
+        If(c0.y.greaterThanEqual(u.sunBlend), () => { s.assign(c0.x); }).Else(() => {
+          const c1 = C[1](P, N, NdL).toVar();
+          s.assign(mix(select(c1.y.greaterThan(0.0), c1.x, float(1.0)), c0.x, smoothstep(0.0, u.sunBlend, c0.y)));
+        });
+      }).Else(() => {
+        const c1 = C[1](P, N, NdL).toVar();
+        If(c1.y.greaterThan(0.0), () => {
+          If(c1.y.greaterThanEqual(u.sunBlend), () => { s.assign(c1.x); }).Else(() => {
+            const c2 = C[2](P, N, NdL).toVar();
+            s.assign(mix(select(c2.y.greaterThan(0.0), c2.x, float(1.0)), c1.x, smoothstep(0.0, u.sunBlend, c1.y)));
+          });
+        }).Else(() => {
+          const c2 = C[2](P, N, NdL).toVar();
+          If(c2.y.greaterThan(0.0), () => { s.assign(mix(1.0, c2.x, smoothstep(0.0, u.sunBlend, c2.y))); });
+        });
+      });
+      return s;
+    }).setLayout({ name: 'sunCascaded', type: 'float', inputs: P3 });
+    // past the split: the last cascade alone (it has the far trees' impostor shadows)
+    const last = Fn(([P, N, NdL]) => {
+      const c = vec2(1.0, -1.0).toVar();
+      If(u.sunCascades.greaterThan(2), () => { c.assign(C[2](P, N, NdL)); })
+        .ElseIf(u.sunCascades.greaterThan(1), () => { c.assign(C[1](P, N, NdL)); })
+        .Else(() => { c.assign(C[0](P, N, NdL)); });
+      return select(c.y.greaterThan(0.0), mix(1.0, c.x, smoothstep(0.0, u.sunBlend, c.y)), float(1.0));
+    }).setLayout({ name: 'sunLast', type: 'float', inputs: P3 });
+    return Fn(([P, N, NdL]) => {
+      const s = float(1.0).toVar();
+      If(u.sunShadowOn.greaterThan(0.5).and(u.sunCascades.greaterThanEqual(1)), () => {
+        const d = length(P.xz.sub(cameraPosition.xz)).toVar();
+        If(d.lessThan(u.sunFade.y), () => {
+          If(d.lessThan(u.sunSplit.y), () => { s.assign(cascaded(P, N, NdL)); });
+          If(d.greaterThan(u.sunSplit.x), () => { s.assign(mix(s, last(P, N, NdL), smoothstep(u.sunSplit.x, u.sunSplit.y, d))); });
+          s.assign(mix(s, 1.0, smoothstep(u.sunFade.x, u.sunFade.y, d)));
+        });
+      });
+      return s;
+    }).setLayout({ name: 'sunShadow', type: 'float', inputs: P3 });
+  }
+
+  /** Vertex stage variant (dust motes): one point-sampled tap of the first cascade containing P
+   *  (comparison samplers are fragment-only). fn(P) -> 0 / 1. */
+  shadowVertexFn() {
+    const u = this.uniforms;
+    return Fn(([P]) => {
+      const s = float(1.0).toVar();
+      If(u.sunShadowOn.greaterThan(0.5), () => {
+        const done = float(0.0).toVar();
+        for (let i = 0; i < MAX; i++) {
+          If(done.lessThan(0.5).and(u.sunCascades.greaterThan(i)), () => {
+            const c = u.sunMat[i].mul(vec4(P, 1.0));
+            const uv = ndcToUv(c).toVar(), z = c.z.sub(u.sunParams[i].z);
+            If(uv.x.greaterThan(0.0).and(uv.y.greaterThan(0.0)).and(uv.x.lessThan(1.0)).and(uv.y.lessThan(1.0)).and(z.lessThan(1.0)).and(z.greaterThan(0.0)), () => {
+              const d = u.sunMap[i].load(ivec2(uv.mul(float(1.0).div(u.sunParams[i].y)))).x;
+              s.assign(select(z.lessThanEqual(d), float(1.0), float(0.0)));
+              done.assign(1.0);
+            });
+          });
+        }
+      });
+      return s;
+    });
+  }
+
+  /** Debug view: fn(P) -> tint (near cascade red, mid green, far blue, no shadow white; bands and
+   *  the fade mixed in). */
+  _tintFn() {
+    const u = this.uniforms;
+    const edgeOf = (i, P) => {
+      const c = u.sunMat[i].mul(vec4(P, 1.0));
+      const uv = ndcToUv(c), z = c.z.sub(u.sunParams[i].z);
+      return select(z.greaterThanEqual(1.0).or(z.lessThanEqual(0.0)).or(u.sunCascades.lessThanEqual(i)), float(-1.0), min(min(uv.x, uv.x.oneMinus()), min(uv.y, uv.y.oneMinus())));
+    };
+    const COL = [vec3(1.0, 0.3, 0.25), vec3(0.3, 1.0, 0.3), vec3(0.3, 0.5, 1.0)];
+    const tintOf = (i, P) => (i > 2 ? vec3(1.0) : select(edgeOf(i, P).greaterThan(0.0), COL[i], vec3(1.0)));
+    return Fn(([P]) => {
+      const t = vec3(1.0).toVar();
+      const e0 = edgeOf(0, P).toVar(), e1 = edgeOf(1, P).toVar(), e2 = edgeOf(2, P).toVar();
+      const band = (i, e) => mix(tintOf(i + 1, P), tintOf(i, P), smoothstep(0.0, u.sunBlend, e));
+      If(e0.greaterThan(0.0), () => { t.assign(band(0, e0)); }).ElseIf(e1.greaterThan(0.0), () => { t.assign(band(1, e1)); }).ElseIf(e2.greaterThan(0.0), () => { t.assign(band(2, e2)); });
+      const d = length(P.xz.sub(cameraPosition.xz));
+      const lastT = select(u.sunCascades.greaterThan(2), tintOf(2, P), select(u.sunCascades.greaterThan(1), tintOf(1, P), tintOf(0, P)));
+      t.assign(mix(t, lastT, smoothstep(u.sunSplit.x, u.sunSplit.y, d)));
+      return mix(t, vec3(1.0), smoothstep(u.sunFade.x, u.sunFade.y, d));
+    }).setLayout({ name: 'sunCascadeTint', type: 'vec3', inputs: [{ name: 'P', type: 'vec3' }] });
+  }
+}
+
+/** Depth-only override material of the sun cascades and the SSAO pre-pass: double-sided, no colour,
+ *  each object's own position node (instancing, wind, LOD collapse: three.js copies it over), and
+ *  alpha-cut leaves through their texture (maskNode: Surfaces.leafMaskNode(), set by Lighting; it
+ *  only cuts geometries with a `surface` attribute). */
+export class DepthMaterial extends THREE.MeshBasicNodeMaterial {
+  constructor() {
+    super({ side: THREE.DoubleSide, colorWrite: false, fog: false });
+    this.lights = false;
+    this.toneMapped = false;
+    // three copies `transparent` from each source material: never blend (the colour target is R8)
+    this.blending = THREE.NoBlending;
   }
 }
 

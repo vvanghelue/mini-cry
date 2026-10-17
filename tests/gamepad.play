@@ -1,0 +1,112 @@
+# Gamepad (simulated: navigator.getGamepads is stubbed with a standard-mapping pad): detected on
+# its first button press, played without the pointer lock; left stick move + L3 sprint, right stick
+# look, RT fire, X reload, B crouch toggle, Start pause + menus on the D-pad / A / B, X enters /
+# exits a vehicle on its prompt, RT drives, a disconnect pauses.
+# spawn: -505,2,525,0.6
+eval (()=>{ game.player.godMode = true; game.weapons.give('rifle_ak', { ammo: { rifle: 120 } }); const b = () => ({ pressed: false, touched: false, value: 0 }); window.__pad = { id: 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)', index: 0, connected: true, mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, b) }; Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [__pad, null, null, null] }); window.__btn = (i, on) => { __pad.buttons[i].pressed = on; __pad.buttons[i].value = on ? 1 : 0; }; game.input.forceLocked = false; window.__p0 = game.player.pos.clone(); return game.input.device })()
+expect game.input.device === 'kbm' && !game.input.active
+# first press (A = jump): the pad becomes the device, no pointer lock needed, prompts show its buttons
+eval __btn(0, true)
+wait 0.1
+eval __btn(0, false)
+wait 0.3
+expect game.input.device === 'pad' && game.input.active && document.body.classList.contains('gamepad') && game.input.label('use') === 'X'
+# left stick forward walks, L3 sprints until the stick is let go
+eval (__pad.axes[1] = -1, __btn(10, true), true)
+wait 0.1
+eval __btn(10, false)
+wait 1.2
+eval (()=>{ window.__sprint = game.player.sprinting; window.__moved = game.player.pos.distanceTo(__p0); __pad.axes[1] = 0; return { sprint: __sprint, moved: __moved } })()
+wait 0.2
+expect window.__sprint && window.__moved > 3 && !game.input.down('sprint')
+# right stick turns the view (right = yaw decreases)
+eval (window.__yaw0 = game.player.yaw, __pad.axes[2] = 1, true)
+wait 0.5
+eval (__pad.axes[2] = 0, game.player.yaw - __yaw0)
+expect window.__yaw0 - game.player.yaw > 0.5
+# RT fires (analog trigger)
+eval (window.__shots = game.stats.shots, __pad.buttons[7].value = 0.9, true)
+wait 0.6
+eval (__pad.buttons[7].value = 0, game.stats.shots - __shots)
+expect game.stats.shots - window.__shots >= 2
+# X with no prompt reloads
+wait 0.3
+eval (__btn(2, true), true)
+wait 0.1
+eval (__btn(2, false), game.weapons.state)
+expect game.weapons.state === 'reloading'
+wait 3
+# B toggles crouch
+eval (__btn(1, true), true)
+wait 0.1
+eval __btn(1, false)
+wait 0.4
+expect game.player.crouched
+eval (__btn(1, true), true)
+wait 0.1
+eval __btn(1, false)
+wait 0.4
+expect !game.player.crouched
+# Start pauses; the D-pad moves the focus, B resumes (and does not toggle crouch)
+eval (__btn(9, true), true)
+wait 0.1
+eval __btn(9, false)
+wait 0.2
+expect game.paused && game.menus.open && document.activeElement?.classList.contains('b-res')
+eval (__btn(13, true), true)
+wait 0.1
+eval __btn(13, false)
+wait 0.1
+expect document.activeElement?.classList.contains('b-map')
+eval (__btn(1, true), true)
+wait 0.1
+eval __btn(1, false)
+wait 0.3
+expect !game.paused && !game.menus.open && !game.player.crouched
+# View opens the map, B closes it
+eval (__btn(8, true), true)
+wait 0.1
+eval __btn(8, false)
+wait 0.1
+expect game.menus.mapOpen
+eval (__btn(1, true), true)
+wait 0.1
+eval __btn(1, false)
+wait 0.2
+expect !game.menus.mapOpen && !game.paused && game.engine.timeScale > 0 && !game.player.crouched
+# vehicle: X on the prompt enters (no reload), RT accelerates, X exits
+eval (()=>{ const v = game.world.entities.get('jeep_river'); game.player.teleport([v.pos[0] + 1.5, v.pos[1] + 0.5, v.pos[2] + 1.5]); return true })()
+wait 0.5
+expect document.querySelector('.hud-prompt').innerText.startsWith('X')
+eval (__btn(2, true), true)
+wait 0.1
+eval (__btn(2, false), true)
+wait 0.3
+expect !!game.player.inVehicle && game.weapons.state !== 'reloading'
+eval (__pad.buttons[7].value = 1, true)
+wait 2
+eval (__pad.buttons[7].value = 0, Math.round(game.player.inVehicle.speed * 3.6))
+expect game.player.inVehicle.speed > 5
+wait 2.5
+eval (__btn(2, true), true)
+wait 0.1
+eval __btn(2, false)
+wait 0.4
+expect !game.player.inVehicle
+shot gamepad
+# unplugged while playing without the pointer lock: pauses, back to keyboard / mouse
+eval (Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [null, null, null, null] }), dispatchEvent(new Event('gamepaddisconnected')), true)
+wait 0.2
+expect game.paused && game.input.device === 'kbm' && !document.body.classList.contains('gamepad')
+# main menu: the press that wakes the pad only focuses (Continue if there is a save: New game wipes it), the next one starts
+eval (Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => [__pad, null, null, null] }), game.started = false, game.menus.showMain(), true)
+eval (__btn(0, true), true)
+wait 0.1
+eval __btn(0, false)
+wait 0.1
+expect game.input.device === 'pad' && !game.started && game.menus.open && document.activeElement === game.menus._padFirst()
+eval (__btn(0, true), true)
+wait 0.1
+eval __btn(0, false)
+wait 0.3
+expect game.started && !game.paused && !game.menus.open

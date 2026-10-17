@@ -7,10 +7,11 @@
 //                      [--size 1440x900] [--by file] [--callers fn,fn] [--load]
 // --combat: enemies see the player; --alert also makes a gunshot noise so they fight.
 // --size: a small window (e.g. 480x300) keeps the GPU from being the bottleneck. When the GPU is,
-//   the JS waits in whichever WebGL call fills the command buffer (a native call such as
-//   uniform4fv at the top of the list): that time is GPU backpressure, not JS work.
-// --by file: self time per source file (three.js, native WebGL calls, GC and each game file).
-// --callers: the JS call chains of the given functions (e.g. native WebGL calls), by time.
+//   the JS waits in whichever WebGPU call fills the command buffer (a native call such as
+//   setVertexBuffer or createCommandEncoder at the top of the list): that time is GPU
+//   backpressure, not JS work.
+// --by file: self time per source file (three.js, native WebGPU calls, GC and each game file).
+// --callers: the JS call chains of the given functions (e.g. native WebGPU calls), by time.
 // --load: profile the loading (navigation until the game is ready) instead of frames.
 import { ensureServer, launch, openApp } from './lib/browser.js';
 
@@ -76,7 +77,7 @@ try {
     }
     total += t;
     const f = fileOf(cf);
-    const file = !cf.url ? 'native (WebGL / DOM calls)' : f.startsWith('three.') ? 'three.js' : f;
+    const file = !cf.url ? 'native (WebGPU / DOM calls)' : f.startsWith('three.') ? 'three.js' : f;
     byFile.set(file, (byFile.get(file) ?? 0) + t);
   }
   const per = (t) => (t / frames).toFixed(3).padStart(8);

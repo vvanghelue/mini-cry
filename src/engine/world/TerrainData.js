@@ -13,7 +13,7 @@ export const TERRAIN_MATERIALS = [
   { id: 0, name: 'auto', color: [0.5, 0.5, 0.5] },
   { id: 1, name: 'sand', color: [0.8, 0.72, 0.56], normal: 0.7 },
   { id: 2, name: 'wet_sand', color: [0.56, 0.49, 0.38], roughness: 0.55 },
-  { id: 3, name: 'grass', color: [0.36, 0.46, 0.2] },
+  { id: 3, name: 'grass', color: [0.36, 0.46, 0.2], roughness: 1.35 }, // map ~0.69 -> ~0.93: no sheen against the sun
   { id: 4, name: 'jungle', color: [0.29, 0.32, 0.17] },
   { id: 5, name: 'dirt', color: [0.5, 0.37, 0.27] },
   { id: 6, name: 'rock', color: [0.42, 0.39, 0.35], normal: 1.3 },

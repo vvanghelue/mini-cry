@@ -15,8 +15,11 @@
 // from a per-instance (angle, fold) attribute: every vertex beyond the shoulder (|x| > `shoulder`,
 // asset space) is a wing vertex, bent more toward the tip. The bird assets are regular asset
 // JSON (assets/bird_*.json, category "animal"): keep the body and tail inside the shoulder width.
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { If, float, max, abs, sign, sin, cos, attribute } from 'three/tsl';
 import { LAYERS } from '../../engine/render/layers.js';
+import { InstancedBatch } from '../../engine/render/Instancing.js';
+import { U } from '../../engine/render/tsl.js';
 import { MATERIAL_ID } from '../../engine/world/TerrainData.js';
 
 const TAU = Math.PI * 2;
@@ -30,33 +33,30 @@ const angDiff = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; el
 const DEFAULTS = { max: 32, flocks: 2, flock: [2, 5], scale: [0.9, 1.1], speed: 9, wobble: 0.5, startle: 10, callsPerMinute: 2, hitRadius: 0.3, shoulder: 0.065 };
 const FLAP = { rate: 4, amp: 0.8, dihedral: 0.08, glide: 0.5 };
 
-const WING_VERT = /* glsl */ `#include <begin_vertex>
-{
-  float ax = abs(transformed.x);
-  if (ax > birdWing.x) {
-    float s = sign(transformed.x), len = max(birdWing.y - birdWing.x, 1e-3);
-    float d = ax - birdWing.x, k = d / len, fold = aWing.y;
+/** Asset-space wing deformation (vertex stage): every vertex beyond the shoulder bends with the
+ *  per-instance (angle, fold) attribute aWing, more toward the tip. wing: uniform (shoulder, half span). */
+const wingDeform = (wing) => (p0) => {
+  const p = p0.toVar();
+  const aWing = attribute('aWing', 'vec2');
+  const ax = abs(p.x);
+  If(ax.greaterThan(wing.x), () => {
+    const s = sign(p.x), len = max(wing.y.sub(wing.x), 1e-3);
+    const d = ax.sub(wing.x).toVar(), k = d.div(len).toVar(), fold = aWing.y;
     // folded: the wing closes along the body (span shrinks, the tip swept back and down)
-    transformed.z += fold * k * len * 0.55;
-    transformed.y -= fold * k * 0.03;
-    d *= 1.0 - 0.93 * fold;
-    float a = aWing.x * (0.6 + 0.8 * k); // the outer wing bends more
-    transformed.x = s * (birdWing.x + d * cos(a));
-    transformed.y += d * sin(a);
-  }
-}`;
+    p.z.addAssign(fold.mul(k).mul(len).mul(0.55));
+    p.y.subAssign(fold.mul(k).mul(0.03));
+    d.mulAssign(float(1.0).sub(fold.mul(0.93)));
+    const a = aWing.x.mul(k.mul(0.8).add(0.6)); // the outer wing bends more
+    p.x.assign(s.mul(wing.x.add(d.mul(cos(a)))));
+    p.y.addAssign(d.mul(sin(a)));
+  });
+  return p;
+};
 
 function birdMaterial(lighting, wing) {
-  const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  m.userData.wing = { value: wing };
-  m.onBeforeCompile = (sh) => {
-    sh.uniforms.birdWing = m.userData.wing;
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 aWing; // flap angle (rad, + = up), fold (0..1)\nuniform vec2 birdWing; // shoulder, half span (m, asset space)')
-      .replace('#include <begin_vertex>', WING_VERT);
-  };
-  m.customProgramCacheKey = () => 'bird';
-  return lighting.patch(m);
+  const m = new THREE.MeshLambertNodeMaterial({ flatShading: true, vertexColors: true });
+  m.mcWing = U(wing);
+  return lighting.patch(m, { deform: wingDeform(m.mcWing) });
 }
 
 function bezier(a, b, c, d, t, out) {
@@ -104,17 +104,15 @@ class Species {
     geo.setAttribute('position', b.geometry.attributes.position);
     geo.setAttribute('color', b.geometry.attributes.color);
     this.max = cfg.max;
-    this.wing = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 2), 2).setUsage(THREE.DynamicDrawUsage);
-    geo.setAttribute('aWing', this.wing);
+    this.wing = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 2), 2);
     const span = Math.max(-b.bounds.min.x, b.bounds.max.x);
     this.pivot = (b.bounds.min.y + b.bounds.max.y) / 2; // body centre (asset origin = feet)
     this.material = birdMaterial(world.lighting, new THREE.Vector2(cfg.shoulder, span));
-    const mesh = (this.mesh = new THREE.InstancedMesh(geo, this.material, this.max));
+    const mesh = (this.mesh = new InstancedBatch(geo, this.material, this.max));
     mesh.name = `Birds:${id}`;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 3).fill(1), 3);
-    mesh.count = 0;
-    mesh.frustumCulled = false;
+    this.tint = new THREE.InstancedBufferAttribute(new Float32Array(this.max * 3).fill(1), 3);
+    mesh.geometry.setAttribute('iTint', this.tint);
+    mesh.geometry.setAttribute('aWing', this.wing);
     mesh.layers.set(LAYERS.FX);
     this.feathers = new THREE.Color(cfg.feathers ?? '#e8e8e4').getHex();
     this.birds = [];
@@ -159,7 +157,7 @@ export class Birds {
   }
 
   clear() {
-    for (const sp of this.species) { sp.birds.length = 0; sp.mesh.count = 0; }
+    for (const sp of this.species) { sp.birds.length = 0; sp.mesh.instances = 0; }
     this.flocks.length = 0;
     this._first = true;
   }
@@ -321,7 +319,7 @@ export class Birds {
 
   _upload(sp) {
     const mesh = sp.mesh, n = sp.birds.length, wing = sp.wing.array;
-    if (!n && !mesh.count) return;
+    if (!n && !mesh.instances) return;
     for (let i = 0; i < n; i++) {
       const b = sp.birds[i];
       _q.setFromEuler(_e.set(b.pitch, b.yaw, b.roll));
@@ -329,16 +327,16 @@ export class Birds {
       mesh.setMatrixAt(i, _m.compose(_w.copy(b.pos).sub(_o), _q, _s.setScalar(b.scale)));
       wing[i * 2] = b.angle;
       wing[i * 2 + 1] = b.fold;
-      if (b.slot !== i) { b.slot = i; mesh.setColorAt(i, _c.setScalar(b.tint)); sp.colorsDirty = true; }
+      if (b.slot !== i) { b.slot = i; sp.tint.setXYZ(i, b.tint, b.tint, b.tint); sp.colorsDirty = true; }
     }
-    mesh.count = n;
+    mesh.instances = n;
     mesh.instanceMatrix.clearUpdateRanges();
     mesh.instanceMatrix.addUpdateRange(0, n * 16);
     mesh.instanceMatrix.needsUpdate = true;
     sp.wing.clearUpdateRanges();
     sp.wing.addUpdateRange(0, n * 2);
     sp.wing.needsUpdate = true;
-    if (sp.colorsDirty) { mesh.instanceColor.needsUpdate = true; sp.colorsDirty = false; }
+    if (sp.colorsDirty) { sp.tint.needsUpdate = true; sp.colorsDirty = false; }
   }
 
   // --- flock decisions ---------------------------------------------------------------------

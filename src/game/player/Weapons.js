@@ -215,7 +215,7 @@ export class Weapons {
           if ((this.clip[this.currentId] ?? 0) > 0) this._fire(w);
           else if (input.hit('fire')) { g.audio?.play('dry_fire', { volume: 0.5 }); this.fireCd = 0.25; this._reload(); }
         }
-        if (input.hit('reload')) this._reload();
+        if (input.hit('reload') && !(input.hit('use') && g.interactPrompt)) this._reload(); // pad: one button for both
       }
       if (input.hit('melee') && w.type !== 'melee' && this.fireCd <= 0) this._melee(this.defs.machete ?? w, true);
       if (input.hit('grenade') && this.grenades > 0) this._throwGrenade();
@@ -270,6 +270,7 @@ export class Weapons {
     p.recoilYaw += (Math.random() - 0.5) * rk * 0.008;
     this.kick = Math.min(1, this.kick + 0.4 + rk * 0.1);
     this.flashT = 0.05;
+    g.input.rumble(w.type === 'launcher' ? 0.9 : 0.12 * rk, 0.25 + 0.1 * rk, w.type === 'launcher' ? 250 : 70);
     g.effects.muzzleFlash(muzzleW, dir, w.type === 'launcher' ? 0.4 : 0.16);
     g.audio?.play(w.sound, { volume: 0.9, priority: 2 });
     g.ai?.noise(p.pos, w.noise ?? 100, 'gunshot');

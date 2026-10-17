@@ -1,7 +1,8 @@
 # Working on Mini Cry (guide for AI agents)
 
 Open-world FPS (Far Cry 1 style) with a realistic, textured look (CC0 photo textures, PBR, alpha-cut
-foliage) + engine + editor, Three.js r186 + Vite, plain JS ES
+foliage) + engine + editor, Three.js r186 (WebGPURenderer + TSL node materials, WebGL 2 fallback:
+`?webgl=1`; see "WebGPU" below) + Vite, plain JS ES
 modules (editor UI: Preact + @preact/signals, `.jsx`). Everything is in English (code, comments, game
 and editor UI, docs) except the story content in `public/data/`: missions, dialogue, voices, place and
 character names stay French.
@@ -19,8 +20,8 @@ character names stay French.
   every mission / dialogue / entity reference).
 - **Regression tests.** `npm test` runs every `tests/*.play` scenario headless on the production
   build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, flying the plane (take-off, turn, crash) and landing it, AI fight, enemy lethality on normal, NPC bodies (every soldier body: hitboxes, death, LODs), birds, water reflections (SSR levels), first-person models (every weapon's realistic model, both wrists on its grips),
-  frame pacing while driving / flying fast). Add a scenario with `expect <js>` assertions when you add
-  gameplay. Each report has `lateShaders` (programs compiled after the loading warm-up = hitches):
+  frame pacing while driving / flying fast, gamepad (simulated pad: play, menus, driving)). Add a scenario with `expect <js>` assertions when you add
+  gameplay. Each report has `lateShaders` (render pipelines created after the loading warm-up = hitches):
   keep it at 0 — if a new material / object type shows up late, make `World.warmUp` cover it.
 - **Performance budget**: 120 fps on a MacBook Air M1 ≈ 8.3 ms per frame. Check with
   `npm run bench -- --mode play --prod --m1 --repeat 3 --fresh` (CPU throttled 2x, GPU time x1.9,
@@ -30,9 +31,11 @@ character names stay French.
   off and on in pairs (`--only a,b`; `--veg` = per vegetation LOD / species; `res 50%` tells
   fill-rate from geometry cost) and `--veg-stats` (instances, screen height, triangles per
   vegetation species / LOD, `Vegetation.lodStats`). `profile`: `--by file`, `--callers <fn>`,
-  `--size 480x300` (with the GPU saturated, the JS waits in a native WebGL call such as
-  `uniform4fv`: that is GPU backpressure, not JS work), `--load`. Never time passes with one GPU
-  timer query each: on ANGLE / Metal a query adds ~3 ms. The F3 / bench triangle count sums every
+  `--size 480x300` (with the GPU saturated, the JS waits in a WebGPU call such as
+  `setVertexBuffer` / `createCommandEncoder`: that is GPU backpressure, not JS work; the tools run
+  Chrome without vsync, so a GPU-bound page runs ahead until WebGPU's command buffer fills, then
+  stalls ~20 ms every few dozen frames — with vsync the frames are even), `--load`. GPU time = WebGPU
+  timestamp queries around every render pass, summed per frame (`Perf.js`). The F3 / bench triangle count sums every
   pass (cascades, SSAO pre-pass) and the instances the LOD shader collapses. For hitches use
   `node tools/trace-flight.mjs --prod` (long frames with GC / JS / GPU-sync breakdown). Instance
   buffers must stay incremental (`render/InstanceBlocks.js`: one block per sector / tile, only
@@ -46,21 +49,51 @@ character names stay French.
   which turns off the tile GPU's hidden surface removal (near LODs are drawn first so hidden far
   ones fail the depth test). Measured 2026-10-14, after impostors / indexing: vegetation ≈ 45 % of
   the GPU frame (near / mid LOD crowns, ~2.3 shaded layers per covered pixel), terrain ~20 %,
-  SSAO ~17 %, shadows ~12 %. On Apple GPUs (ANGLE / Metal) per-pixel loops over local arrays or
+  SSAO ~17 %, shadows ~12 %. On Apple GPUs (Metal) per-pixel loops over local arrays or
   over uniform arrays / samplers picked by index compile badly: the terrain splat loop alone cost
   ~4.5 ms — write such code out (TerrainMaterial.js, SunShadows.js).
 - The dev server (`npm run dev`, port 5190) hot-reloads pages on any source change; tools start it
   if needed. Use `--prod` for stable benchmarks (builds + serves `dist/` on 5191).
 
 ## Map of the code
-- `src/engine/core/Engine.js` frame loop (systems in order; `maxFps` cap: auto = uncapped by default, 60 in debug mode, F2 → Graphics → FPS limit, `?fps=N` overrides; antialiasing `msaa2` / `msaa4` (= `msaa`, the canvas' own MSAA) / `msaa8` (x2 / x8: offscreen multisampled framebuffer resolved onto the canvas, clamped to the GPU's sample counts) / `fxaa` (post pass on the final image) / `off`, fixed at context creation: `?aa=`, Options → Antialiasing, auto = MSAA 4x on desktop, on mobile FXAA (MSAA costs 20-30 % of the GPU frame) unless high / ultra), `Perf.js`, `Input.js` (`?bot` forces pointer lock for tests), `Live.js` (commands from `mc live`).
-- `src/engine/render/Lighting.js` time of day, sky, fog, wind, `material(opts)` = shared patched material (`textured`: PBR MeshStandard sampling the texture arrays, sky reflections; else Lambert); `Surfaces.js` texture arrays (terrain / surfaces / foliage, one strip image each) + the surface shader code + alpha-cut depth passes, docs/TEXTURES.md; `TerrainMaterial.js` terrain splatting (material-id texture, height blend, triplanar slopes); `Grade.js` AgX tone mapping + grade; `SunShadows.js` near / mid / far cascades (blend band at each border, radial fade at the preset's `shadowDistance`; on the ground in front of the camera and grown with its height above it, so planes get far shadows; vegetation casts per cascade: species `castShadow` (m) = up to the first cascade that wide, each LOD mesh only into the cascades it can reach, `InstancedField._castLayers`, `layers.js` CASCADE; far trees cast through sun-facing impostor cards in the last cascade only, which alone shades past where trees turn impostor; F2 → Graphics → Sun shadows for live tuning + cascades view); `SSAO.js` half-res SSAO (depth pre-pass of STATIC + DYNAMIC within 80 m → AO → 4x4 blur, applied to the ambient light in the patched materials; toggle in the options menu, F2, quality presets); `GI.js` + `GIField.js` baked probe GI (replaces the hemisphere ambient, relit for the time of day; finer interior volumes declared by assets, `gi.volumes`) + auto exposure, docs/GI.md; `LensFlare.js` sun lens flare (16 occlusion queries on the sun disc right after the main pass, clouds included, read back 2-3 frames later without stalling; one additive draw, skipped when the sun is hidden; options menu, F2, `?flare=0`); `SSR.js` screen-space reflections on the water, their own setting: off (default) / ultra low / low / medium / high (`SSR_LEVELS`: steps, depth range, ray length) + `blur`, independent of the quality preset (rays march in the water shader through the SSAO depth pre-pass, stretched to `ssr.distance`; reflected colour = previous frame copied at the end of the frame and reprojected; options menu, F2, `?ssr=<level>`); `Glows.js` light halos of asset parts with `glow` (lamps, fires, beacons: one draw, faded in at dusk, occluded through the SSAO depth); `Haze.js` the fog: near exponential height haze (denser low down, max opacity, drifting noise banks carried by the wind, thicker at sunrise / dusk / night, coloured by the light + a sun glow) + far exp2 fog matching the sky's horizon, in every patched material (`Lighting.patch` replaces three.js's fog chunks; the water calls the same `hazeVertex` / `hazeFrag`): the haze's opacity per vertex, handed over in ONE float varying (on Apple's tile GPUs every varying component costs per triangle: a vec4 cost ~1 ms), the far fog and the colours per pixel from `vViewPosition`, applied before tone mapping (environment.json `haze`, `fogDensity`; F2 → Fog & haze; player on / off + strength: Options menu, `?fog=0` / `?fog=<strength>`, `live fog`); `Motes.js` dust specks around the camera (one draw of points, lit only where the sun cascades say the air is sunlit, bright against the light; `motes`; `?motes=0`); `layers.js` (STATIC/DYNAMIC cast shadows, DETAIL/FX don't, EDITOR only in the editor).
+- `src/engine/core/Engine.js` frame loop (systems in order; `maxFps` cap: auto = uncapped by default, 60 in debug mode, F2 → Graphics → FPS limit, `?fps=N` overrides; frame pacing: at most `maxFramesInFlight` (4, `?inflight=N`) frames queued for the GPU, else the frame is drawn when the GPU catches up — without it a GPU-bound page without vsync stalls ~25 ms every few dozen frames; antialiasing `msaa` (MSAA 4x on the canvas; WebGPU offers 1 or 4 samples: `msaa2` / `msaa8` mean 4x) / `fxaa` (post pass on the final image) / `off`, fixed at context creation: `?aa=`, Options → Antialiasing, auto = MSAA 4x on desktop, on mobile FXAA (MSAA costs 20-30 % of the GPU frame) unless high / ultra), `Perf.js`, `Input.js` (keyboard / mouse / gamepad: action bindings, `?bot` forces pointer lock for tests; a gamepad (standard mapping) is picked up on its first press: `device` = last device used, `poll()` each frame, `Pad:<button>` codes in the bindings, left stick = `move()`, right stick = `look()`, no pointer lock needed (`active`), `label(action)` = key / button name for prompts, B toggles crouch, L3 sprint latch, X = use on a prompt else reload, rumble; menus / map driven with the D-pad / A / B, Start pauses, `Menus.pad`), `Live.js` (commands from `mc live`).
+- `src/engine/render/Lighting.js` time of day, sky, fog, wind, `material(opts)` = shared node material (`textured`: MeshStandardNodeMaterial sampling the texture arrays, sky reflections; else Lambert; our own lights: sun + cascaded shadow, probe GI); `Surfaces.js` texture arrays (terrain / surfaces / foliage, one strip image each) + the surface shader code + alpha-cut depth passes, docs/TEXTURES.md; `TerrainMaterial.js` terrain splatting (material-id texture, height blend, triplanar slopes); `Grade.js` AgX tone mapping + grade; `SunShadows.js` near / mid / far cascades (blend band at each border, radial fade at the preset's `shadowDistance`; on the ground in front of the camera and grown with its height above it, so planes get far shadows; vegetation casts per cascade: species `castShadow` (m) = up to the first cascade that wide, each LOD mesh only into the cascades it can reach, `InstancedField._castLayers`, `layers.js` CASCADE; far trees cast through sun-facing impostor cards in the last cascade only, which alone shades past where trees turn impostor; F2 → Graphics → Sun shadows for live tuning + cascades view); `SSAO.js` half-res SSAO (depth pre-pass of STATIC + DYNAMIC within 80 m → AO → 4x4 blur, applied to the ambient light in the patched materials; toggle in the options menu, F2, quality presets); `GI.js` + `GIField.js` baked probe GI (replaces the hemisphere ambient, relit for the time of day; finer interior volumes declared by assets, `gi.volumes`) + auto exposure, docs/GI.md; `LensFlare.js` sun lens flare (16 occlusion queries on the sun disc right after the main pass, clouds included, read back 2-3 frames later without stalling; one additive draw, skipped when the sun is hidden; options menu, F2, `?flare=0`); `SSR.js` screen-space reflections on the water, their own setting: off (default) / ultra low / low / medium / high (`SSR_LEVELS`: steps, depth range, ray length) + `blur`, independent of the quality preset (rays march in the water shader through the SSAO depth pre-pass, stretched to `ssr.distance`; reflected colour = previous frame copied at the end of the frame and reprojected; options menu, F2, `?ssr=<level>`); `Glows.js` light halos of asset parts with `glow` (lamps, fires, beacons: one draw, faded in at dusk, occluded through the SSAO depth); `Haze.js` the fog: near exponential height haze (denser low down, max opacity, drifting noise banks carried by the wind, thicker at sunrise / dusk / night, coloured by the light + a sun glow) + far exp2 fog matching the sky's horizon, in every engine material (`Lighting.patch` / `setupFragment`; the water calls the same `hazeVertex` / `hazeFrag`): the haze's opacity per vertex, handed over in ONE float varying (on Apple's tile GPUs every varying component costs per triangle: a vec4 cost ~1 ms), the far fog and the colours per pixel from `vViewPosition`, applied before tone mapping (environment.json `haze`, `fogDensity`; F2 → Fog & haze; player on / off + strength: Options menu, `?fog=0` / `?fog=<strength>`, `live fog`); `Motes.js` dust specks around the camera (one draw of points, lit only where the sun cascades say the air is sunlit, bright against the light; `motes`; `?motes=0`); `layers.js` (STATIC/DYNAMIC cast shadows, DETAIL/FX don't, EDITOR only in the editor).
 - `src/engine/world/` terrain (data, generator, chunk renderer), `Water.js`, `Vegetation.js` + `VegetationScatter.js` (drawn by `render/InstancedField.js`: sector culling, shader LOD cross-fades `LodFade.js`, far impostors `Impostors.js`), `Grass.js`, `Entities.js` (entity registry + manager; props → `render/StaticBatch.js`), `World.js` (loads everything).
 - `src/engine/physics/Physics.js` shapes + grid; `collideCylinder`, `groundAt`, `raycast`, `visible`.
 - `src/engine/assets/ModelBuilder.js` (asset JSON → geometry with normals, metric uvs, per-vertex `surface`; format in docs/ASSETS.md), `generators.js` (textured trees / palms / plants: leaf cards, frond strips), `surfaces.js` (surface name → layer id, shared with the Node tools).
 - `src/engine/anim/Characters.js` NPC bodies: realistic Rocketbox bodies of `public/models/characters` (built by `mc character build` from `characters.json`: one skinned mesh on the game rig, photo atlas, distance LODs = index ranges, `setLodDistance`) and the older flat-coloured Quaternius models (merged mesh); UAL retargeting (once per rig, shared), clip aliases, hitboxes, palettes (part tints), weapon grip. Archetypes pick `model` / `models` (one per actor), entities can set `model`.
 - `src/game/Game.js` game rules + live commands; `player/` (Player, Weapons, ViewModels = loads the realistic first-person weapons / arms of `public/models/fp` (built by `mc viewmodel build` from `viewmodels.json`), ViewArms = realistic skinned arms (Rocketbox) on the weapon grips by two-bone IK, grips = weapon asset `hands`, config `player.json` `arms`, ViewLight = light of the view-model pass: its camera follows the world camera, the materials get the world sun + cascaded shadows and the probe GI, a procedural sky PMREM for reflections; no SSAO), `actors/` (Actors, AI, Nav), `missions/` (Missions runtime, Dialogue), `entities/index.js` (game entity types & schemas), `vehicles/`, `fx/Effects.js`, `fx/Birds.js` (flocks around the camera: perched on tree crowns / beaches, soaring, Bezier flights between the two; startled by gunshots and the player, can be shot; wings flapped in the vertex shader; `?birds=0` off), `ui/` (HUD, Menus, PerfOverlay = stats graphs bottom right, F3; DebugPanel = lil-gui cheats / toggles, F2; both on by default, `?stats=0` / `?debug=0` hide them, off with `?bot` / `?bench` / `?nohud`; in debug mode settings are never read from / written to localStorage, so a reload restores the defaults).
 - `src/editor/core.js` editor logic (signals `S`, selection, gizmo, brushes, undo, save, live commands), `ui/`, `panels/`.
+
+## WebGPU (three.js WebGPURenderer, TSL)
+- Shaders are TSL node graphs (`three/tsl`), no GLSL. Engine materials come from
+  `Lighting.material()` / `patch()`; full-screen passes are `NodeMaterial`s with a `fragmentNode`.
+- Output: no HDR buffer / output pass. `renderer.contextNode` (`Grade.js` `outputContext`) tone maps
+  + sRGB-encodes inside every material drawn to the canvas (or a target flagged `mcOutput`);
+  `material.mcRawOutput` writes as is (additive glows, flare, motes); `toneMapped: false` = encode only.
+- `render/tsl.js`: `U(v)` = uniform shared per render (renderGroup, stable name: `.value` like the old
+  uniform objects, so the debug panel / editor / tools keep writing `uniforms.x.value`); `tex(t)` /
+  `T(node, name)` = texture nodes without per-object uv-matrix uniforms (otherwise uploaded with each
+  draw); `Fn().setLayout()` functions are real WGSL functions (much faster shader builds than inlined
+  code); tsl.js patches three so their code is generated per shader (three caches it per backend and
+  would lose the uniforms / textures they read).
+- Instancing: `render/Instancing.js` `InstancedBatch` (instance matrix attributes `iM0..iM3`, applied
+  in the materials' vertex node), not THREE.InstancedMesh (three builds its shaders per InstancedMesh).
+  Buffers are static usage + update ranges: a DynamicDrawUsage attribute is re-uploaded whole at every draw.
+- A shader is built for the attribute set of the first geometry an object draws and kept when the
+  mesh gets another geometry: give meshes filled later a placeholder geometry with the same
+  attributes (TerrainRenderer, Glows, the editor asset preview).
+- Screen space: texture / framebuffer origin top-left (`ndcToUv`), depth 0..1. Compare (shadow)
+  sampling only in fragment shaders (`SunShadows.shadowVertexFn` loads texels in the vertex stage).
+- Pipelines: `World.warmUp` compiles every material x object type (`compileAsync`) and draws one
+  frame with everything visible; `lateShaders` = pipelines created after that. `compileAsync`
+  yields to the main thread between pipelines: no rAF loop may run during the loading (without
+  vsync it starves the warm-up) — per-frame UI updates go through `engine.addSystem`.
+- Timing tests (`*_smooth.play`, `plane.play`) check the CPU time of the rendered frames
+  (`perf.onFrame`), not rAF intervals: without vsync Chrome presents WebGPU canvases in bursts
+  (fast frames, then a ~18 ms wait on the Metal queue). With vsync frames are even.
+- `?webgl=1` (WebGPURenderer's WebGL 2 backend) runs, but the engine's own passes assume WebGPU
+  conventions (texture origin top-left, depth 0..1): no sun shadows there yet.
 
 ## Data files
 | file | content | edit with |

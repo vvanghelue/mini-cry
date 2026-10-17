@@ -11,7 +11,6 @@ const HIDE = new THREE.Matrix4().makeScale(0, 0, 0);
 class Pool {
   constructor(geo, mat, max, layer) {
     this.mesh = new THREE.InstancedMesh(geo, mat, max);
-    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3);
     this.mesh.frustumCulled = false;
     this.mesh.layers.set(layer);
@@ -51,8 +50,7 @@ export class Effects {
     scene.add(this.group);
     // lit chunks: dust, debris, smoke, blood
     const chunkGeo = new THREE.IcosahedronGeometry(0.5, 0);
-    const litMat = new THREE.MeshLambertMaterial({ flatShading: true, transparent: false });
-    lighting.patch(litMat);
+    const litMat = lighting.patch(new THREE.MeshLambertMaterial({ flatShading: true, transparent: false }));
     this.lit = new Pool(chunkGeo, litMat, 1500, LAYERS.FX);
     // glowing: sparks, fire, muzzle flashes, fireballs (unlit, additive-ish)
     const glowMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, fog: false });
@@ -64,7 +62,7 @@ export class Effects {
     // decals: small dark discs on walls / ground
     const decalGeo = new THREE.CircleGeometry(0.5, 6);
     const decalMat = new THREE.MeshBasicMaterial({ color: 0xffffff, polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false, transparent: true, opacity: 0.85 });
-    lighting.haze.patch(decalMat); // hazed like the surface they sit on
+    // hazed like the surface they sit on: the scene's fog node (render/Haze.js) applies to it
     this.decals = new Pool(decalGeo, decalMat, 160, LAYERS.FX);
     for (const p of [this.lit, this.glow, this.tracers, this.decals]) this.group.add(p.mesh);
     this.shake = 0;
@@ -162,7 +160,9 @@ export class Effects {
     }
     const cam = this.game.engine.camera.position;
     const d = cam.distanceTo(pos);
-    this.shake = Math.max(this.shake, THREE.MathUtils.clamp(1.2 - d / (radius * 5), 0, 1));
+    const k = THREE.MathUtils.clamp(1.2 - d / (radius * 5), 0, 1);
+    this.shake = Math.max(this.shake, k);
+    if (k > 0.05) this.game.input.rumble(k, k * 0.8, 250 + 400 * k);
   }
 
   fire(pos, scale = 1) {

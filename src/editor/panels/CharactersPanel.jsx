@@ -1,8 +1,9 @@
 // Characters: preview every archetype (model(s) + palette + held weapon) animated, browse / play all
 // clips (pack + retargeted UAL), aim pitch, and edit palettes live (game/archetypes.json).
 import { useEffect, useRef, useState } from 'preact/hooks';
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { createRenderer } from '../../engine/core/Engine.js';
 import { Data } from '../../engine/core/Data.js';
 import { Lighting } from '../../engine/render/Lighting.js';
 import { CharacterLibrary, archetypeModels } from '../../engine/anim/Characters.js';
@@ -11,9 +12,7 @@ import { Row, ColorField, NumberField } from '../ui/Fields.jsx';
 
 class CharPreview {
   constructor(canvas) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer = createRenderer({ canvas, antialias: true });
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
     this.camera.position.set(2.2, 1.7, 3.2);
@@ -28,11 +27,12 @@ class CharPreview {
     this.clock = new THREE.Timer();
     this.speed = 1;
     this.pitch = 0;
-    const loop = (t) => { this.raf = requestAnimationFrame(loop); this.frame(t); };
-    this.raf = requestAnimationFrame(loop);
   }
 
   async init() {
+    await this.renderer.init();
+    const loop = (t) => { this.raf = requestAnimationFrame(loop); this.frame(t); };
+    this.raf = requestAnimationFrame(loop);
     const arch = await Data.json('game/archetypes.json', { fresh: true });
     const models = archetypeModels(arch.archetypes);
     this.lib = await new CharacterLibrary(this.lighting).load(models);

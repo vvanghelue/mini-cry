@@ -6,62 +6,15 @@
 // environment.json `glows`.
 //
 // Occlusion is decided for the light, not per pixel of its halo (a halo depth-tested pixel by
-// pixel gets cut by the ground in front of a campfire): within the SSAO range the vertex shader
+// pixel gets cut by the ground in front of a campfire): within the SSAO range the vertex stage
 // reads the SSAO pass's half-res view depth (SSAO.js, already rendered this frame) at five points
 // around the light and fades the whole sprite by the share that sees it, then draws it over
 // everything. Farther (or with SSAO off) the sprite, pulled toward the camera by its radius so the
 // lamp itself doesn't cut it, is depth tested as usual: it is only a few pixels wide there.
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import { Fn, float, ivec2, vec2, vec4, max, min, exp, sin, fract, sqrt, length, mix, smoothstep, step, select, clamp, attribute, varying, varyingProperty, modelViewMatrix, cameraProjectionMatrix, positionLocal, dot } from 'three/tsl';
 import { LAYERS } from './layers.js';
-
-const VERT = /* glsl */ `
-attribute vec2 corner;
-attribute vec4 glow; // rgb x intensity, radius (m)
-attribute vec4 anim; // flicker, blink period (s, 0 = steady), share kept by day, phase
-uniform float uTime, glowNight, glowGain, glowFog, glowMaxDist, glowMinAngle;
-uniform sampler2D aoTex; // SSAO: g = view depth (m), half res
-uniform vec2 aoSize;
-uniform float aoEnabled, aoFar;
-varying vec2 vUv;
-varying vec3 vCol;
-float seen(vec2 px, float z) {
-  return step(z, texelFetch(aoTex, ivec2(clamp(px, vec2(0.0), aoSize - 1.0)), 0).g);
-}
-void main() {
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  float dist = length(mv.xyz), r = glow.w, vz = -mv.z;
-  float vis = 1.0;
-  bool byDepth = aoEnabled > 0.5 && vz > 0.0 && vz < aoFar;
-  if (byDepth) {
-    vec4 c = projectionMatrix * mv;
-    vec2 px = (c.xy / c.w * 0.5 + 0.5) * aoSize;
-    float o = max(1.0, r * 0.2 * projectionMatrix[1][1] * aoSize.y * 0.5 / vz); // a fifth of the radius, in texels
-    float z = vz - max(r * 0.5, 0.3); // the lamp's own shade / glass doesn't hide it
-    vis = (seen(px, z) + seen(px + vec2(o, 0.0), z) + seen(px - vec2(o, 0.0), z) + seen(px + vec2(0.0, o), z) + seen(px - vec2(0.0, o), z)) * 0.2;
-  }
-  float size = max(r, dist * glowMinAngle); // a few pixels at least: distant lights stay visible
-  mv.xyz *= max(dist - min(r, dist * 0.5), 0.05) / dist;
-  mv.xy += corner * size;
-  gl_Position = projectionMatrix * mv;
-  if (byDepth) gl_Position.z = -gl_Position.w * 0.9999; // visibility decided above: no depth cut
-  vUv = corner;
-  float t = uTime + anim.w * 37.0;
-  float flick = 1.0 + anim.x * (0.5 * sin(t * 11.0) + 0.3 * sin(t * 23.7 + 1.3) + 0.2 * sin(t * 41.0 + 2.1));
-  float ph = anim.y > 0.0 ? fract(t / anim.y) : 0.2;
-  float blink = smoothstep(0.0, 0.04, ph) * (1.0 - smoothstep(0.4, 0.46, ph));
-  float fog = exp(-glowFog * glowFog * dist * dist);
-  float fade = sqrt(fog) * (1.0 - smoothstep(glowMaxDist * 0.7, glowMaxDist, dist));
-  vCol = glow.rgb * glowGain * mix(anim.z, 1.0, glowNight) * flick * blink * fade * vis * sqrt(r / size);
-}`;
-
-const FRAG = /* glsl */ `
-varying vec2 vUv;
-varying vec3 vCol;
-void main() {
-  float d2 = dot(vUv, vUv);
-  float a = max(exp(-d2 * 3.0) - 0.0498, 0.0) * 0.8 + exp(-d2 * 40.0); // halo (0 at the rim) + hot core
-  gl_FragColor = vec4(vCol * a, 1.0);
-}`;
+import { U } from './tsl.js';
 
 const S = THREE.MathUtils.smoothstep;
 const _p = new THREE.Vector3();
@@ -71,25 +24,59 @@ export class Glows {
     this.lighting = lighting;
     this.count = 0;
     const ao = lighting.ao.uniforms;
-    this.uniforms = {
+    const u = (this.uniforms = {
       uTime: lighting.uniforms.uTime,
-      aoTex: ao.aoTex, aoSize: ao.aoSize, aoEnabled: ao.aoEnabled, aoFar: ao.aoFar,
-      glowNight: { value: 0 },
-      glowGain: { value: 1 },
-      glowFog: { value: 0 },
-      glowMaxDist: { value: 600 },
-      glowMinAngle: { value: 0.005 },
-    };
-    this.material = new THREE.ShaderMaterial({
-      uniforms: this.uniforms,
-      vertexShader: VERT,
-      fragmentShader: FRAG,
-      transparent: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
+      glowNight: U(0),
+      glowGain: U(1),
+      glowFog: U(0),
+      glowMaxDist: U(600),
+      glowMinAngle: U(0.005),
     });
-    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.material);
+    const corner = attribute('corner', 'vec2'), glow = attribute('glow', 'vec4'), anim = attribute('anim', 'vec4');
+    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+    m.toneMapped = false;
+    m.mcRawOutput = true; // written as is, like the WebGL shader (no sRGB encoding)
+    m.lights = false;
+    const seen = (px, z) => step(z, ao.aoTex.load(ivec2(clamp(px, vec2(0.0), ao.aoSize.sub(1.0)))).g);
+    const vCol = varyingProperty('vec3', 'vGlowCol');
+    m.vertexNode = Fn(() => {
+      const mv = modelViewMatrix.mul(vec4(positionLocal, 1.0)).toVar();
+      const dist = length(mv.xyz).toVar(), r = glow.w, vz = mv.z.negate();
+      const vis = float(1.0).toVar();
+      const byDepth = ao.aoEnabled.greaterThan(0.5).and(vz.greaterThan(0.0)).and(vz.lessThan(ao.aoFar)).toVar();
+      const c = cameraProjectionMatrix.mul(mv);
+      // pixel of the light in the half-res AO buffer (rows run down)
+      const ndc = c.xy.div(c.w);
+      const px = vec2(ndc.x.mul(0.5).add(0.5), ndc.y.mul(-0.5).add(0.5)).mul(ao.aoSize).toVar();
+      const o = max(1.0, r.mul(0.2).mul(cameraProjectionMatrix.element(1).y).mul(ao.aoSize.y).mul(0.5).div(vz)); // a fifth of the radius, in texels
+      const z = vz.sub(max(r.mul(0.5), 0.3)); // the lamp's own shade / glass doesn't hide it
+      const v5 = seen(px, z).add(seen(px.add(vec2(o, 0.0)), z)).add(seen(px.sub(vec2(o, 0.0)), z)).add(seen(px.add(vec2(0.0, o)), z)).add(seen(px.sub(vec2(0.0, o)), z)).mul(0.2);
+      vis.assign(select(byDepth, v5, float(1.0)));
+      const size = max(r, dist.mul(u.glowMinAngle)).toVar(); // a few pixels at least: distant lights stay visible
+      mv.xyz.mulAssign(max(dist.sub(min(r, dist.mul(0.5))), 0.05).div(dist));
+      mv.xy.addAssign(corner.mul(size));
+      const pos = cameraProjectionMatrix.mul(mv).toVar();
+      // visibility decided above: no depth cut (just in front of the near plane)
+      pos.z.assign(select(byDepth, pos.w.mul(0.0001), pos.z));
+      const t = u.uTime.add(anim.w.mul(37.0));
+      const flick = float(1.0).add(anim.x.mul(sin(t.mul(11.0)).mul(0.5).add(sin(t.mul(23.7).add(1.3)).mul(0.3)).add(sin(t.mul(41.0).add(2.1)).mul(0.2))));
+      const ph = select(anim.y.greaterThan(0.0), fract(t.div(max(anim.y, 1e-3))), float(0.2));
+      const blink = smoothstep(0.0, 0.04, ph).mul(float(1.0).sub(smoothstep(0.4, 0.46, ph)));
+      const fog = exp(u.glowFog.mul(u.glowFog).mul(dist).mul(dist).negate());
+      const fade = sqrt(fog).mul(float(1.0).sub(smoothstep(u.glowMaxDist.mul(0.7), u.glowMaxDist, dist)));
+      vCol.assign(glow.rgb.mul(u.glowGain).mul(mix(anim.z, 1.0, u.glowNight)).mul(flick).mul(blink).mul(fade).mul(vis).mul(sqrt(r.div(size))));
+      return pos;
+    })();
+    m.colorNode = Fn(() => {
+      const uv = varying(corner, 'vGlowUv');
+      const d2 = dot(uv, uv);
+      const a = max(exp(d2.mul(-3.0)).sub(0.0498), 0.0).mul(0.8).add(exp(d2.mul(-40.0))); // halo (0 at the rim) + hot core
+      return vec4(vCol.mul(a), 1.0);
+    })();
+    this.material = m;
+    // a stand-in with the attributes of set()'s geometry (WebGPU: the shader is built for the
+    // attributes of the first geometry it is drawn with)
+    this.mesh = new THREE.Mesh(this._geometry(0), this.material);
     this.mesh.name = 'Glows';
     this.mesh.frustumCulled = false;
     this.mesh.layers.set(LAYERS.FX);
@@ -117,15 +104,20 @@ export class Glows {
       });
       idx.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
     });
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('corner', new THREE.BufferAttribute(corner, 2));
-    geo.setAttribute('glow', new THREE.BufferAttribute(glow, 4));
-    geo.setAttribute('anim', new THREE.BufferAttribute(anim, 4));
-    geo.setIndex(new THREE.BufferAttribute(idx, 1));
     this.mesh.geometry.dispose();
-    this.mesh.geometry = geo;
+    this.mesh.geometry = this._geometry(n, pos, corner, glow, anim, idx);
     this.mesh.visible = n > 0;
+  }
+
+  _geometry(n, pos, corner, glow, anim, idx) {
+    const m = Math.max(n, 1);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos ?? new Float32Array(m * 12), 3));
+    geo.setAttribute('corner', new THREE.BufferAttribute(corner ?? new Float32Array(m * 8), 2));
+    geo.setAttribute('glow', new THREE.BufferAttribute(glow ?? new Float32Array(m * 16), 4));
+    geo.setAttribute('anim', new THREE.BufferAttribute(anim ?? new Float32Array(m * 16), 4));
+    geo.setIndex(new THREE.BufferAttribute(idx ?? new Uint16Array(m * 6), 1));
+    return geo;
   }
 
   /** Glows of an asset build (asset space) placed with a matrix, appended to `out`. */
@@ -140,7 +132,7 @@ export class Glows {
     u.glowNight.value = S(L.night, 0.15, 0.75);
     u.glowGain.value = env.intensity;
     u.glowMaxDist.value = env.distance;
-    u.glowFog.value = L.scene.fog?.density ?? 0;
+    u.glowFog.value = L.haze.farDensity ?? 0;
   }
 
   dispose() {

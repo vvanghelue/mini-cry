@@ -67,13 +67,31 @@ export class Player {
     this.pitch = THREE.MathUtils.clamp(this.pitch + l.pitch * sensMul * (this.cfg.mouseSensitivity / 0.0022), -1.5, 1.5);
   }
 
+  /** Gamepad aim slowdown: the stick turns the view slower while the crosshair is close to an enemy. */
+  _aimFriction() {
+    const acts = this.game.actors?.list;
+    if (!acts) return 1;
+    const e = this.eye, cp = Math.cos(this.pitch);
+    const fx = -Math.sin(this.yaw) * cp, fy = Math.sin(this.pitch), fz = -Math.cos(this.yaw) * cp;
+    let best = 0;
+    for (const a of acts) {
+      if (!a.alive || a.team !== 'merc') continue;
+      const dx = a.pos.x - e.x, dy = a.pos.y + (a.crouching ? 0.9 : 1.3) - e.y, dz = a.pos.z - e.z;
+      const along = dx * fx + dy * fy + dz * fz;
+      if (along < 1 || along > 120) continue;
+      const off = Math.sqrt(Math.max(0, dx * dx + dy * dy + dz * dz - along * along)); // chest to the aim ray, m
+      best = Math.max(best, 1 - THREE.MathUtils.smoothstep(off, 0.6 + along * 0.004, 1.6 + along * 0.012));
+    }
+    return 1 - 0.5 * best;
+  }
+
   update(dt, input) {
     this.time += dt;
     const cfg = this.cfg, g = this.game;
     const physics = g.world.physics, T = g.world.terrain;
     if (!this.alive || this.inVehicle) { this.vel.set(0, 0, 0); return; }
     const sensMul = g.weapons?.adsBlend > 0.5 ? cfg.adsSensitivity * (g.weapons.current?.scope ? 0.45 : 1) : 1;
-    if (input.locked) this.look(input, sensMul); else input.look();
+    if (input.active) this.look(input, sensMul * (input.device === 'pad' ? this._aimFriction() : 1)); else input.look();
 
     // recoil recovery
     const rr = Math.min(1, dt * (g.weapons?.current?.recoilRecover ?? 8));
@@ -94,6 +112,7 @@ export class Player {
     const depth = wl - this.pos.y;
     const wasSwimming = this.swimming;
     this.swimming = depth > 1.25 || (wasSwimming && depth > 1.05);
+    if (this.swimming && !wasSwimming) input.unlatch('crouch'); // a crouch toggled on the pad would dive
     this.underwater = this.eye.y < wl - 0.05 && this.swimming;
     this.wading = !this.swimming && depth > 0.2 ? depth : 0;
 
@@ -291,6 +310,7 @@ export class Player {
     this.health -= dmg;
     this.lastHurt = this.time;
     g.hud?.onPlayerHurt(dmg, from, kind);
+    g.input.rumble(Math.min(1, 0.25 + dmg / 40), 0.4, 160);
     g.audio?.play('player_hurt', { volume: Math.min(1, 0.3 + dmg / 40) });
     if (this.health <= 0) {
       this.health = 0;

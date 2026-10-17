@@ -176,3 +176,10 @@ body.mobile { touch-action: none; user-select: none; -webkit-user-select: none; 
 .mobile .menu-panel button { margin: 6px 0; padding: 10px; }
 .mobile .menu-panel .help { margin-top: 10px; font-size: 12px; }
 .mobile .b-edit, .mobile .perf-row { display: none; }
+
+/* gamepad in use (Input.device): no mouse cursor over the game, focused menu item highlighted, no touch controls */
+.gamepad canvas { cursor: none; }
+.gamepad .menu-panel button:focus { background: rgba(255,211,77,.25); border-color: #ffd34d; transform: translateX(3px); outline: none; }
+.gamepad .menu-panel label:focus-within { color: #ffd34d; }
+.gamepad .menu-panel input:focus, .gamepad .menu-panel select:focus { outline: 2px solid #ffd34d; outline-offset: 2px; }
+.gamepad .touch.show { display: none; }
