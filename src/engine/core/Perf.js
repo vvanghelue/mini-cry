@@ -1,5 +1,5 @@
 // Frame timings: CPU ms (JS time of the frame incl. encoding the GPU work), GPU ms (WebGPU
-// timestamp queries around every render pass: the time the GPU was busy with the frame's passes;
+// timestamp queries around every render and compute pass: the time the GPU was busy with the frame's passes;
 // resolved asynchronously a frame or two later), FPS, draw calls, triangles. Values are smoothed; `snapshot()` is what the HUD, the
 // editor status bar and tools/bench.mjs read. Raw per-frame samples go to the optional
 // `onFrame(cpuMs, frameMs)` / `onGpu(ms)` hooks (graphs).
@@ -60,19 +60,27 @@ export class Perf {
    *  animation loop). */
   _resolveGpu() {
     if (!this.gpuTimer) return;
-    const pool = this.renderer.backend.timestampQueryPool?.render;
-    if (pool && !pool.mcKeyed) {
+    const pools = this.renderer.backend.timestampQueryPool ?? {};
+    // compute passes too (render/FarShadows.js bakes a slice per frame while the sun moves)
+    for (const type of ['render', 'compute']) {
+      const pool = pools[type];
+      if (!pool || pool.mcKeyed) continue;
       pool.mcKeyed = true;
       const alloc = pool.allocateQueriesForContext.bind(pool);
       let n = 0;
       pool.allocateQueriesForContext = (uid) => alloc(String(uid).replace(/:f(\d+)$/, `#${n++}:f$1`));
       if (pool._resolveQueries && pool.querySet) pool._resolveQueries = resolveBusyTime;
+      // compute runs on some frames only: its total, spread over every frame since the last resolve
+      pool.mcTotal = type === 'compute';
     }
     if (this._pending) return;
     this._pending = true;
-    this.renderer.resolveTimestampsAsync('render').then((ms) => {
+    const r = this.renderer, frame = r.info.frame ?? 0, frames = Math.max(1, frame - (this._resolvedFrame ?? frame - 1));
+    this._resolvedFrame = frame;
+    Promise.all([r.resolveTimestampsAsync('render'), pools.compute?.currentQueryIndex ? r.resolveTimestampsAsync('compute') : 0]).then(([ms, cms]) => {
       this._pending = false;
       if (!(ms > 0)) return;
+      ms += cms > 0 ? cms / frames : 0;
       this.gpuMs += (ms - this.gpuMs) * 0.1;
       this.onGpu?.(ms);
     }, () => { this._pending = false; });
@@ -133,6 +141,6 @@ async function resolveBusyTime() {
   }
   busy += s1 - s0;
   if (!frames.size) return this.lastValue;
-  this.lastValue = Number(busy) / 1e6 / frames.size;
+  this.lastValue = Number(busy) / 1e6 / (this.mcTotal ? 1 : frames.size);
   return this.lastValue;
 }

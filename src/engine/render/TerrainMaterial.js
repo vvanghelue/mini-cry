@@ -7,10 +7,10 @@
 // instead of the 2 m grid. Every material maps to a layer + a tint (its palette colour / the
 // layer's mean colour, Surfaces.js surfRel: TERRAIN_MATERIALS still sets the colours, GI and the
 // map agree). Flat ground samples a top projection, slopes switch to triplanar (no stretched
-// cliffs); a second, much larger scale of the same layer breaks the tiling with distance. Vertex
-// colours carry the per-vertex variation and the underwater darkening.
+// cliffs); a second, much larger scale of the same layer breaks the tiling with distance. The vertex
+// tint carries the per-vertex variation and the underwater darkening.
 import * as THREE from 'three/webgpu';
-import { Fn, If, float, int, ivec2, vec2, vec3, vec4, max, abs, pow, mix, clamp, length, normalize, smoothstep, sign, select, uniformArray, renderGroup, texture, attribute, varying, positionLocal, normalLocal, modelWorldMatrix, cameraPosition, cameraViewMatrix, mat3 } from 'three/tsl';
+import { Fn, If, float, int, ivec2, vec2, vec3, vec4, max, abs, pow, mix, clamp, length, normalize, smoothstep, sign, select, uniformArray, renderGroup, varying, varyingProperty, positionLocal, modelWorldMatrix, cameraPosition, cameraViewMatrix } from 'three/tsl';
 import { TERRAIN_MATERIALS } from '../world/TerrainData.js';
 import { surfRel, luma } from './Surfaces.js';
 import { U, tex } from './tsl.js';
@@ -18,7 +18,9 @@ import { ST } from './Lighting.js';
 
 const N = 16; // material slots (TERRAIN_MATERIALS ids)
 
-export function terrainMaterial(lighting, terrain) {
+/** normalTex: the heightfield's normals (RGBA8, one texel per vertex, sampled per pixel). The
+ *  vertex tint comes from the renderer's position node (varying vTerrTint, TerrainRenderer). */
+export function terrainMaterial(lighting, terrain, { normalTex }) {
   const S = lighting.surfaces, SU = S.uniforms;
   const m = S.manifest?.terrain;
   const info = Array.from({ length: N }, () => new THREE.Vector4(1, 1, 1, 0));
@@ -51,8 +53,8 @@ export function terrainMaterial(lighting, terrain) {
   const mat = new THREE.MeshStandardNodeMaterial({ roughness: 1, metalness: 0 });
   mat.vertexColors = false;
   const vTerrW = varying(modelWorldMatrix.mul(vec4(positionLocal, 1.0)).xyz, 'vTerrW');
-  const vTerrN = varying(normalize(mat3(modelWorldMatrix).mul(normalLocal)), 'vTerrN');
-  const vCol = varying(attribute('color', 'vec3'), 'vColor');
+  const vCol = varyingProperty('vec3', 'vTerrTint');
+  const nTex = tex(normalTex);
 
   // one layer: albedo (a = height) + normal (world) + roughness, top or triplanar projection,
   // near detail scale mixed with a large scale that breaks the tiling with distance. Two WGSL
@@ -98,8 +100,9 @@ export function terrainMaterial(lighting, terrain) {
   };
 
   mat.colorNode = Fn(() => {
-    const Nw = normalize(vTerrN).toVar();
     const P = vTerrW;
+    // the full-resolution normal at every LOD (texel centre = heightfield vertex)
+    const Nw = normalize(nTex.sample(P.xz.sub(u.terGrid.xy).mul(u.terGrid.z).add(0.5).div(u.terGrid.w)).xyz.mul(2.0).sub(1.0)).toVar();
     // 4 grid vertices around the pixel, their materials and bilinear weights
     const g = P.xz.sub(u.terGrid.xy).mul(u.terGrid.z).toVar();
     const f = g.fract().toVar();
@@ -154,6 +157,7 @@ export function terrainMaterial(lighting, terrain) {
   mat.normalNode = ST.normal;
   mat.roughnessNode = ST.rough;
   mat.mcSpecK = float(0.35); // rough ground: little sky reflection, even at grazing angles
+  mat.mcFarKind = 'ground'; // far shadows: on the heightfield (FarShadows.js), whatever the LOD mesh
   lighting.light(mat);
   mat.userData.terrainIds = ids;
   mat.mcTerrain = u; // debug / tools
