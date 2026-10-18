@@ -26,6 +26,7 @@ export class Vegetation {
     this.group.name = 'Vegetation';
     this.group.add(this.fieldNear.group, this.fieldFar.group);
     this.field = this.fieldFar; // (compat)
+    this.lodVisible = { lod0: true, lod1: true, lod2: true, impostor: true, impostorShadow: true }; // setLodVisible
     this.rebuild();
   }
 
@@ -34,6 +35,19 @@ export class Vegetation {
     return { instances: a.instances + b.instances, meshes: a.meshes + b.meshes, triangles: a.triangles + b.triangles };
   }
   bakeImpostors(renderer) { this.fieldNear.bakeImpostors(renderer); this.fieldFar.bakeImpostors(renderer); }
+
+  /** Debug (F2 → Graphics → Display → vegetation LODs): show / hide one LOD level of every species,
+   *  its shadows included. level: 'lod0' | 'lod1' | 'lod2' (meshes), 'impostor' (far trees),
+   *  'impostorShadow' (the impostors' sun-facing shadow cards, InstancedField). */
+  setLodVisible(level, on) {
+    this.lodVisible[level] = on;
+    this.group.traverse((o) => {
+      const l = o.userData.impostorCaster ? 'impostorShadow' : o.userData.impostor ? 'impostor' : o.isMesh && o.userData.lod !== undefined ? `lod${o.userData.lod}` : null;
+      if (l !== level) return;
+      o.userData.hidden = !on; // (InstanceBlocks keeps it hidden when its instances change)
+      o.visible = on && (o.userData.live ?? true);
+    });
+  }
 
   /** Per species / LOD draw statistics (InstancedField.lodStats), both fields. */
   lodStats(camera, viewHeight, tinyPx) { return [...this.fieldNear.lodStats(camera, viewHeight, tinyPx), ...this.fieldFar.lodStats(camera, viewHeight, tinyPx)]; }

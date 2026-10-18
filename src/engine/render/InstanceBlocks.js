@@ -99,10 +99,13 @@ function setCount(m, n) {
   for (const t of m.userData.twins ?? []) t.instances = n;
 }
 
-// (twins: shadow-only meshes drawing the same instances)
+// (twins: shadow-only meshes drawing the same instances; userData.hidden: switched off from the
+// debug panel, Vegetation.setLodVisible; userData.live: has instances to draw)
 function setVisible(m, v) {
-  m.visible = v;
-  for (const t of m.userData.twins ?? []) t.visible = v;
+  for (const o of [m, ...(m.userData.twins ?? [])]) {
+    o.userData.live = v;
+    o.visible = v && !o.userData.hidden;
+  }
 }
 
 /** Live instances of a mesh driven by syncBlocks (count minus zeroed holes). */

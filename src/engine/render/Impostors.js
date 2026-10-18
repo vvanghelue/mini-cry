@@ -72,6 +72,11 @@ export class Impostors {
       const t = new THREE.RenderTarget(size, size, { depth: n, depthBuffer: true, generateMipmaps: false, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
       t.texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       t.texture.anisotropy = 1;
+      // a full mip chain, generated once after the bake (three sizes the GPU texture from
+      // mipmaps.length; with generateMipmaps: false and no mipmaps it would get one level, and
+      // generateMipmaps: true would rebuild them after each of the 64 view renders). Without mips
+      // far trees sample the full-size atlas: ~20 % noisier than the meshes, shimmering in motion
+      t.texture.mipmaps = Array.from({ length: Math.log2(size) + 1 }, () => ({}));
       return t;
     };
     this.albedo = rt(true);
@@ -271,11 +276,7 @@ export class Impostors {
       }
     });
     // mipmaps of every layer at once
-    for (const t of [this.albedo, this.normal]) {
-      t.texture.generateMipmaps = true;
-      t.texture.minFilter = THREE.LinearMipmapLinearFilter;
-      renderer.backend.textureUtils?.generateMipmaps?.(t.texture);
-    }
+    for (const t of [this.albedo, this.normal]) renderer.backend.textureUtils?.generateMipmaps?.(t.texture);
     renderer.setRenderTarget(prevTarget, prevLayer, prevMip);
     renderer.setClearColor(prevClear, prevAlpha);
     renderer.setScissorTest(prevScissor);

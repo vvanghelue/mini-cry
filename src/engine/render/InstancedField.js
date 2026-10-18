@@ -108,6 +108,7 @@ export class InstancedField {
         if (k.castShadow && start < k.castShadow && li !== impLod) mesh.layers.enable(LAYERS.OCCLUDER);
         mesh.name = `${this.name}_${k.id}_${v}_lod${li}`;
         mesh.userData.lod = li;
+        mesh.userData.impostor = li === impLod;
         mesh.userData.capacity = 16;
         mesh.userData.tris = tris;
         this.group.add(mesh);
@@ -122,6 +123,7 @@ export class InstancedField {
           c.raycast = () => {};
           c.renderOrder = mesh.renderOrder;
           c.name = `${mesh.name}_caster`;
+          c.userData.impostorCaster = true;
           mesh.userData.caster = c;
           this.group.add(c);
         }

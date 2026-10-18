@@ -431,6 +431,13 @@ export class DebugPanel {
       vis('terrain', () => world.terrainRenderer?.group);
       vis('water', () => world.water?.group);
       vis('vegetation', () => world.vegetation?.group);
+      const veg = world.vegetation;
+      if (veg?.setLodVisible) {
+        const fl = fv.addFolder('vegetation LODs');
+        for (const [k, label] of [['lod0', 'LOD 0 (full meshes)'], ['lod1', 'LOD 1 (mid meshes)'], ['lod2', 'LOD 2 (far meshes: bushes, rocks)'], ['impostor', 'impostors (far trees)'], ['impostorShadow', 'impostor shadow cards']]) {
+          fl.add({ get v() { return veg.lodVisible[k]; }, set v(x) { veg.setLodVisible(k, x); } }, 'v').name(label);
+        }
+      }
       vis('grass', () => world.grass?.group);
       vis('props (batch)', () => world.entities?.props?.group);
     }
