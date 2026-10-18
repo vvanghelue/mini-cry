@@ -66,7 +66,7 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
   const vols = collectVolumes(world, assets);
 
   // --- probe grid ----------------------------------------------------------------------------
-  const size = terrain.size, half = size / 2, n = Math.round(size / cell);
+  const size = terrain.size, x0 = terrain.x0, z0 = terrain.z0, n = Math.round(size / cell);
   const PW = n * n * GI_LAYERS, T = 1 + GI_KEYS, S = T * 12;
   // interior volumes after the world grid, in atlas order (GIField.js)
   const atlas = packVolumes(vols);
@@ -76,7 +76,7 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
   const landy = new Uint8Array(n * n); // column has ground above the sea nearby
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
-      const x = -half + (i + 0.5) * cell, z = -half + (j + 0.5) * cell;
+      const x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell;
       let sum = 0, mx = -Infinity;
       for (let b = -2; b <= 2; b++) for (let a = -2; a <= 2; a++) {
         const h = terrain.heightAt(x + (a * cell) / 5, z + (b * cell) / 5);
@@ -107,7 +107,7 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
     for (let j = 0; j < n; j++) {
       for (let i = 0; i < n; i++) {
         const p = (l * n + j) * n + i;
-        const x = -half + (i + 0.5) * cell, z = -half + (j + 0.5) * cell;
+        const x = x0 + (i + 0.5) * cell, z = z0 + (j + 0.5) * cell;
         const y = Math.max(base[j * n + i] + layerHeight(l), terrain.heightAt(x, z) + 0.25);
         probePos[p * 3] = x; probePos[p * 3 + 1] = y; probePos[p * 3 + 2] = z;
         const on = near[j * n + i] || (ref && i === ref.i && j === ref.j);
@@ -137,7 +137,7 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
   const job = new Int32Array(new SharedArrayBuffer(8));
   const keyDirs = Array.from({ length: GI_KEYS }, (_, k) => keyDir(k, GI_KEYS, tilt));
   const nw = workers || Math.max(1, Math.min(16, (os.availableParallelism?.() ?? os.cpus().length) - 1));
-  const data = { hf: scene.hf, tlas: scene.tlas, inst: scene.inst, meshes: scene.meshes, probePos: probePos.buffer, active: active.buffer, valid: valid.buffer, base: base.buffer, job: job.buffer, n, cell, half, size, vols, atlas, worldCount: PW, terms: T, rays, seaLevel: sea, ocean: OCEAN_ALBEDO, transmission, keyDirs };
+  const data = { hf: scene.hf, tlas: scene.tlas, inst: scene.inst, meshes: scene.meshes, probePos: probePos.buffer, active: active.buffer, valid: valid.buffer, base: base.buffer, job: job.buffer, n, cell, x0, z0, size, vols, atlas, worldCount: PW, terms: T, rays, seaLevel: sea, ocean: OCEAN_ALBEDO, transmission, keyDirs };
   const pool = Array.from({ length: nw }, () => new Worker(new URL('./worker.js', import.meta.url), { workerData: data }));
   const runPass = async (pass, out, prev) => {
     const tp = Date.now();
@@ -181,7 +181,7 @@ export async function bakeGI({ rays = 128, bounces = 2, cell = 8, transmission =
       return amax.map((a) => +(a * 1.02).toFixed(5));
     };
     const amax = amaxOf(0, PW);
-    const meta = { version: GI_VERSION, size, cell, n, layers: GI_LAYERS, h0: GI_H0, ratio: GI_RATIO, keys: GI_KEYS, sunTilt: tilt, amax, ref, rays, bounces, transmission };
+    const meta = { version: GI_VERSION, size, x0, z0, cell, n, layers: GI_LAYERS, h0: GI_H0, ratio: GI_RATIO, keys: GI_KEYS, sunTilt: tilt, amax, ref, rays, bounces, transmission };
     const planes = encodePlanes(TT, PW, n, GI_KEYS, amax);
     let vplanes = new Uint8Array(0);
     if (vols.length) {

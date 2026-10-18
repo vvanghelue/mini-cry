@@ -3,8 +3,8 @@
 import { TerrainData } from './TerrainData.js';
 
 self.onmessage = (ev) => {
-  const { size, res, seaLevel, heights, material, rivers } = ev.data;
-  const t = new TerrainData({ size, res, seaLevel });
+  const { size, res, seaLevel, center, heights, material, rivers } = ev.data;
+  const t = new TerrainData({ size, res, seaLevel, center });
   t.heights.set(heights);
   t.material.set(material);
   t.rivers = rivers;

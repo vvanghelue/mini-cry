@@ -300,6 +300,10 @@ export class EditorCore {
   pushUndo(cmd) {
     this.undoStack.push(cmd);
     if (this.undoStack.length > 200) this.undoStack.shift();
+    // and at most ~1 GB of snapshots (cmd.bytes: vegetation / terrain strokes)
+    let bytes = 0;
+    for (const c of this.undoStack) bytes += c.bytes ?? 0;
+    while (bytes > 1e9 && this.undoStack.length > 1) bytes -= this.undoStack.shift().bytes ?? 0;
     this.redoStack = [];
     S.version.value++;
   }
@@ -448,7 +452,9 @@ export class EditorCore {
 
   _strokeBegin() {
     const T = this.world.terrain;
-    this.stroke = { rect: null, beforeH: T.heights.slice(), beforeM: T.material.slice(), tool: S.tool.value, added: 0, removed: 0, vegBefore: this.world.vegetation.encode() };
+    // whole copies while the stroke lasts (its rectangle isn't known yet); the undo keeps the rectangle only
+    const foliage = S.tool.value === 'foliage';
+    this.stroke = { rect: null, beforeH: foliage ? null : T.heights.slice(), beforeM: foliage ? null : T.material.slice(), tool: S.tool.value, added: 0, removed: 0, vegBefore: foliage ? this.world.vegetation.encode() : null };
     const b = S.brush.value;
     if (S.tool.value === 'sculpt' && b.op === 'flatten' && b.height == null) { const c = this.groundHit(); this.stroke.flatH = c ? c.y : 0; }
   }
@@ -498,15 +504,24 @@ export class EditorCore {
       w.vegetation.rebuild();
       w.addVegetationColliders();
       const before = st.vegBefore, after = w.vegetation.encode();
-      this.pushUndo({ label: 'Vegetation', file: 'vegetation.bin', undo: () => { w.vegetation.rebuild(before); w.addVegetationColliders(); }, redo: () => { w.vegetation.rebuild(after); w.addVegetationColliders(); } });
+      this.pushUndo({ label: 'Vegetation', file: 'vegetation.bin', bytes: before.length + after.length, undo: () => { w.vegetation.rebuild(before); w.addVegetationColliders(); }, redo: () => { w.vegetation.rebuild(after); w.addVegetationColliders(); } });
       this.markDirty('vegetation.bin');
       log(st.added ? `+${st.added} plants` : `-${st.removed} plants`);
       return;
     }
     if (!st.rect) return;
-    const afterH = T.heights.slice(), afterM = T.material.slice();
-    const apply = (H, M) => { T.heights.set(H); T.material.set(M); T.buildWaterGrid(); T.invalidateColors(st.rect); T.version++; w.terrainRenderer.invalidate(st.rect); this._terrainChanged(); };
-    this.pushUndo({ label: st.tool === 'paint' ? 'Paint terrain' : 'Sculpt', file: 'terrain', undo: () => apply(st.beforeH, st.beforeM), redo: () => apply(afterH, afterM) });
+    // the stroke's rectangle of the heights / materials before and after (whole copies of a 4097²
+    // heightfield would be 84 MB per undo step)
+    const r = st.rect, res = T.res, w0 = r.i1 - r.i0 + 1;
+    const crop = (A) => {
+      const out = new A.constructor(w0 * (r.j1 - r.j0 + 1));
+      for (let j = r.j0; j <= r.j1; j++) out.set(A.subarray(j * res + r.i0, j * res + r.i1 + 1), (j - r.j0) * w0);
+      return out;
+    };
+    const paste = (A, src) => { for (let j = r.j0; j <= r.j1; j++) A.set(src.subarray((j - r.j0) * w0, (j - r.j0 + 1) * w0), j * res + r.i0); };
+    const beforeH = crop(st.beforeH), beforeM = crop(st.beforeM), afterH = crop(T.heights), afterM = crop(T.material);
+    const apply = (H, M) => { paste(T.heights, H); paste(T.material, M); T.buildWaterGrid(); T.invalidateColors(r); T.version++; w.terrainRenderer.invalidate(r); this._terrainChanged(); };
+    this.pushUndo({ label: st.tool === 'paint' ? 'Paint terrain' : 'Sculpt', file: 'terrain', bytes: (beforeH.byteLength + beforeM.byteLength) * 2, undo: () => apply(beforeH, beforeM), redo: () => apply(afterH, afterM) });
     this._terrainChanged();
     this.markDirty('terrain');
   }

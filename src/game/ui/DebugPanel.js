@@ -233,7 +233,7 @@ export class DebugPanel {
     const L = this.app.engine.lighting, sun = L.sun, U = sun.uniforms;
     const fs = f.addFolder('Sun shadows');
     const o = {
-      get debug() { return U.sunDebug.value > 0.5; }, set debug(v) { U.sunDebug.value = v ? 1 : 0; },
+      get debug() { return U.sunDebug.value > 0.5 && U.sunDebug.value < 1.5; }, set debug(v) { U.sunDebug.value = v ? 1 : 0; },
       get distance() { return Number.isFinite(sun.maxDistance) ? sun.maxDistance : 0; },
       set distance(v) { sun.maxDistance = v > 0 ? v : Infinity; sun.refresh(); },
       get clamp() { return sun.clampToCasters; }, set clamp(v) { sun.clampToCasters = v; sun.refresh(); },
@@ -294,6 +294,12 @@ export class DebugPanel {
       fc.add({ get v() { const c = sun.cascades[i]; return c ? `${(c.texel * 100).toFixed(1)} cm, reach ${Math.round(sun.reach(i))} m` : '-'; }, set v(_) {} }, 'v').name('texel, ground reach').listen().disable();
       fc.close();
     });
+    // far shadows: the terrain's horizon sweep + the island-wide tree map (FarShadows.js)
+    const far = sun.far, ff = fs.addFolder('far shadows (terrain + trees)');
+    ff.add({ get v() { return far.enabled; }, set v(x) { far.setEnabled(x); } }, 'v').name('enabled');
+    ff.add({ get v() { return U.sunDebug.value > 1.5; }, set v(x) { U.sunDebug.value = x ? 2 : 0; } }, 'v').name('sun visibility view').listen();
+    ff.add({ get v() { return far.supported ? `${far.stats.bakes} bakes (${far.stats.ms.toFixed(2)} ms CPU), ${far.stats.trees} trees` : 'WebGPU only'; }, set v(_) {} }, 'v').name('bakes').listen().disable();
+    ff.close();
     fs.close();
   }
 
@@ -425,6 +431,13 @@ export class DebugPanel {
       vis('terrain', () => world.terrainRenderer?.group);
       vis('water', () => world.water?.group);
       vis('vegetation', () => world.vegetation?.group);
+      const veg = world.vegetation;
+      if (veg?.setLodVisible) {
+        const fl = fv.addFolder('vegetation LODs');
+        for (const [k, label] of [['lod0', 'LOD 0 (full meshes)'], ['lod1', 'LOD 1 (mid meshes)'], ['lod2', 'LOD 2 (far meshes: bushes, rocks)'], ['impostor', 'impostors (far trees)'], ['impostorShadow', 'impostor shadow cards']]) {
+          fl.add({ get v() { return veg.lodVisible[k]; }, set v(x) { veg.setLodVisible(k, x); } }, 'v').name(label);
+        }
+      }
       vis('grass', () => world.grass?.group);
       vis('props (batch)', () => world.entities?.props?.group);
     }

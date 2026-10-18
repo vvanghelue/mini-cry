@@ -1,5 +1,6 @@
 // Heightfield data: heights + painted material ids on a regular (res x res) vertex grid covering
-// [-size/2, size/2] in x and z. Pure JS (runs in the browser and in the Node tools).
+// a size x size square centred on `center` (x, z; default the origin): x in [x0, x0 + size], z in
+// [z0, z0 + size]. Pure JS (runs in the browser and in the Node tools).
 //
 // The rendered mesh splits every grid quad along the same diagonal as heightAt(), so physics,
 // raycasts and what you see agree exactly at LOD 0.
@@ -28,11 +29,13 @@ export const TERRAIN_MATERIALS = [
 export const MATERIAL_ID = Object.fromEntries(TERRAIN_MATERIALS.map((m) => [m.name, m.id]));
 
 export class TerrainData {
-  constructor({ size = 2048, res = 1025, seaLevel = 0 } = {}) {
+  constructor({ size = 2048, res = 1025, seaLevel = 0, center = [0, 0] } = {}) {
     this.size = size;
     this.res = res;
     this.cell = size / (res - 1);
-    this.half = size / 2;
+    this.center = [center[0], center[1]];
+    this.x0 = center[0] - size / 2; // world x of grid column 0
+    this.z0 = center[1] - size / 2; // world z of grid row 0
     this.seaLevel = seaLevel;
     this.heights = new Float32Array(res * res);
     this.material = new Uint8Array(res * res);
@@ -43,10 +46,10 @@ export class TerrainData {
 
   // --- coordinates --------------------------------------------------------------------------
   /** world x -> continuous grid coordinate */
-  gx(x) { return (x + this.half) / this.cell; }
-  gz(z) { return (z + this.half) / this.cell; }
-  wx(i) { return i * this.cell - this.half; }
-  wz(j) { return j * this.cell - this.half; }
+  gx(x) { return (x - this.x0) / this.cell; }
+  gz(z) { return (z - this.z0) / this.cell; }
+  wx(i) { return i * this.cell + this.x0; }
+  wz(j) { return j * this.cell + this.z0; }
   idx(i, j) { return j * this.res + i; }
   h(i, j) {
     i = i < 0 ? 0 : i >= this.res ? this.res - 1 : i;
@@ -93,7 +96,7 @@ export class TerrainData {
     return 1 / Math.hypot(dx, 1, dz);
   }
 
-  inBounds(x, z) { return Math.abs(x) < this.half && Math.abs(z) < this.half; }
+  inBounds(x, z) { return x > this.x0 && x < this.x0 + this.size && z > this.z0 && z < this.z0 + this.size; }
 
   // --- water --------------------------------------------------------------------------------
   /** Coarse grid of water surface heights (sea level, rivers, ponds), 4 m cells. */
@@ -106,12 +109,12 @@ export class TerrainData {
       const reach = r.width * 0.5 + step * 2;
       for (let k = 0; k < pts.length - 1; k++) {
         const [ax, az, ay] = pts[k], [bx, bz, by] = pts[k + 1];
-        const minI = Math.floor((Math.min(ax, bx) - reach + this.half) / step), maxI = Math.ceil((Math.max(ax, bx) + reach + this.half) / step);
-        const minJ = Math.floor((Math.min(az, bz) - reach + this.half) / step), maxJ = Math.ceil((Math.max(az, bz) + reach + this.half) / step);
+        const minI = Math.floor((Math.min(ax, bx) - reach - this.x0) / step), maxI = Math.ceil((Math.max(ax, bx) + reach - this.x0) / step);
+        const minJ = Math.floor((Math.min(az, bz) - reach - this.z0) / step), maxJ = Math.ceil((Math.max(az, bz) + reach - this.z0) / step);
         const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
         for (let j = Math.max(0, minJ); j <= Math.min(n - 1, maxJ); j++) {
           for (let i = Math.max(0, minI); i <= Math.min(n - 1, maxI); i++) {
-            const x = i * step - this.half, z = j * step - this.half;
+            const x = i * step + this.x0, z = j * step + this.z0;
             const t = clamp(((x - ax) * dx + (z - az) * dz) / l2, 0, 1);
             const d = Math.hypot(ax + dx * t - x, az + dz * t - z);
             if (d > r.width * 0.5 + step) continue;
@@ -129,7 +132,7 @@ export class TerrainData {
   waterLevelAt(x, z) {
     const w = this.water;
     if (!w) return this.seaLevel;
-    const fx = (x + this.half) / w.step, fz = (z + this.half) / w.step;
+    const fx = (x - this.x0) / w.step, fz = (z - this.z0) / w.step;
     const i = clamp(Math.round(fx), 0, w.n - 1), j = clamp(Math.round(fz), 0, w.n - 1);
     return w.g[j * w.n + i];
   }
@@ -213,7 +216,7 @@ export class TerrainData {
         resolve();
       };
       w.onerror = () => { w.terminate(); resolve(); };
-      w.postMessage({ size: this.size, res: this.res, seaLevel: this.seaLevel, heights: this.heights, material: this.material, rivers: this.rivers });
+      w.postMessage({ size: this.size, res: this.res, seaLevel: this.seaLevel, center: this.center, heights: this.heights, material: this.material, rivers: this.rivers });
     });
   }
 
@@ -306,14 +309,14 @@ export class TerrainData {
     const k = 65535 / (max - min);
     for (let i = 0; i < q.length; i++) q[i] = Math.round((this.heights[i] - min) * k);
     return {
-      meta: { size: this.size, res: this.res, seaLevel: this.seaLevel, minHeight: min, maxHeight: max, rivers: this.rivers },
+      meta: { size: this.size, res: this.res, center: this.center, seaLevel: this.seaLevel, minHeight: min, maxHeight: max, rivers: this.rivers },
       heightBytes: new Uint8Array(q.buffer),
       materialBytes: this.material,
     };
   }
 
   static decode(meta, heightBuf, materialBuf) {
-    const t = new TerrainData({ size: meta.size, res: meta.res, seaLevel: meta.seaLevel ?? 0 });
+    const t = new TerrainData({ size: meta.size, res: meta.res, seaLevel: meta.seaLevel ?? 0, center: meta.center ?? [0, 0] });
     const q = new Uint16Array(heightBuf.buffer ? heightBuf.buffer.slice(heightBuf.byteOffset, heightBuf.byteOffset + heightBuf.byteLength) : heightBuf);
     const k = (meta.maxHeight - meta.minHeight) / 65535;
     for (let i = 0; i < q.length; i++) t.heights[i] = meta.minHeight + q[i] * k;

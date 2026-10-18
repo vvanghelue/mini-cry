@@ -10,16 +10,19 @@
  * mesh.userData.capacity must hold the instance buffer capacity (instances).
  * want: Map(key -> value); lenOf(key, value) -> instance count;
  * write(key, value, dst: Float32Array, dstInstance) copies the block's matrices.
+ * changed: the keys that may have come into / gone out of `want` since the last sync (null: all
+ * of them), so a sync costs what changed, not every block of the mesh.
  */
-export function syncBlocks(m, want, lenOf, write) {
+export function syncBlocks(m, want, lenOf, write, changed = null) {
   const u = m.userData;
   const blocks = (u.blocks ??= new Map()), free = (u.free ??= []);
   u.hw ??= 0; u.holes ??= 0;
   const attr = m.instanceMatrix;
   let arr = attr.array, touched = !!u.repack, add = 0;
-  if (u.repack) { blocks.clear(); free.length = 0; }
-  for (const [bk, b] of blocks) {
-    if (want.has(bk)) continue;
+  if (u.repack) { blocks.clear(); free.length = 0; changed = null; }
+  for (const bk of changed ?? blocks.keys()) {
+    const b = blocks.get(bk);
+    if (!b || want.has(bk)) continue;
     arr.fill(0, b.start * 16, (b.start + b.len) * 16);
     attr.addUpdateRange(b.start * 16, b.len * 16);
     free.push(b);
@@ -27,7 +30,7 @@ export function syncBlocks(m, want, lenOf, write) {
     blocks.delete(bk);
     touched = true;
   }
-  for (const [bk, v] of want) if (!blocks.has(bk)) add += lenOf(bk, v);
+  for (const bk of changed ?? want.keys()) if (!blocks.has(bk) && want.has(bk)) add += lenOf(bk, want.get(bk));
   if (add || u.repack) {
     touched = true;
     if (u.repack || u.hw + add > u.capacity || u.holes + add > Math.max(512, (u.hw + add) * 0.4)) {
@@ -53,12 +56,12 @@ export function syncBlocks(m, want, lenOf, write) {
       m.instanceMatrix.needsUpdate = true;
       u.hw = o; u.holes = 0;
       setCount(m, o);
-      m.visible = o > 0;
+      setVisible(m, o > 0);
       return;
     }
-    for (const [bk, v] of want) {
-      if (blocks.has(bk)) continue;
-      const len = lenOf(bk, v);
+    for (const bk of changed ?? want.keys()) {
+      if (blocks.has(bk) || !want.has(bk)) continue;
+      const v = want.get(bk), len = lenOf(bk, v);
       let start = -1;
       for (let i = 0; i < free.length; i++) {
         const f = free[i];
@@ -88,12 +91,21 @@ export function syncBlocks(m, want, lenOf, write) {
   }
   attr.needsUpdate = true;
   setCount(m, u.hw);
-  m.visible = u.hw > u.holes;
+  setVisible(m, u.hw > u.holes);
 }
 
 function setCount(m, n) {
   m.instances = n;
   for (const t of m.userData.twins ?? []) t.instances = n;
+}
+
+// (twins: shadow-only meshes drawing the same instances; userData.hidden: switched off from the
+// debug panel, Vegetation.setLodVisible; userData.live: has instances to draw)
+function setVisible(m, v) {
+  for (const o of [m, ...(m.userData.twins ?? [])]) {
+    o.userData.live = v;
+    o.visible = v && !o.userData.hidden;
+  }
 }
 
 /** Live instances of a mesh driven by syncBlocks (count minus zeroed holes). */

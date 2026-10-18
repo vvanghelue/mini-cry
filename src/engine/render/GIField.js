@@ -113,29 +113,42 @@ export function volumeProbePos(v, x, y, z, out = [0, 0, 0]) {
   return out;
 }
 
+/** Footprint of a volume on the ground: half extents along x and z of its rotated box. */
+function volumeExtent(v) {
+  const co = Math.cos(v.yaw), si = Math.sin(v.yaw), hx = v.size[0] / 2, hz = v.size[2] / 2;
+  return [Math.abs(co) * hx + Math.abs(si) * hz, Math.abs(si) * hx + Math.abs(co) * hz];
+}
+
 /**
- * Index grid of the volumes (GI_VOL_CELL m cells over the island): volume index + 1, 0 = none.
- * A cell takes the volume that covers most of it.
+ * Index grid of the volumes (GI_VOL_CELL m cells over the square around them, corner x0, z0):
+ * volume index + 1, 0 = none. A cell takes the volume that covers most of it.
  */
-export function buildVolumeIndex(list, size) {
-  const n = Math.ceil(size / GI_VOL_CELL), half = size / 2, idx = new Uint16Array(n * n), best = new Float32Array(n * n);
+export function buildVolumeIndex(list) {
+  let mnx = Infinity, mnz = Infinity, mxx = -Infinity, mxz = -Infinity;
+  for (const v of list) {
+    const [ex, ez] = volumeExtent(v);
+    mnx = Math.min(mnx, v.c[0] - ex); mxx = Math.max(mxx, v.c[0] + ex);
+    mnz = Math.min(mnz, v.c[2] - ez); mxz = Math.max(mxz, v.c[2] + ez);
+  }
+  const x0 = (Math.floor(mnx / GI_VOL_CELL) - 1) * GI_VOL_CELL, z0 = (Math.floor(mnz / GI_VOL_CELL) - 1) * GI_VOL_CELL;
+  const n = Math.ceil(Math.max(mxx - x0, mxz - z0) / GI_VOL_CELL) + 2, idx = new Uint16Array(n * n), best = new Float32Array(n * n);
   list.forEach((v, k) => {
     const co = Math.cos(v.yaw), si = Math.sin(v.yaw), hx = v.size[0] / 2, hz = v.size[2] / 2;
-    const ex = Math.abs(co) * hx + Math.abs(si) * hz, ez = Math.abs(si) * hx + Math.abs(co) * hz;
-    const i0 = Math.max(0, Math.floor((v.c[0] - ex + half) / GI_VOL_CELL)), i1 = Math.min(n - 1, Math.floor((v.c[0] + ex + half) / GI_VOL_CELL));
-    const j0 = Math.max(0, Math.floor((v.c[2] - ez + half) / GI_VOL_CELL)), j1 = Math.min(n - 1, Math.floor((v.c[2] + ez + half) / GI_VOL_CELL));
+    const [ex, ez] = volumeExtent(v);
+    const i0 = Math.max(0, Math.floor((v.c[0] - ex - x0) / GI_VOL_CELL)), i1 = Math.min(n - 1, Math.floor((v.c[0] + ex - x0) / GI_VOL_CELL));
+    const j0 = Math.max(0, Math.floor((v.c[2] - ez - z0) / GI_VOL_CELL)), j1 = Math.min(n - 1, Math.floor((v.c[2] + ez - z0) / GI_VOL_CELL));
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       // coverage: share of 4x4 samples of the cell inside the box footprint
       let cov = 0;
       for (let b = 0; b < 4; b++) for (let a = 0; a < 4; a++) {
-        const px = (i + (a + 0.5) / 4) * GI_VOL_CELL - half - v.c[0], pz = (j + (b + 0.5) / 4) * GI_VOL_CELL - half - v.c[2];
+        const px = (i + (a + 0.5) / 4) * GI_VOL_CELL + x0 - v.c[0], pz = (j + (b + 0.5) / 4) * GI_VOL_CELL + z0 - v.c[2];
         if (Math.abs(co * px - si * pz) <= hx && Math.abs(si * px + co * pz) <= hz) cov++;
       }
       const q = j * n + i;
       if (cov > best[q]) { best[q] = cov; idx[q] = k + 1; }
     }
   });
-  return { n, idx };
+  return { n, idx, x0, z0 };
 }
 
 /**
@@ -144,8 +157,7 @@ export function buildVolumeIndex(list, size) {
  */
 export function volumeAt(vols, x, y, z, out = { v: null, f: [0, 0, 0], fade: 0 }) {
   if (!vols) return null;
-  const half = vols.size / 2;
-  const i = Math.floor((x + half) / GI_VOL_CELL), j = Math.floor((z + half) / GI_VOL_CELL);
+  const i = Math.floor((x - vols.index.x0) / GI_VOL_CELL), j = Math.floor((z - vols.index.z0) / GI_VOL_CELL);
   if (i < 0 || j < 0 || i >= vols.index.n || j >= vols.index.n) return null;
   const k = vols.index.idx[j * vols.index.n + i];
   if (!k) return null;
@@ -258,7 +270,9 @@ export class GIFieldData {
     const n = meta.n;
     this.n = n;
     this.cell = meta.cell;
-    this.half = meta.size / 2;
+    // the grid's corner (older bakes: centred on the origin)
+    this.x0 = meta.x0 ?? -meta.size / 2;
+    this.z0 = meta.z0 ?? -meta.size / 2;
     this.keys = meta.keys;
     this.amax = meta.amax;
     this.count = n * n * GI_LAYERS;
@@ -272,7 +286,7 @@ export class GIFieldData {
     if (vm?.list?.length) {
       const count = vm.aw * vm.ah * vm.ad;
       const vp = new Uint8Array(bytes.buffer, bytes.byteOffset + baseBytes + planeBytes, planeCount(this.keys) * count);
-      this.vols = { ...vm, size: meta.size, count, texels: planesToTexels(vp, count, vm.aw, this.keys), index: buildVolumeIndex(vm.list, meta.size) };
+      this.vols = { ...vm, count, texels: planesToTexels(vp, count, vm.aw, this.keys), index: buildVolumeIndex(vm.list) };
     }
     this._va = { v: null, f: [0, 0, 0], fade: 0 };
     this._vsh = new Float32Array(12);
@@ -281,8 +295,8 @@ export class GIFieldData {
   /** Column base height (bilinear, same as the GPU sampler). */
   baseAt(x, z) {
     const n = this.n;
-    const fx = Math.max(0, Math.min(n - 1, (x + this.half) / this.cell - 0.5));
-    const fz = Math.max(0, Math.min(n - 1, (z + this.half) / this.cell - 0.5));
+    const fx = Math.max(0, Math.min(n - 1, (x - this.x0) / this.cell - 0.5));
+    const fz = Math.max(0, Math.min(n - 1, (z - this.z0) / this.cell - 0.5));
     const i = Math.min(n - 2, Math.floor(fx)), j = Math.min(n - 2, Math.floor(fz));
     const u = fx - i, v = fz - j, b = this.base;
     const k = j * n + i;
@@ -332,8 +346,8 @@ export class GIFieldData {
 
   _sampleWorld(x, y, z, w, out) {
     const n = this.n, L = GI_LAYERS;
-    const fx = Math.max(0, Math.min(n - 1, (x + this.half) / this.cell - 0.5));
-    const fz = Math.max(0, Math.min(n - 1, (z + this.half) / this.cell - 0.5));
+    const fx = Math.max(0, Math.min(n - 1, (x - this.x0) / this.cell - 0.5));
+    const fz = Math.max(0, Math.min(n - 1, (z - this.z0) / this.cell - 0.5));
     const i0 = Math.min(n - 2, Math.floor(fx)), j0 = Math.min(n - 2, Math.floor(fz));
     const u = fx - i0, v = fz - j0;
     const lc = layerCoord(y - this.baseAt(x, z));

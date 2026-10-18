@@ -45,7 +45,7 @@ let SWITCHES = [
   // out of the sun cascade layers (7..9) and the SSAO occluder one (6): no longer in the cascades nor the SSAO depth pre-pass
   ['veg shadows', 'window.__vl = []; w.vegetation.group.traverse((o) => { if (o.isMesh && (o.layers.mask & 0x3c0)) { window.__vl.push([o, o.layers.mask]); o.layers.mask &= ~0x3c0; } })', 'for (const [o, m] of window.__vl) o.layers.mask = m'],
   ['terrain', 'w.terrainRenderer.group.visible = false', 'w.terrainRenderer.group.visible = true'],
-  ['terrain shadows', 'w.terrainRenderer.group.traverse((o) => { if (o.isMesh) o.layers.set(2); })', 'w.terrainRenderer.group.traverse((o) => { if (o.isMesh) o.layers.set(0); })'],
+  ['terrain shadows', 'w.terrainRenderer.shadowMesh.visible = false', 'w.terrainRenderer.shadowMesh.visible = true'],
   ['grass', 'if (w.grass) w.grass.group.visible = false', 'if (w.grass) w.grass.group.visible = true'],
   ['water', 'w.water.group.visible = false', 'w.water.group.visible = true'],
   ['props', 'if (w.entities.props) w.entities.props.group.visible = false', 'if (w.entities.props) w.entities.props.group.visible = true'],

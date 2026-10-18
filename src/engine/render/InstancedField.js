@@ -25,19 +25,37 @@ const _frustum = new THREE.Frustum(), _pm = new THREE.Matrix4(), _box = new THRE
 const CASCADE_BITS = 0b111 << LAYERS.CASCADE;
 const CAST_SLACK = 8; // m: crowns reaching into a cascade from an instance origin past its reach
 
+// Sub-cells: within a sector, instances are sorted by SUB x SUB cells, and a LOD range that only
+// partly covers a sector (a near LOD's ring cutting through it) takes the cells it overlaps instead
+// of the whole sector: instances outside their LOD's range still run the whole vertex shader (they
+// collapse there), in every pass (main view, 3 cascades, SSAO pre-pass) — 64 m sectors gave the
+// trees' LOD 0 (the heaviest meshes) ~5x the instances in its range. Only for ranges ending within
+// SUB_MAX m (LOD 0): each cell crossing a band rebuilds the blocks (CPU), worth it only there.
+const SUB_MAX = 150;
+const SUB_KEY = 2 ** 30; // block keys: (variant, sector) below, (variant, sector, cell) + SUB_KEY
+
 export class InstancedField {
-  constructor({ name, assets, lighting, worldSize, sector = 64, kinds }) {
+  /** bounds: the square the sectors cover ({ x0, z0, size }: the TerrainData); sub: cells per sector side (1: whole sectors only) */
+  constructor({ name, assets, lighting, bounds, sector = 64, sub = 1, kinds }) {
     this.name = name;
     this.assets = assets;
     this.lighting = lighting;
     this.sector = sector;
-    this.half = worldSize / 2;
-    this.n = Math.ceil(worldSize / sector);
+    this.sub = sub;
+    this.x0 = bounds.x0;
+    this.z0 = bounds.z0;
+    this.n = Math.ceil(bounds.size / sector);
     this.group = new THREE.Group();
     this.group.name = name;
     this.drawScale = 1;
     this.kinds = kinds.map((k, i) => this._makeKind(k, i));
-    this.items = []; // { kind, variant, matrix: Float32Array(16), y0, y1, id }
+    // the instances in flat arrays (over a million of them: no object per instance): `count`, then
+    // per instance kind + variant (_kv), its matrix (_mat, 16 floats), lowest / highest y (_y), id
+    this.count = 0;
+    this._kv = new Uint16Array(0);
+    this._mat = new Float32Array(0);
+    this._y = new Float32Array(0);
+    this._id = new Int32Array(0);
     this.dirty = true;
     this._lastKey = -1;
     this.stats = { instances: 0, meshes: 0, triangles: 0 };
@@ -90,6 +108,7 @@ export class InstancedField {
         if (k.castShadow && start < k.castShadow && li !== impLod) mesh.layers.enable(LAYERS.OCCLUDER);
         mesh.name = `${this.name}_${k.id}_${v}_lod${li}`;
         mesh.userData.lod = li;
+        mesh.userData.impostor = li === impLod;
         mesh.userData.capacity = 16;
         mesh.userData.tris = tris;
         this.group.add(mesh);
@@ -104,6 +123,7 @@ export class InstancedField {
           c.raycast = () => {};
           c.renderOrder = mesh.renderOrder;
           c.name = `${mesh.name}_caster`;
+          c.userData.impostorCaster = true;
           mesh.userData.caster = c;
           this.group.add(c);
         }
@@ -114,45 +134,77 @@ export class InstancedField {
     return kind;
   }
 
-  clear() { this.items.length = 0; this.dirty = true; }
+  clear() { this.count = 0; this.dirty = true; }
+
+  /** Room for n instances (avoids growing the arrays while a known number is added). */
+  reserve(n) {
+    if (n <= this._id.length) return;
+    const grow = (a, k) => { const b = new a.constructor(n * k); b.set(a.subarray(0, this.count * k)); return b; };
+    this._kv = grow(this._kv, 2);
+    this._mat = grow(this._mat, 16);
+    this._y = grow(this._y, 2);
+    this._id = grow(this._id, 1);
+  }
 
   add(kind, variant, matrix, id) {
     const k = this.kinds[kind];
     const m = matrix.elements ?? matrix;
     const y = m[13], s = Math.hypot(m[4], m[5], m[6]);
-    this.items.push({ kind, variant: Math.min(variant, k.variants.length - 1), matrix: Float32Array.from(m), y0: y - 1, y1: y + k.height * s, id });
+    const i = this.count;
+    if (i >= this._id.length) this.reserve(Math.max(1024, i * 2));
+    this._kv[i * 2] = kind;
+    this._kv[i * 2 + 1] = Math.min(variant, k.variants.length - 1);
+    this._mat.set(m, i * 16);
+    this._y[i * 2] = y - 1;
+    this._y[i * 2 + 1] = y + k.height * s;
+    this._id[i] = id ?? -1;
+    this.count = i + 1;
     this.dirty = true;
   }
 
   _bucket() {
-    const n = this.n, half = this.half, S = this.sector;
-    for (const k of this.kinds) for (const v of k.variants) { v.counts = new Int32Array(n * n); }
-    const secOf = new Int32Array(this.items.length);
+    const n = this.n, x0 = this.x0, z0 = this.z0, S = this.sector, SB = this.sub, SS = SB * SB, C = S / SB;
+    const N = this.count, kv = this._kv, mat = this._mat, iy = this._y;
+    // instances sorted by sector, then by cell within it: a sector is one block of matrices, a cell
+    // a block inside it (offsets: per sector, cellOffsets: per cell). The kinds this field never
+    // holds (`empty`: the other field's) get no arrays (nothing reads them: they have no ranges).
+    const live = this.kinds.filter((k) => !k.def.empty);
+    for (const k of live) for (const v of k.variants) { v.counts = new Int32Array(n * n * SS); }
+    const cellOf = new Int32Array(N);
     this.sectorY = new Float32Array(n * n * 2).fill(NaN);
-    this.items.forEach((it, i) => {
-      const cx = Math.min(n - 1, Math.max(0, Math.floor((it.matrix[12] + half) / S)));
-      const cz = Math.min(n - 1, Math.max(0, Math.floor((it.matrix[14] + half) / S)));
-      const sec = cz * n + cx;
-      secOf[i] = sec;
-      this.kinds[it.kind].variants[it.variant].counts[sec]++;
-      const yy = this.sectorY;
-      if (!(yy[sec * 2] <= it.y0)) yy[sec * 2] = it.y0;
-      if (!(yy[sec * 2 + 1] >= it.y1)) yy[sec * 2 + 1] = it.y1;
-    });
-    for (const k of this.kinds) {
+    const yy = this.sectorY;
+    for (let i = 0; i < N; i++) {
+      const gx = Math.min(n * SB - 1, Math.max(0, Math.floor((mat[i * 16 + 12] - x0) / C)));
+      const gz = Math.min(n * SB - 1, Math.max(0, Math.floor((mat[i * 16 + 14] - z0) / C)));
+      const sec = Math.floor(gz / SB) * n + Math.floor(gx / SB);
+      cellOf[i] = sec * SS + (gz % SB) * SB + (gx % SB);
+      this.kinds[kv[i * 2]].variants[kv[i * 2 + 1]].counts[cellOf[i]]++;
+      if (!(yy[sec * 2] <= iy[i * 2])) yy[sec * 2] = iy[i * 2];
+      if (!(yy[sec * 2 + 1] >= iy[i * 2 + 1])) yy[sec * 2 + 1] = iy[i * 2 + 1];
+    }
+    // the sectors with instances (the per-frame walk skips the empty ones)
+    const occ = [];
+    for (let sec = 0; sec < n * n; sec++) if (!Number.isNaN(this.sectorY[sec * 2])) occ.push(sec);
+    this._occupied = Int32Array.from(occ);
+    for (const k of live) {
       for (const v of k.variants) {
+        const co = new Int32Array(n * n * SS + 1);
+        for (let i = 0; i < n * n * SS; i++) co[i + 1] = co[i] + v.counts[i];
         const offs = new Int32Array(n * n + 1);
-        for (let i = 0; i < n * n; i++) offs[i + 1] = offs[i] + v.counts[i];
+        for (let i = 0; i <= n * n; i++) offs[i] = co[i * SS];
+        v.cellOffsets = co;
         v.offsets = offs;
         v.matrices = new Float32Array(offs[n * n] * 16);
-        v.fill = new Int32Array(n * n);
+        v.fill = v.counts.fill(0); // (the counts' array, reused as each cell's write cursor)
+        v.counts = null;
       }
     }
-    this.items.forEach((it, i) => {
-      const v = this.kinds[it.kind].variants[it.variant];
-      const sec = secOf[i];
-      v.matrices.set(it.matrix, (v.offsets[sec] + v.fill[sec]++) * 16);
-    });
+    for (let i = 0; i < N; i++) {
+      const v = this.kinds[kv[i * 2]].variants[kv[i * 2 + 1]];
+      const c = cellOf[i];
+      v.matrices.set(mat.subarray(i * 16, i * 16 + 16), (v.cellOffsets[c] + v.fill[c]++) * 16);
+    }
+    for (const k of live) for (const v of k.variants) v.fill = null;
     this.dirty = false;
     this._lastKey = -1;
     // offsets moved: every mesh is repacked on the next update
@@ -208,7 +260,7 @@ export class InstancedField {
     _frustum.setFromProjectionMatrix(_pm);
     // same camera as the sector choice below, so shader and CPU agree on every instance's LOD
     (this.lighting.uniforms.camPosW ??= { value: new THREE.Vector3() }).value.copy(cp);
-    const n = this.n, half = this.half, S = this.sector, ds = this.drawScale;
+    const n = this.n, wx0 = this.x0, wz0 = this.z0, S = this.sector, ds = this.drawScale;
     if (ds !== this._bandsDs) {
       // every LOD range bound of every kind: a sector only needs work when its near or far edge crosses one
       const t = new Set();
@@ -221,6 +273,7 @@ export class InstancedField {
       }
       this._bands = Float32Array.from([...t].sort((a, b) => a - b));
       this._bandsDs = ds;
+      this._lastKey = -1; // new ranges: every block again
     }
     // cascades of each LOD mesh: again when the cascades, the shadow distance, the draw scale or
     // the sun's elevation (how far the cascades stretch on the ground) change
@@ -234,69 +287,158 @@ export class InstancedField {
       ck[2 + i] = q;
     }
     if (!same) this._castLayers();
-    const bands = this._bands;
+    // a still camera (and nothing else changed): the same sectors and blocks as last frame
+    const pm = _pm.elements, last = (this._lastPm ??= new Float32Array(16));
+    let still = same;
+    for (let i = 0; i < 16 && still; i++) still = Math.fround(pm[i]) === last[i];
+    if (still && this._lastKey !== -1) return;
+    last.set(pm);
+    const bands = this._bands, SB = this.sub, C = S / SB;
+    if (this._subBandsOf !== bands) { this._subBandsOf = bands; this._subBands = bands.filter((b) => b < SUB_MAX); }
     let maxDist = 0;
     for (const k of this.kinds) maxDist = Math.max(maxDist, k.maxDist * ds);
     const r = Math.ceil(maxDist / S) + 1;
-    const ccx = Math.floor((cp.x + half) / S), ccz = Math.floor((cp.z + half) / S);
-    const vis = this._vis ??= [];
+    const ccx = Math.floor((cp.x - wx0) / S), ccz = Math.floor((cp.z - wz0) / S);
+    const vis = (this._vis ??= []); // per visible sector: sector, near and far distances, cells slot (-1: none)
     vis.length = 0;
-    let key = 2166136261;
-    for (let cz = Math.max(0, ccz - r); cz <= Math.min(n - 1, ccz + r); cz++) {
-      for (let cx = Math.max(0, ccx - r); cx <= Math.min(n - 1, ccx + r); cx++) {
-        const sec = cz * n + cx;
-        const y0 = this.sectorY[sec * 2];
-        if (Number.isNaN(y0)) continue;
-        const x0 = cx * S - half, z0 = cz * S - half;
-        const dx = Math.max(0, x0 - cp.x, cp.x - (x0 + S)), dz = Math.max(0, z0 - cp.z, cp.z - (z0 + S));
-        const d = Math.hypot(dx, dz);
-        if (d > maxDist) continue;
-        const fx = Math.max(cp.x - x0, x0 + S - cp.x), fz = Math.max(cp.z - z0, z0 + S - cp.z);
-        const dFar = Math.hypot(fx, fz);
-        if (d > 40) {
-          _box.min.set(x0 - 8, y0, z0 - 8);
-          _box.max.set(x0 + S + 8, this.sectorY[sec * 2 + 1], z0 + S + 8);
-          if (!_frustum.intersectsBox(_box)) continue;
-        }
-        let b0 = 0, b1 = 0;
-        while (b0 < bands.length && d >= bands[b0]) b0++;
-        while (b1 < bands.length && dFar >= bands[b1]) b1++;
-        vis.push(sec, d, dFar);
-        key = Math.imul(Math.imul(key ^ sec, 16777619) ^ (b0 * 4096 + b1), 16777619);
-      }
+    this._nCells = 0;
+    // each visible sector's signature: the bands its near and far edges fall in (+ its cells' bands
+    // when a near LOD's ring cuts through it). Only the sectors whose signature changed, and those
+    // that came into view or left it, have their blocks recomputed: moving, a few sectors cross a
+    // band every frame, out of a thousand in view of the far LODs
+    const full = this._lastKey === -1;
+    const sigs = (this._sigs ??= new Map()), next = (this._sigsNext ??= new Map());
+    const changed = (this._changedSecs ??= []);
+    changed.length = 0;
+    next.clear();
+    const x1 = ccx + r, z1 = ccz + r, xa = ccx - r, za = ccz - r;
+    // the occupied sectors to test: those of the window around the camera when it holds fewer
+    // sectors than the whole occupied list (short-range fields over a big world), else that list
+    let occ = this._occupied;
+    const wx0c = Math.max(0, xa), wx1c = Math.min(n - 1, x1), wz0c = Math.max(0, za), wz1c = Math.min(n - 1, z1);
+    const win = (wx1c - wx0c + 1) * (wz1c - wz0c + 1);
+    if (wx1c >= wx0c && wz1c >= wz0c && win < occ.length) {
+      if (!(this._win?.length >= win)) this._win = new Int32Array(win);
+      const w = this._win, sy = this.sectorY;
+      let m = 0;
+      for (let cz = wz0c; cz <= wz1c; cz++) for (let cx = wx0c; cx <= wx1c; cx++) if (!Number.isNaN(sy[(cz * n + cx) * 2])) w[m++] = cz * n + cx;
+      occ = w.subarray(0, m);
     }
-    key = (key ^ vis.length) >>> 0;
-    if (key === this._lastKey) return;
-    this._lastKey = key;
-    // wanted (variant, sector) blocks per mesh
-    const nn = n * n;
-    this._flushId = (this._flushId ?? 0) + 1;
-    for (const k of this.kinds) {
-      for (const v of k.variants) for (const m of v.meshes) {
-        if (m.userData.flushed === this._flushId) continue;
-        m.userData.flushed = this._flushId;
-        (m.userData.want ??= new Map()).clear();
+    for (let q = 0; q < occ.length; q++) {
+      const sec = occ[q], cz = (sec / n) | 0, cx = sec - cz * n;
+      if (cx < xa || cx > x1 || cz < za || cz > z1) continue;
+      const y0 = this.sectorY[sec * 2];
+      const x0 = wx0 + cx * S, z0 = wz0 + cz * S;
+      const dx = Math.max(0, x0 - cp.x, cp.x - (x0 + S)), dz = Math.max(0, z0 - cp.z, cp.z - (z0 + S));
+      const d = Math.hypot(dx, dz);
+      if (d > maxDist) continue;
+      const fx = Math.max(cp.x - x0, x0 + S - cp.x), fz = Math.max(cp.z - z0, z0 + S - cp.z);
+      const dFar = Math.hypot(fx, fz);
+      if (d > 40) {
+        _box.min.set(x0 - 8, y0, z0 - 8);
+        _box.max.set(x0 + S + 8, this.sectorY[sec * 2 + 1], z0 + S + 8);
+        if (!_frustum.intersectsBox(_box)) continue;
       }
-      const ranges = k.scaled;
-      if (!ranges) continue;
-      k.variants.forEach((v, vi) => {
-        for (let i = 0; i < vis.length; i += 3) {
-          const sec = vis[i];
+      let b0 = 0, b1 = 0;
+      while (b0 < bands.length && d >= bands[b0]) b0++;
+      while (b1 < bands.length && dFar >= bands[b1]) b1++;
+      let sig = b0 * 4096 + b1;
+      // a sector cut by a near LOD band: its cells' distances (for the blocks below), and which
+      // cells are on which side, in its signature
+      let slot = -1;
+      if (SB > 1 && b0 !== b1 && d < SUB_MAX) {
+        const sb = this._subBands, cells = (this._cells ??= new Float32Array(1024 * 32));
+        slot = this._nCells++;
+        if (slot * 32 + 32 > cells.length) { this._cells = new Float32Array(cells.length * 2); this._cells.set(cells); }
+        sig = `${sig}`;
+        for (let c = 0; c < SB * SB; c++) {
+          const [cd, cf] = cellDist(cp, x0 + (c % SB) * C, z0 + Math.floor(c / SB) * C, C);
+          this._cells[slot * 32 + c * 2] = cd;
+          this._cells[slot * 32 + c * 2 + 1] = cf;
+          let c0 = 0, c1 = 0;
+          while (c0 < sb.length && cd >= sb[c0]) c0++;
+          while (c1 < sb.length && cf >= sb[c1]) c1++;
+          sig += `,${c0 * 64 + c1}`;
+        }
+      }
+      next.set(sec, sig);
+      if (full || sigs.get(sec) !== sig) changed.push(sec, d, dFar, slot);
+      vis.push(sec, d, dFar, slot);
+    }
+    for (const sec of sigs.keys()) if (!next.has(sec)) changed.push(sec, 0, 0, -2); // left the view
+    this._sigs = next;
+    this._sigsNext = sigs;
+    this._lastKey = 0;
+    if (!changed.length) return;
+    // wanted (variant, sector) blocks per mesh: a changed sector's blocks out, its new ones in
+    const nn = n * n, cells = this._cells, contrib = (this._contrib ??= new Map()); // sector -> [mesh, key, ...]
+    const touched = (this._touched ??= new Set());
+    touched.clear();
+    if (full) {
+      contrib.clear();
+      for (const k of this.kinds) for (const v of k.variants) for (const m of v.meshes) { (m.userData.want ??= new Map()).clear(); (m.userData.changed ??= new Set()).clear(); touched.add(m); }
+    }
+    for (let i = 0; i < changed.length; i += 4) {
+      const sec = changed[i], d = changed[i + 1], dFar = changed[i + 2], slot = changed[i + 3];
+      const old = contrib.get(sec);
+      if (old) {
+        for (let j = 0; j < old.length; j += 2) { const u = old[j].userData; u.want.delete(old[j + 1]); u.changed.add(old[j + 1]); touched.add(old[j]); }
+        contrib.delete(sec);
+      }
+      if (slot === -2) continue;
+      let list = null;
+      const put = (m, key, v) => {
+        const u = m.userData;
+        (u.want ??= new Map()).set(key, v);
+        (u.changed ??= new Set()).add(key);
+        touched.add(m);
+        (list ??= []).push(m, key);
+      };
+      for (const k of this.kinds) {
+        const ranges = k.scaled;
+        if (!ranges) continue;
+        for (let vi = 0; vi < k.variants.length; vi++) {
+          const v = k.variants[vi];
           if (v.offsets[sec] === v.offsets[sec + 1]) continue;
-          const d = vis[i + 1], dFar = vis[i + 2];
           // 1 m of slack: float32 distances in the shader
           for (let li = 0; li < ranges.length; li++) {
-            if (dFar >= ranges[li][0] - 1 && d < ranges[li][3] + 1) v.meshes[li].userData.want.set(vi * nn + sec, v);
+            const r0 = ranges[li][0], r3 = ranges[li][3];
+            if (dFar < r0 - 1 || d >= r3 + 1) continue;
+            if (slot < 0 || r3 >= SUB_MAX || (d >= r0 - 1 && dFar < r3 + 1)) { put(v.meshes[li], vi * nn + sec, v); continue; }
+            // the range cuts through the sector: its cells that overlap it
+            const cell0 = sec * SB * SB;
+            for (let c = 0; c < SB * SB; c++) {
+              if (v.cellOffsets[cell0 + c] === v.cellOffsets[cell0 + c + 1]) continue;
+              if (cells[slot * 32 + c * 2 + 1] >= r0 - 1 && cells[slot * 32 + c * 2] < r3 + 1) put(v.meshes[li], SUB_KEY + vi * nn * SB * SB + cell0 + c, v);
+            }
           }
         }
-      });
+      }
+      if (list) contrib.set(sec, list);
+    }
+    const nc = nn * SB * SB;
+    const range = (bk) => (bk >= SUB_KEY ? (bk - SUB_KEY) % nc : -1); // a cell's index, or -1: a whole sector
+    const lenOf = (bk, v) => {
+      const c = range(bk);
+      if (c >= 0) return v.cellOffsets[c + 1] - v.cellOffsets[c];
+      const sec = bk % nn;
+      return v.offsets[sec + 1] - v.offsets[sec];
+    };
+    const write = (bk, v, dst, at) => {
+      const c = range(bk);
+      const [a, b] = c >= 0 ? [v.cellOffsets[c], v.cellOffsets[c + 1]] : [v.offsets[bk % nn], v.offsets[(bk % nn) + 1]];
+      dst.set(v.matrices.subarray(a * 16, b * 16), at * 16);
+    };
+    for (const m of touched) {
+      syncBlocks(m, m.userData.want, lenOf, write, full ? null : m.userData.changed);
+      m.userData.changed.clear();
     }
     let total = 0, meshes = 0, tris = 0;
-    this._flushId++;
+    const counted = (this._counted ??= new Set());
+    counted.clear();
     for (const k of this.kinds) for (const v of k.variants) for (const m of v.meshes) {
-      if (m.userData.flushed === this._flushId) continue;
-      m.userData.flushed = this._flushId;
-      syncBlocks(m, m.userData.want, (bk, v) => { const sec = bk % nn; return v.offsets[sec + 1] - v.offsets[sec]; }, (bk, v, dst, at) => { const sec = bk % nn; dst.set(v.matrices.subarray(v.offsets[sec] * 16, v.offsets[sec + 1] * 16), at * 16); });
+      if (counted.has(m)) continue;
+      counted.add(m);
       total += liveCount(m);
       tris += liveCount(m) * m.userData.tris;
       if (m.instances) meshes++;
@@ -355,16 +497,18 @@ export class InstancedField {
 
   /** Nearest item hit by a ray, using each kind's bounding sphere (editor picking). */
   pick(ray, maxDist = 2000) {
-    let best = null, bd = maxDist;
-    for (const it of this.items) {
-      const k = this.kinds[it.kind];
-      _v.set(it.matrix[12], it.matrix[13] + k.height * 0.5, it.matrix[14]);
+    let best = -1, bd = maxDist;
+    const mat = this._mat;
+    for (let i = 0; i < this.count; i++) {
+      const k = this.kinds[this._kv[i * 2]];
+      _v.set(mat[i * 16 + 12], mat[i * 16 + 13] + k.height * 0.5, mat[i * 16 + 14]);
       const r = Math.max(0.5, k.radius * 0.7);
       const t = ray.origin.distanceTo(_v);
       if (t - r > bd) continue;
-      if (ray.distanceSqToPoint(_v) < r * r && t < bd) { bd = t; best = it; }
+      if (ray.distanceSqToPoint(_v) < r * r && t < bd) { bd = t; best = i; }
     }
-    return best;
+    if (best < 0) return null;
+    return { kind: this._kv[best * 2], variant: this._kv[best * 2 + 1], matrix: mat.slice(best * 16, best * 16 + 16), y0: this._y[best * 2], y1: this._y[best * 2 + 1], id: this._id[best] };
   }
 
   dispose() {
@@ -379,6 +523,16 @@ export class InstancedField {
     }
     this.group.removeFromParent();
   }
+}
+
+/** Horizontal distances from the camera to the nearest and farthest points of a square cell. */
+const _cd = [0, 0];
+function cellDist(cp, x0, z0, size) {
+  const dx = Math.max(0, x0 - cp.x, cp.x - (x0 + size)), dz = Math.max(0, z0 - cp.z, cp.z - (z0 + size));
+  const fx = Math.max(cp.x - x0, x0 + size - cp.x), fz = Math.max(cp.z - z0, z0 + size - cp.z);
+  _cd[0] = Math.hypot(dx, dz);
+  _cd[1] = Math.hypot(fx, fz);
+  return _cd;
 }
 
 /** Indexed copy of an asset build's geometry (cached): the builds are triangle soups, and the

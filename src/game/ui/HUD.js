@@ -66,15 +66,16 @@ export class HUD {
   setVisible(v) { this.visible = v; this.root.style.display = v ? '' : 'none'; }
 
   // --- minimap -----------------------------------------------------------------------------
-  buildMapImage(size = 768) {
+  buildMapImage(size) {
     const T = this.game.world.terrain;
+    size ??= Math.min(2048, Math.round(T.size * 0.375)); // ~2.7 m a pixel (the minimap's zoom)
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const ctx = c.getContext('2d');
     const img = ctx.createImageData(size, size);
     const col = new Float32Array(3), n = { x: 0, y: 1, z: 0 };
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const wx = -T.half + (x + 0.5) / size * T.size, wz = -T.half + (y + 0.5) / size * T.size;
+      const wx = T.x0 + (x + 0.5) / size * T.size, wz = T.z0 + (y + 0.5) / size * T.size;
       const i = Math.round(T.gx(wx)), j = Math.round(T.gz(wz));
       T.vertexColor(Math.min(T.res - 1, i), Math.min(T.res - 1, j), col, 0);
       let r = Math.sqrt(col[0]), g = Math.sqrt(col[1]), b = Math.sqrt(col[2]);
@@ -105,7 +106,7 @@ export class HUD {
     ctx.rotate(p.yaw);
     const k = S / range;
     ctx.scale(k / scale, k / scale);
-    ctx.drawImage(this.mapImage, -(p.pos.x + T.half) * scale, -(p.pos.z + T.half) * scale);
+    ctx.drawImage(this.mapImage, -(p.pos.x - T.x0) * scale, -(p.pos.z - T.z0) * scale);
     ctx.restore();
     // markers (rotated into view space)
     const toMini = (x, z) => {

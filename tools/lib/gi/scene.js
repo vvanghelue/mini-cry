@@ -18,7 +18,7 @@ export function terrainField(t) {
   const n = t.res * t.res;
   const col = new Float32Array(n * 3), c = new Float32Array(3);
   for (let j = 0; j < t.res; j++) for (let i = 0; i < t.res; i++) { t.vertexColor(i, j, c, 0); col.set(c, (j * t.res + i) * 3); }
-  return buildHeightfield(t.heights, col, t.res, t.size);
+  return buildHeightfield(t.heights, col, t.res, t.size, t.x0, t.z0);
 }
 
 function assetMesh(build) {

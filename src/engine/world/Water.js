@@ -12,13 +12,19 @@
 // reflection where a ray finds them on screen (render/SSR.js).
 import * as THREE from 'three/webgpu';
 import {
-  Fn, If, float, vec2, vec3, vec4, max, min, abs, mix, pow, sin, cos, sqrt, fract, floor, dot, exp, clamp, normalize, reflect, distance, smoothstep, step, select,
+  Fn, If, float, vec2, vec3, vec4, max, min, abs, mix, pow, sin, cos, sqrt, fract, floor, dot, exp, clamp, normalize, reflect, distance, length, smoothstep, step, select,
   attribute, varyingProperty, positionLocal, positionView, modelWorldMatrix, cameraWorldMatrix, cameraViewMatrix, cameraPosition, screenCoordinate, texture, toneMappingExposure, sRGBTransferOETF,
 } from 'three/tsl';
 import { LAYERS } from '../render/layers.js';
 import { U, tex } from '../render/tsl.js';
 import { grade } from '../render/Grade.js';
 import { SSR } from '../render/SSR.js';
+
+// far deep sea: opaque past `depth` m of water, faded in between `from` and `to` m from the camera.
+// The terrain renderer doesn't draw the seabed there (TerrainRenderer: whole nodes deeper than
+// that, farther than `to`): from a plane, the sea floor out to the horizon would be fully lit and
+// then 90 % hidden under the water
+export const DEEP_SEA = { depth: 6, from: 1400, to: 2000 };
 
 // directional swell: dir xy, spatial frequency, amplitude
 const WAVES = [[0.8, 0.6, 0.11, 0.5], [-0.35, 0.94, 0.13, 0.38], [0.97, -0.24, 0.23, 0.22], [0.42, 0.91, 0.37, 0.12]];
@@ -64,7 +70,7 @@ export class Water {
       foam: U(new THREE.Color(this.lighting.env.ocean.foam)),
       night: U(0),
       camPos: U(new THREE.Vector3()),
-      terrainRect: U(new THREE.Vector4(-t.half, -t.half, t.size, 0)), // x0, z0, size, unused
+      terrainRect: U(new THREE.Vector4(t.x0, t.z0, t.size, 0)), // x0, z0, size, unused
       rippleScale: U(river ? 1.6 : 1),
     };
   }
@@ -123,7 +129,11 @@ export class Water {
       const F = float(0.02).add(pow(float(1.0).sub(NdV), 5.0).mul(0.98)).toVar();
       // body: absorbed toward the deep colour with depth, lit by the sun and the sky
       const dk = float(1.0).sub(exp(max(depth, 0.0).negate().mul(river ? 0.45 : 0.16))).toVar();
-      const sunDir = sunU.sunDirW, sunColor = sunU.sunColor;
+      // the far shadows (render/FarShadows.js): mountains and the trees on the shore shade the water
+      const far = vec2(1.0).toVar();
+      // (at the undisplaced surface: the swell would streak a shadow's grazing edge)
+      If(L.sun.far.uniforms.farOn.greaterThan(0.5), () => { far.assign(L.sun.far.sampleFn('any')(vWorld.sub(vec3(0.0, vCrest.mul(u.waveAmp), 0.0)), float(1.0))); });
+      const sunDir = sunU.sunDirW, sunColor = sunU.sunColor.mul(min(far.x, far.y)).toVar();
       const sunUp = clamp(sunDir.y.mul(2.0), 0.0, 1.0);
       const lightC = sunColor.mul(sunUp.mul(0.16).add(0.12)).add(sk.zenith.mul(0.35)).add(sk.horizon.mul(0.15)).toVar();
       const body = mix(u.shallow, u.deep, dk).mul(lightC).mul(mix(1.0, 0.25, u.night)).toVar();
@@ -136,15 +146,22 @@ export class Water {
       const H = normalize(sunDir.add(V));
       const NdH = max(dot(n, H), 0.0);
       col.addAssign(sunColor.mul(pow(NdH, 900.0).mul(6.0).add(pow(NdH, 120.0).mul(0.25))).mul(step(0.0, sunDir.y)));
-      // shore foam: animated bands where it gets shallow, broken by noise
-      const fuv = vWorld.xz.mul(0.35).add(vFlow.mul(uTime.mul(u.flowSpeed))).toVar();
-      const fn = noise(fuv).mul(0.6).add(noise(fuv.mul(2.3)).mul(0.3)).add(noise(fuv.mul(5.1)).mul(0.1));
-      const band = river ? smoothstep(0.85, 0.0, depth) : smoothstep(0.85, 0.0, depth).add(smoothstep(1.6, 0.4, depth).mul(sin(depth.mul(6.0).sub(uTime.mul(1.6))).mul(0.5).add(0.5)).mul(0.6));
-      const f = smoothstep(0.5, 0.8, fn.mul(band).add(band.mul(0.2))).toVar();
-      if (river) f.assign(max(f, smoothstep(0.74, 0.92, noise(fuv.mul(1.7))).mul(0.3)));
+      // shore foam: animated bands where it gets shallow, broken by noise (the sea: only there, its
+      // bands are 0 past 1.6 m of depth; rivers have foam streaks everywhere)
+      const f = float(0.0).toVar();
+      const foam = () => {
+        const fuv = vWorld.xz.mul(0.35).add(vFlow.mul(uTime.mul(u.flowSpeed))).toVar();
+        const fn = noise(fuv).mul(0.6).add(noise(fuv.mul(2.3)).mul(0.3)).add(noise(fuv.mul(5.1)).mul(0.1));
+        const band = river ? smoothstep(0.85, 0.0, depth) : smoothstep(0.85, 0.0, depth).add(smoothstep(1.6, 0.4, depth).mul(sin(depth.mul(6.0).sub(uTime.mul(1.6))).mul(0.5).add(0.5)).mul(0.6));
+        f.assign(smoothstep(0.5, 0.8, fn.mul(band).add(band.mul(0.2))));
+        if (river) f.assign(max(f, smoothstep(0.74, 0.92, noise(fuv.mul(1.7))).mul(0.3)));
+      };
+      if (river) foam();
+      else If(depth.lessThan(1.6), foam);
       col.assign(mix(col, u.foam.mul(lightC).mul(0.75), f.mul(0.8)));
       // see-through in the shallows, opaque at grazing angles (Fresnel) and in the deep
       const alpha = max(max(mix(0.45, u.opacity, smoothstep(0.0, 3.0, depth)), f.mul(0.9)), F).mul(smoothstep(-0.05, 0.12, depth)).toVar();
+      if (!river) alpha.assign(mix(alpha, 1.0, smoothstep(DEEP_SEA.from, DEEP_SEA.to, length(vWorld.sub(cameraPosition))).mul(smoothstep(DEEP_SEA.depth - 1, DEEP_SEA.depth, depth))));
       const hz = haze.fragFn(vWorld.sub(cameraPosition), vHaze).toVar(); // near haze + far fog (render/Haze.js)
       col.assign(col.mul(hz.a).add(hz.rgb));
       // tone mapping + sRGB here (display space): the reflections below blend in that space
@@ -187,9 +204,10 @@ export class Water {
 
   /** Rings of quads around the origin, ring radius growing geometrically (follows the camera). */
   _polarGrid() {
-    const seg = 96, rings = [];
+    // out to the camera's far plane (World.load: the world square's diagonal)
+    const seg = 96, rings = [], reach = Math.max(6000, Math.SQRT2 * this.terrain.size);
     let r = 0, step = 2.5;
-    while (r < 6000) { rings.push(r); r += step; step *= 1.07; }
+    while (r < reach) { rings.push(r); r += step; step *= 1.07; }
     const pos = [], flow = [], idx = [];
     for (let k = 0; k < rings.length; k++) {
       for (let s = 0; s < seg; s++) {

@@ -123,7 +123,7 @@ export class EntityManager {
     const assets = this.world.assets;
     if (!this.props || this._propsVersion !== assets.version) {
       this.props?.dispose();
-      this.props = new StaticBatch({ name: 'Props', assets, lighting: this.world.lighting, worldSize: this.world.terrain.size, sector: 128 });
+      this.props = new StaticBatch({ name: 'Props', assets, lighting: this.world.lighting, bounds: this.world.terrain, sector: 128 });
       this._propsVersion = assets.version;
       this.root.add(this.props.group);
     }

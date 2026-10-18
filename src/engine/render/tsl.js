@@ -8,7 +8,7 @@
 //  - instancing: our own instanced attributes (render/Instancing.js), not three's InstancedMesh, so
 //    every instanced mesh of a material shares one shader (three keys InstancedMesh shaders per
 //    object).
-import { NodeBuilder, FunctionNode } from 'three/webgpu';
+import { NodeBuilder, FunctionNode, TextureNode } from 'three/webgpu';
 import { Fn, uniform, renderGroup, texture, texture3D, float, int, ivec2, vec2, vec3, vec4, mat4, uvec2, uint, mix, attribute, modelWorldMatrix, positionGeometry } from 'three/tsl';
 
 // WGSL functions (Fn().setLayout) are generated once per backend in three.js r186 and their code
@@ -30,6 +30,17 @@ NodeBuilder.prototype.buildFunctionNode = function (shaderNode) {
     cache.set(shaderNode, fn);
   }
   return fn;
+};
+
+// texture.sample(uv) (and .level(), .compare()...) clones the texture node, and the clone's
+// constructor turns the uv matrix back on (it had no uv node yet): every sample of a tex() / T()
+// node got a per-object mat3 uniform (uploaded with each draw) and its multiply. Clones keep their
+// source's setting.
+const _clone = TextureNode.prototype.clone;
+TextureNode.prototype.clone = function () {
+  const n = _clone.call(this);
+  n.updateMatrix = this.updateMatrix;
+  return n;
 };
 
 let _uid = 0;

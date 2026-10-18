@@ -217,12 +217,12 @@ export function traceMesh(m, ox, oy, oz, dx, dy, dz, tmin, tmax, any) {
 }
 
 // --- heightfield terrain ---------------------------------------------------------------------------
-// Vertex grid res x res over [-size/2, size/2]; cell (i, j) holds two triangles split like
+// Vertex grid res x res over [x0, x0 + size] x [z0, z0 + size]; cell (i, j) holds two triangles split like
 // TerrainData.heightAt: (i,j)(i,j+1)(i+1,j) and (i+1,j)(i,j+1)(i+1,j+1). The pyramid stores the
 // max height of 2^level x 2^level cells (padded to a power of two).
 
 /** heights: Float32Array res*res, colors: Float32Array res*res*3 (linear vertex albedo). */
-export function buildHeightfield(heights, colors, res, size) {
+export function buildHeightfield(heights, colors, res, size, x0 = -size / 2, z0 = -size / 2) {
   const q = res - 1;
   let top = 0;
   while ((1 << top) < q) top++;
@@ -244,18 +244,18 @@ export function buildHeightfield(heights, colors, res, size) {
   }
   const h = new Float32Array(SAB(heights.length * 4)); h.set(heights);
   const c = new Float32Array(SAB(colors.length * 4)); c.set(colors);
-  return { heights: h.buffer, colors: c.buffer, mip: mip.buffer, offs, top, dim, res, size };
+  return { heights: h.buffer, colors: c.buffer, mip: mip.buffer, offs, top, dim, res, size, x0, z0 };
 }
 
 export function heightfieldView(t) {
-  return { H: new Float32Array(t.heights), C: new Float32Array(t.colors), M: new Float32Array(t.mip), offs: t.offs, top: t.top, dim: t.dim, res: t.res, q: t.res - 1, cell: t.size / (t.res - 1), half: t.size / 2 };
+  return { H: new Float32Array(t.heights), C: new Float32Array(t.colors), M: new Float32Array(t.mip), offs: t.offs, top: t.top, dim: t.dim, res: t.res, q: t.res - 1, cell: t.size / (t.res - 1), x0: t.x0, z0: t.z0 };
 }
 
 let _hfI = 0, _hfJ = 0, _hfUpper = false, _hfBack = false;
 
 /** Triangle (vertex indices) / ray test, MT. Returns t or -1. */
-function triHF(H, res, cell, half, i0, j0, i1, j1, i2, j2, ox, oy, oz, dx, dy, dz, tmin, tmax) {
-  const ax = i0 * cell - half, ay = H[j0 * res + i0], az = j0 * cell - half;
+function triHF(H, res, cell, x0, z0, i0, j0, i1, j1, i2, j2, ox, oy, oz, dx, dy, dz, tmin, tmax) {
+  const ax = x0 + i0 * cell, ay = H[j0 * res + i0], az = z0 + j0 * cell;
   const e1x = (i1 - i0) * cell, e1y = H[j1 * res + i1] - ay, e1z = (j1 - j0) * cell;
   const e2x = (i2 - i0) * cell, e2y = H[j2 * res + i2] - ay, e2z = (j2 - j0) * cell;
   const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
@@ -276,8 +276,8 @@ function triHF(H, res, cell, half, i0, j0, i1, j1, i2, j2, ox, oy, oz, dx, dy, d
 
 /** Closest hit against the heightfield (front to back, so the first hit is the closest). */
 export function traceTerrain(hf, ox, oy, oz, dx, dy, dz, tmin, tmax) {
-  const { H, M, offs, top, q, cell, half, res } = hf;
-  const gx = (ox + half) / cell, gz = (oz + half) / cell, gdx = dx / cell, gdz = dz / cell;
+  const { H, M, offs, top, q, cell, x0, z0, res } = hf;
+  const gx = (ox - x0) / cell, gz = (oz - z0) / cell, gdx = dx / cell, gdz = dz / cell;
   // clip to the grid (x, z in [0, q]) and below the highest point
   let t = tmin, tEnd = tmax;
   if (gdx > 1e-12 || gdx < -1e-12) {
@@ -316,10 +316,10 @@ export function traceTerrain(hf, ox, oy, oz, dx, dy, dz, tmin, tmax) {
     if (level > 0) { level--; continue; }
     if (ci < q && cj < q) {
       let best = -1;
-      let th = triHF(H, res, cell, half, ci, cj, ci, cj + 1, ci + 1, cj, ox, oy, oz, dx, dy, dz, tmin, tmax);
+      let th = triHF(H, res, cell, x0, z0, ci, cj, ci, cj + 1, ci + 1, cj, ox, oy, oz, dx, dy, dz, tmin, tmax);
       if (th > 0) { best = th; _hfUpper = false; }
       const b0 = _hfBack;
-      th = triHF(H, res, cell, half, ci + 1, cj, ci, cj + 1, ci + 1, cj + 1, ox, oy, oz, dx, dy, dz, tmin, best > 0 ? best : tmax);
+      th = triHF(H, res, cell, x0, z0, ci + 1, cj, ci, cj + 1, ci + 1, cj + 1, ox, oy, oz, dx, dy, dz, tmin, best > 0 ? best : tmax);
       if (th > 0) { best = th; _hfUpper = true; } else _hfBack = b0;
       if (best > 0) { _hfI = ci; _hfJ = cj; return best; }
     }

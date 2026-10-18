@@ -30,6 +30,7 @@ import { Fn, If, float, ivec2, vec2, vec3, vec4, mix, min, max, length, smoothst
 import { LAYERS } from './layers.js';
 import { U, T, ndcToUv, tex } from './tsl.js';
 import { lodPassMode } from './LodFade.js';
+import { FarShadows } from './FarShadows.js';
 
 const MAX = 3;
 
@@ -70,8 +71,12 @@ export class SunShadows {
     this.scale = 1;
     this.version = 0; // bumped when the cascades or the shadow distance change
     this.depthMat = new DepthMaterial(); // set by Lighting (needs the foliage textures)
+    // the terrain's horizon sweep + the island-wide tree map (FarShadows.js): past the cascades,
+    // and the terrain's share on top of them (World.load gives it the terrain and the trees)
+    this.far = new FarShadows(renderer);
     this.setCascades(cascades, { distance });
-    this.shadowFn = this._shadowFn();
+    this._shadowFns = {};
+    this.shadowFn = this.shadowFnFor('any');
     this.tintFn = this._tintFn();
   }
 
@@ -245,6 +250,7 @@ export class SunShadows {
 
   /** Re-fit and render the cascades due this frame around the camera. */
   update(camera, force = false) {
+    this.far.update(this.dir);
     if (!this.enabled || this.dir.y < -0.05) return;
     this.frame++;
     const fast = (this._lastCam ??= camera.position.clone()).distanceToSquared(camera.position) > 0.03 * 0.03;
@@ -275,9 +281,18 @@ export class SunShadows {
 
   // --- shader side ------------------------------------------------------------------------------
 
+  /** The shadow function of a receiver kind (FarShadows.sampleFn: 'ground' terrain, 'crown' tree
+   *  impostors, 'any'). */
+  shadowFnFor(kind = 'any') {
+    return (this._shadowFns[kind] ??= this._shadowFn(kind));
+  }
+
   /** fn(P world, N world normal, NdL) -> shadow factor (1 = lit). Real WGSL functions (layouts),
-   *  not inlined TSL: one copy of the code per shader, small graphs to build. */
-  _shadowFn() {
+   *  not inlined TSL: one copy of the code per shader, small graphs to build. Past the cascades'
+   *  fade (or everywhere with the cascades off) the far shadows' crowns take over; their terrain
+   *  share darkens everywhere (min: the cascades miss what is out of their box). */
+  _shadowFn(kind) {
+    if (this._cascadeFns) return this._combine(kind, ...this._cascadeFns);
     const u = this.uniforms;
     const P3 = [{ name: 'P', type: 'vec3' }, { name: 'N', type: 'vec3' }, { name: 'NdL', type: 'float' }];
     // cascade i: vec2(shadow, edge distance in uv; <= 0 outside), the PCF taps only inside
@@ -329,18 +344,30 @@ export class SunShadows {
         .Else(() => { c.assign(C[0](P, N, NdL)); });
       return select(c.y.greaterThan(0.0), mix(1.0, c.x, smoothstep(0.0, u.sunBlend, c.y)), float(1.0));
     }).setLayout({ name: 'sunLast', type: 'float', inputs: P3 });
+    this._cascadeFns = [cascaded, last];
+    return this._combine(kind, cascaded, last);
+  }
+
+  _combine(kind, cascaded, last) {
+    const u = this.uniforms, fu = this.far.uniforms, far = this.far.sampleFn(kind);
+    const P3 = [{ name: 'P', type: 'vec3' }, { name: 'N', type: 'vec3' }, { name: 'NdL', type: 'float' }];
     return Fn(([P, N, NdL]) => {
       const s = float(1.0).toVar();
+      const k = float(1.0).toVar(); // share of the far shadows' crowns (0 inside the cascades)
       If(u.sunShadowOn.greaterThan(0.5).and(u.sunCascades.greaterThanEqual(1)), () => {
         const d = length(P.xz.sub(cameraPosition.xz)).toVar();
+        k.assign(smoothstep(u.sunFade.x, u.sunFade.y, d));
         If(d.lessThan(u.sunFade.y), () => {
           If(d.lessThan(u.sunSplit.y), () => { s.assign(cascaded(P, N, NdL)); });
           If(d.greaterThan(u.sunSplit.x), () => { s.assign(mix(s, last(P, N, NdL), smoothstep(u.sunSplit.x, u.sunSplit.y, d))); });
-          s.assign(mix(s, 1.0, smoothstep(u.sunFade.x, u.sunFade.y, d)));
         });
       });
+      If(fu.farOn.greaterThan(0.5), () => {
+        const f = far(P, k).toVar();
+        s.assign(min(mix(s, f.y, k), f.x));
+      }).Else(() => { s.assign(mix(s, 1.0, k)); });
       return s;
-    }).setLayout({ name: 'sunShadow', type: 'float', inputs: P3 });
+    }).setLayout({ name: `sunShadow_${kind}`, type: 'float', inputs: P3 });
   }
 
   /** Vertex stage variant (dust motes): one point-sampled tap of the first cascade containing P

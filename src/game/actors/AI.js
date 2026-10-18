@@ -600,14 +600,14 @@ export class AIDirector {
     for (let k = 0; k < d.n; k++) {
       if (!dense.has(d.species[k])) continue;
       const r = Math.max(1, Math.round(d.scale[k] * 0.7));
-      const ci = Math.floor((d.x[k] + T.half) / 2), cj = Math.floor((d.z[k] + T.half) / 2);
+      const ci = Math.floor((d.x[k] - T.x0) / 2), cj = Math.floor((d.z[k] - T.z0) / 2);
       for (let j = cj - r + 1; j < cj + r; j++) for (let i = ci - r + 1; i < ci + r; i++) if (i >= 0 && j >= 0 && i < n && j < n) this.foliage[j * n + i] = Math.min(255, this.foliage[j * n + i] + 1);
     }
   }
 
   foliageAt(x, z) {
     const T = this.game.world.terrain;
-    const i = Math.floor((x + T.half) / 2), j = Math.floor((z + T.half) / 2);
+    const i = Math.floor((x - T.x0) / 2), j = Math.floor((z - T.z0) / 2);
     return i < 0 || j < 0 || i >= this.fn || j >= this.fn ? 0 : this.foliage[j * this.fn + i];
   }
 

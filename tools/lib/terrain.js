@@ -21,7 +21,7 @@ export function saveTerrain(t) {
 export function terrainPreview(t, size = 1024, markers = [], view = null) {
   const px = new Uint8Array(size * size * 3);
   const col = new Float32Array(3);
-  const v = view ?? { x0: -t.half, z0: -t.half, span: t.size };
+  const v = view ?? { x0: t.x0, z0: t.z0, span: t.size };
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const wx = v.x0 + (x + 0.5) / size * v.span, wz = v.z0 + (y + 0.5) / size * v.span;

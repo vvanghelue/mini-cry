@@ -18,13 +18,15 @@ export class Vegetation {
     // follows the camera closely; trees and rocks use 64 m sectors (fewer sectors to walk)
     this.near = def.species.map((sp) => (sp.lods?.length ? sp.lods[sp.lods.length - 1].distance : 200) < 160);
     const kinds = def.species.map((sp) => ({ id: sp.id, asset: sp.asset, variants: sp.variants ?? 1, lods: sp.lods, castShadow: sp.castShadow, blend: sp.blend, shareVariantsFrom: sp.shareVariantsFrom, impostor: sp.impostor }));
-    const mk = (name, sector, keep) => new InstancedField({ name, assets, lighting: world.lighting, worldSize: this.terrain.size, sector, kinds: kinds.map((k, i) => (keep(i) ? k : { ...k, lods: [{ distance: 0.001, quality: 0.25 }], castShadow: 0, empty: true })) });
-    this.fieldNear = mk('VegetationNear', 24, (i) => this.near[i]);
-    this.fieldFar = mk('VegetationFar', 64, (i) => !this.near[i]);
+    const mk = (name, sector, sub, keep) => new InstancedField({ name, assets, lighting: world.lighting, bounds: this.terrain, sector, sub, kinds: kinds.map((k, i) => (keep(i) ? k : { ...k, lods: [{ distance: 0.001, quality: 0.25 }], castShadow: 0, empty: true })) });
+    this.fieldNear = mk('VegetationNear', 24, 1, (i) => this.near[i]);
+    // (16 m cells for the near LODs' rings: InstancedField sub)
+    this.fieldFar = mk('VegetationFar', 64, 4, (i) => !this.near[i]);
     this.group = new THREE.Group();
     this.group.name = 'Vegetation';
     this.group.add(this.fieldNear.group, this.fieldFar.group);
     this.field = this.fieldFar; // (compat)
+    this.lodVisible = { lod0: true, lod1: true, lod2: true, impostor: true, impostorShadow: true }; // setLodVisible
     this.rebuild();
   }
 
@@ -34,6 +36,19 @@ export class Vegetation {
   }
   bakeImpostors(renderer) { this.fieldNear.bakeImpostors(renderer); this.fieldFar.bakeImpostors(renderer); }
 
+  /** Debug (F2 → Graphics → Display → vegetation LODs): show / hide one LOD level of every species,
+   *  its shadows included. level: 'lod0' | 'lod1' | 'lod2' (meshes), 'impostor' (far trees),
+   *  'impostorShadow' (the impostors' sun-facing shadow cards, InstancedField). */
+  setLodVisible(level, on) {
+    this.lodVisible[level] = on;
+    this.group.traverse((o) => {
+      const l = o.userData.impostorCaster ? 'impostorShadow' : o.userData.impostor ? 'impostor' : o.isMesh && o.userData.lod !== undefined ? `lod${o.userData.lod}` : null;
+      if (l !== level) return;
+      o.userData.hidden = !on; // (InstanceBlocks keeps it hidden when its instances change)
+      o.visible = on && (o.userData.live ?? true);
+    });
+  }
+
   /** Per species / LOD draw statistics (InstancedField.lodStats), both fields. */
   lodStats(camera, viewHeight, tinyPx) { return [...this.fieldNear.lodStats(camera, viewHeight, tinyPx), ...this.fieldFar.lodStats(camera, viewHeight, tinyPx)]; }
   set drawScale(v) { this.fieldNear.drawScale = v; this.fieldFar.drawScale = v; }
@@ -41,10 +56,15 @@ export class Vegetation {
 
   /** Re-place every instance on the ground (after sculpting / brush edits). */
   rebuild(bytes) {
+    this.version = (this.version ?? 0) + 1; // (the far shadows' tree map follows)
     if (bytes) this.data = decodeVegetation(bytes);
     const d = this.data, T = this.terrain;
     this.fieldNear.clear();
     this.fieldFar.clear();
+    let nNear = 0;
+    for (let k = 0; k < d.n; k++) if (this.near[d.species[k]]) nNear++;
+    this.fieldNear.reserve(nNear);
+    this.fieldFar.reserve(d.n - nNear);
     for (let k = 0; k < d.n; k++) {
       const sp = d.species[k];
       if (sp >= this.near.length) continue;

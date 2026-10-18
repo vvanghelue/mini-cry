@@ -210,36 +210,36 @@ export class Menus {
     const ctx = c.getContext('2d');
     ctx.drawImage(g.hud.mapImage, 0, 0, size, size);
     const k = size / T.size;
-    const px = (x) => (x + T.half) * k;
+    const px = (x) => (x - T.x0) * k, pz = (z) => (z - T.z0) * k;
     this._fast = [];
     // labels from markers with a map label
     ctx.font = 'bold 13px Trebuchet MS';
     ctx.textAlign = 'center';
     for (const e of g.world.entities.list) {
-      if (e.type === 'marker' && e.label) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(e.label, px(e.pos[0]) + 1, px(e.pos[2]) + 1); ctx.fillStyle = '#fff'; ctx.fillText(e.label, px(e.pos[0]), px(e.pos[2])); }
+      if (e.type === 'marker' && e.label) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillText(e.label, px(e.pos[0]) + 1, pz(e.pos[2]) + 1); ctx.fillStyle = '#fff'; ctx.fillText(e.label, px(e.pos[0]), pz(e.pos[2])); }
       if (e.type === 'outpost') {
         const lib = g.liberated.has(e.id);
         ctx.fillStyle = lib ? '#3fb0ff' : '#e03030';
-        ctx.beginPath(); ctx.arc(px(e.pos[0]), px(e.pos[2]), 7, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px(e.pos[0]), pz(e.pos[2]), 7, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#000'; ctx.stroke();
-        ctx.fillStyle = '#fff'; ctx.fillText(e.name ?? 'Outpost', px(e.pos[0]), px(e.pos[2]) - 12);
-        if (lib && e.fastTravel !== false) this._fast.push({ id: e.id, x: px(e.pos[0]), y: px(e.pos[2]) });
+        ctx.fillStyle = '#fff'; ctx.fillText(e.name ?? 'Outpost', px(e.pos[0]), pz(e.pos[2]) - 12);
+        if (lib && e.fastTravel !== false) this._fast.push({ id: e.id, x: px(e.pos[0]), y: pz(e.pos[2]) });
       }
     }
     for (const m of g.missions.markers()) {
       ctx.fillStyle = '#ffd34d'; ctx.strokeStyle = '#000';
-      const x = px(m.x), y = px(m.z);
+      const x = px(m.x), y = pz(m.z);
       ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x + 7, y); ctx.lineTo(x, y + 9); ctx.lineTo(x - 7, y); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
     for (const a of g.actors.list) {
       if (!a.alive || !(a.tagged || a.ai?.state === 'combat')) continue;
       ctx.fillStyle = '#ff3b30';
-      ctx.beginPath(); ctx.arc(px(a.pos.x), px(a.pos.z), 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px(a.pos.x), pz(a.pos.z), 3, 0, Math.PI * 2); ctx.fill();
     }
     // player arrow
     const p = g.player;
     ctx.save();
-    ctx.translate(px(p.pos.x), px(p.pos.z));
+    ctx.translate(px(p.pos.x), pz(p.pos.z));
     ctx.rotate(-p.yaw);
     ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
