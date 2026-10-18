@@ -23,6 +23,7 @@ import { Fn, float, int, ivec2, vec2, vec3, vec4, mix, clamp, fract, round, exp2
 import { LAYERS } from '../render/layers.js';
 import { terrainMaterial } from '../render/TerrainMaterial.js';
 import { U, tex } from '../render/tsl.js';
+import { DEEP_SEA } from './Water.js';
 
 const PATCH = 8; // quads per patch side
 const MORPH = 0.7; // morph over the last 30 % of a level's range
@@ -62,6 +63,8 @@ export class TerrainRenderer {
     this._pm = new THREE.Matrix4();
     this._box = new THREE.Box3();
     this.stats = { triangles: 0, patches: 0, shadowPatches: 0 };
+    this.seabedCull = true; // skip the far deep seabed (debug / bench switch)
+    this._sunkDist = Infinity;
     // patches before the first update: the loading warm-up compiles what it draws (World.warmUp)
     for (const m of [this.mesh, this.shadowMesh]) this._select(m, _a.set(0, 1e4, 0), null, Infinity);
   }
@@ -230,7 +233,11 @@ export class TerrainRenderer {
     this.u.cam.value.copy(cp);
     this._pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     this._frustum.setFromProjectionMatrix(this._pm);
+    // the deep seabed far away is under opaque water (Water.js DEEP_SEA): not drawn, unless the
+    // camera is under the surface
+    this._sunkDist = this.seabedCull && cp.y > this.terrain.seaLevel + 1 ? DEEP_SEA.to : Infinity;
     this.stats.patches = this._select(this.mesh, cp, this._frustum, Infinity);
+    this._sunkDist = Infinity;
     // shadow casters: by distance alone, as far as the cascades reach
     const sun = this.lighting.sun, last = sun.cascades.length - 1;
     const reach = last >= 0 && sun.enabled ? sun.reach(last) + 60 : 0;
@@ -269,7 +276,7 @@ export class TerrainRenderer {
     const box = this._nodeBox(L, i, j);
     if (!box) return;
     const d = box.distanceToPoint(cp);
-    if (d > reach) return;
+    if (d > reach || this._sunk(box, d)) return;
     if (frustum && !frustum.intersectsBox(box)) return;
     if (L === 0 || d >= this.range0 * 2 ** (L - 1)) { this._emitNode(out, i, j, L, cp, frustum, reach); return; }
     for (let q = 0; q < 4; q++) {
@@ -277,16 +284,21 @@ export class TerrainRenderer {
       if (!cb) continue;
       const cd = cb.distanceToPoint(cp);
       if (cd < this.range0 * 2 ** (L - 1)) this._walk(out, ci, cj, L - 1, cp, frustum, reach);
-      else if (cd <= reach && (!frustum || frustum.intersectsBox(cb))) this._emit(out, ci, cj, L - 1, L);
+      else if (cd <= reach && !this._sunk(cb, cd) && (!frustum || frustum.intersectsBox(cb))) this._emit(out, ci, cj, L - 1, L);
     }
   }
+
+  /** A node all deeper than DEEP_SEA.depth, farther than _sunkDist: hidden by the opaque far sea. */
+  _sunk(box, d) { return d > this._sunkDist && box.max.y < this.terrain.seaLevel - DEEP_SEA.depth; }
 
   /** A node drawn whole: its four quadrants (patches), each culled. */
   _emitNode(out, i, j, L, cp, frustum, reach) {
     for (let q = 0; q < 4; q++) {
       if (L === 0) { this._emitQuad(out, i, j, q, cp, frustum, reach); continue; }
       const ci = 2 * i + (q & 1), cj = 2 * j + (q >> 1), cb = this._nodeBox(L - 1, ci, cj);
-      if (!cb || cb.distanceToPoint(cp) > reach || (frustum && !frustum.intersectsBox(cb))) continue;
+      if (!cb) continue;
+      const cd = cb.distanceToPoint(cp);
+      if (cd > reach || this._sunk(cb, cd) || (frustum && !frustum.intersectsBox(cb))) continue;
       this._emit(out, ci, cj, L - 1, L);
     }
   }
@@ -296,7 +308,8 @@ export class TerrainRenderer {
     const t = this.terrain, s = this.leaf / 2, P = this.pyr[0], k = j * P.n + i;
     const x0 = t.x0 + i * this.leaf + (q & 1) * s, z0 = t.z0 + j * this.leaf + (q >> 1) * s;
     const b = this._box.set(_a.set(x0, P.mn[k], z0), _b.set(x0 + s, P.mx[k], z0 + s));
-    if (b.distanceToPoint(cp) > reach || (frustum && !frustum.intersectsBox(b))) return;
+    const d = b.distanceToPoint(cp);
+    if (d > reach || this._sunk(b, d) || (frustum && !frustum.intersectsBox(b))) return;
     out.push(x0, z0, s / PATCH, 0);
   }
 

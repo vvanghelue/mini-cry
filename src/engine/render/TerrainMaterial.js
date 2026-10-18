@@ -8,7 +8,8 @@
 // layer's mean colour, Surfaces.js surfRel: TERRAIN_MATERIALS still sets the colours, GI and the
 // map agree). Flat ground samples a top projection, slopes switch to triplanar (no stretched
 // cliffs); a second, much larger scale of the same layer breaks the tiling with distance. The vertex
-// tint carries the per-vertex variation and the underwater darkening.
+// tint carries the per-vertex variation and the underwater darkening. Past ~2 km (terFar) the ground
+// is its layers' mean colours (the 1x1 mips): the splatting is skipped where nothing of it shows.
 import * as THREE from 'three/webgpu';
 import { Fn, If, float, int, ivec2, vec2, vec3, vec4, max, abs, pow, mix, clamp, length, normalize, smoothstep, sign, select, uniformArray, renderGroup, varying, varyingProperty, positionLocal, modelWorldMatrix, cameraPosition, cameraViewMatrix } from 'three/tsl';
 import { TERRAIN_MATERIALS } from '../world/TerrainData.js';
@@ -49,6 +50,8 @@ export function terrainMaterial(lighting, terrain, { normalTex }) {
     terMat2: arr(info2), // x: uv per m, y: roughness scale, z: normal strength, w: chroma
     terMean: arr(means), // per layer: 1 / mean albedo, mean luminance
     terGrid: U(new THREE.Vector4(terrain.x0, terrain.z0, 1 / terrain.cell, terrain.res)), // world -> grid: x0, z0, 1 / cell, res
+    // m: the far ground fades from the full splatting to its layers' mean colours between x and y
+    terFar: U(new THREE.Vector2(1400, 2000)),
   };
   const mat = new THREE.MeshStandardNodeMaterial({ roughness: 1, metalness: 0 });
   mat.vertexColors = false;
@@ -98,6 +101,15 @@ export function terrainMaterial(lighting, terrain, { normalTex }) {
     const nr = terNrm(id, P, Nw, bw, tri).toVar();
     return { alb, nW: nr.xyz, rough: nr.w };
   };
+  // far away a layer is what its mips converge to: the 1x1 level (albedo, roughness), two fetches
+  // of one texel instead of the splatting (rgb: albedo, a: roughness)
+  const terFarLayer = Fn(([id]) => {
+    const mi = u.terMat.element(id).toVar(), m2 = u.terMat2.element(id).toVar();
+    const L = int(mi.a).toVar();
+    const a = SU.terAlbedo.sample(vec2(0.5)).level(16.0).depth(L).rgb;
+    const r = SU.terNormal.sample(vec2(0.5)).level(16.0).depth(L).b;
+    return vec4(mi.rgb.mul(surfRel(a, u.terMean.element(L), m2.w, 1.0)), clamp(r.mul(m2.y), 0.04, 1.0));
+  }).setLayout({ name: 'terFarLayer', type: 'vec4', inputs: [{ name: 'id', type: 'int' }] });
 
   mat.colorNode = Fn(() => {
     const P = vTerrW;
@@ -109,43 +121,60 @@ export function terrainMaterial(lighting, terrain, { normalTex }) {
     const c0 = ivec2(g.floor()).clamp(ivec2(0), ivec2(int(u.terGrid.w).sub(2))).toVar();
     const id = (o) => int(u.terIds.load(c0.add(ivec2(...o))).r.mul(255.0).add(0.5)).toVar();
     const i0 = id([0, 0]), i1 = id([1, 0]), i2 = id([0, 1]), i3 = id([1, 1]);
-    // projection: top on gentle ground, triplanar on slopes
-    const tri = select(Nw.y.lessThan(0.78), float(1.0), float(0.0)).toVar();
-    const bw0 = pow(abs(Nw), vec3(4.0));
-    const bw = bw0.div(bw0.x.add(bw0.y).add(bw0.z)).toVar();
+    const same = i0.equal(i1).and(i0.equal(i2)).and(i0.equal(i3)).toVar();
     const dist = length(P.sub(cameraPosition)).toVar();
-    const far = select(tri.greaterThan(0.5), float(0.0), smoothstep(12.0, 90.0, dist)).toVar();
+    // past terFar.y the far ground (a band toward the horizon, or most of the view from a plane)
+    // skips the splatting: its layers' mean colours, faded in over the terFar band
+    const meanK = smoothstep(u.terFar.x, u.terFar.y, dist).toVar();
     const col = vec3(0.0).toVar(), nAcc = vec3(0.0).toVar(), rAcc = float(1.0).toVar();
-    const l0 = layer(i0, P, Nw, bw, tri, far);
-    // Written out without arrays or loops: the generic 4-layer loop (local arrays indexed in a
-    // loop) cost ~4.5 ms more per frame on Apple GPUs than this.
-    If(i0.equal(i1).and(i0.equal(i2)).and(i0.equal(i3)), () => {
-      // inside a material (most pixels): one layer
-      col.assign(l0.alb.rgb); nAcc.assign(l0.nW); rAcc.assign(l0.rough);
-    }).Else(() => {
-      // border: corners sharing a material add up, then the layers height-blend (the higher
-      // texel, stone or tuft, wins near the border)
-      const w0 = f.x.oneMinus().mul(f.y.oneMinus()).toVar(), w1 = f.x.mul(f.y.oneMinus()).toVar();
-      const w2 = f.x.oneMinus().mul(f.y).toVar(), w3 = f.x.mul(f.y).toVar();
-      If(i1.equal(i0), () => { w0.addAssign(w1); w1.assign(0.0); });
-      If(i2.equal(i0), () => { w0.addAssign(w2); w2.assign(0.0); }).ElseIf(i2.equal(i1), () => { w1.addAssign(w2); w2.assign(0.0); });
-      If(i3.equal(i0), () => { w0.addAssign(w3); w3.assign(0.0); }).ElseIf(i3.equal(i1), () => { w1.addAssign(w3); w3.assign(0.0); }).ElseIf(i3.equal(i2), () => { w2.addAssign(w3); w3.assign(0.0); });
-      const a1 = vec4(0.0).toVar(), a2 = vec4(0.0).toVar(), a3 = vec4(0.0).toVar();
-      const n1 = vec3(0.0).toVar(), n2 = vec3(0.0).toVar(), n3 = vec3(0.0).toVar();
-      const r1 = float(1.0).toVar(), r2 = float(1.0).toVar(), r3 = float(1.0).toVar();
-      const one = (w, i, a, n, r) => If(w.greaterThan(0.0), () => { const l = layer(i, P, Nw, bw, tri, far); a.assign(l.alb); n.assign(l.nW); r.assign(l.rough); });
-      one(w1, i1, a1, n1, r1);
-      one(w2, i2, a2, n2, r2);
-      one(w3, i3, a3, n3, r3);
-      const h = (w, a) => select(w.greaterThan(0.0), w.add(a.a.mul(0.55)), float(-1.0));
-      const h0 = h(w0, l0.alb).toVar(), h1 = h(w1, a1).toVar(), h2 = h(w2, a2).toVar(), h3 = h(w3, a3).toVar();
-      const hmax = max(max(h0, h1), max(h2, h3)).toVar();
-      const b = (x) => max(x.sub(hmax).add(0.22), 0.0).toVar();
-      const b0 = b(h0), b1 = b(h1), b2 = b(h2), b3 = b(h3);
-      const bs = max(b0.add(b1).add(b2).add(b3), 1e-4).toVar();
-      col.assign(l0.alb.rgb.mul(b0).add(a1.rgb.mul(b1)).add(a2.rgb.mul(b2)).add(a3.rgb.mul(b3)).div(bs));
-      nAcc.assign(l0.nW.mul(b0).add(n1.mul(b1)).add(n2.mul(b2)).add(n3.mul(b3)).div(bs));
-      rAcc.assign(l0.rough.mul(b0).add(r1.mul(b1)).add(r2.mul(b2)).add(r3.mul(b3)).div(bs));
+    If(meanK.lessThan(1.0), () => {
+      // projection: top on gentle ground, triplanar on slopes
+      const tri = select(Nw.y.lessThan(0.78), float(1.0), float(0.0)).toVar();
+      const bw0 = pow(abs(Nw), vec3(4.0));
+      const bw = bw0.div(bw0.x.add(bw0.y).add(bw0.z)).toVar();
+      const far = select(tri.greaterThan(0.5), float(0.0), smoothstep(12.0, 90.0, dist)).toVar();
+      const l0 = layer(i0, P, Nw, bw, tri, far);
+      // Written out without arrays or loops: the generic 4-layer loop (local arrays indexed in a
+      // loop) cost ~4.5 ms more per frame on Apple GPUs than this.
+      If(same, () => {
+        // inside a material (most pixels): one layer
+        col.assign(l0.alb.rgb); nAcc.assign(l0.nW); rAcc.assign(l0.rough);
+      }).Else(() => {
+        // border: corners sharing a material add up, then the layers height-blend (the higher
+        // texel, stone or tuft, wins near the border)
+        const w0 = f.x.oneMinus().mul(f.y.oneMinus()).toVar(), w1 = f.x.mul(f.y.oneMinus()).toVar();
+        const w2 = f.x.oneMinus().mul(f.y).toVar(), w3 = f.x.mul(f.y).toVar();
+        If(i1.equal(i0), () => { w0.addAssign(w1); w1.assign(0.0); });
+        If(i2.equal(i0), () => { w0.addAssign(w2); w2.assign(0.0); }).ElseIf(i2.equal(i1), () => { w1.addAssign(w2); w2.assign(0.0); });
+        If(i3.equal(i0), () => { w0.addAssign(w3); w3.assign(0.0); }).ElseIf(i3.equal(i1), () => { w1.addAssign(w3); w3.assign(0.0); }).ElseIf(i3.equal(i2), () => { w2.addAssign(w3); w3.assign(0.0); });
+        const a1 = vec4(0.0).toVar(), a2 = vec4(0.0).toVar(), a3 = vec4(0.0).toVar();
+        const n1 = vec3(0.0).toVar(), n2 = vec3(0.0).toVar(), n3 = vec3(0.0).toVar();
+        const r1 = float(1.0).toVar(), r2 = float(1.0).toVar(), r3 = float(1.0).toVar();
+        const one = (w, i, a, n, r) => If(w.greaterThan(0.0), () => { const l = layer(i, P, Nw, bw, tri, far); a.assign(l.alb); n.assign(l.nW); r.assign(l.rough); });
+        one(w1, i1, a1, n1, r1);
+        one(w2, i2, a2, n2, r2);
+        one(w3, i3, a3, n3, r3);
+        const h = (w, a) => select(w.greaterThan(0.0), w.add(a.a.mul(0.55)), float(-1.0));
+        const h0 = h(w0, l0.alb).toVar(), h1 = h(w1, a1).toVar(), h2 = h(w2, a2).toVar(), h3 = h(w3, a3).toVar();
+        const hmax = max(max(h0, h1), max(h2, h3)).toVar();
+        const b = (x) => max(x.sub(hmax).add(0.22), 0.0).toVar();
+        const b0 = b(h0), b1 = b(h1), b2 = b(h2), b3 = b(h3);
+        const bs = max(b0.add(b1).add(b2).add(b3), 1e-4).toVar();
+        col.assign(l0.alb.rgb.mul(b0).add(a1.rgb.mul(b1)).add(a2.rgb.mul(b2)).add(a3.rgb.mul(b3)).div(bs));
+        nAcc.assign(l0.nW.mul(b0).add(n1.mul(b1)).add(n2.mul(b2)).add(n3.mul(b3)).div(bs));
+        rAcc.assign(l0.rough.mul(b0).add(r1.mul(b1)).add(r2.mul(b2)).add(r3.mul(b3)).div(bs));
+      });
+    });
+    If(meanK.greaterThan(0.0), () => {
+      // the corners' mean layers, bilinear (the height blend is far below a pixel here)
+      const c = terFarLayer(i0).toVar();
+      If(same.not(), () => {
+        const w1 = f.x.mul(f.y.oneMinus()), w2 = f.x.oneMinus().mul(f.y), w3 = f.x.mul(f.y);
+        c.assign(c.mul(f.x.oneMinus().mul(f.y.oneMinus())).add(terFarLayer(i1).mul(w1)).add(terFarLayer(i2).mul(w2)).add(terFarLayer(i3).mul(w3)));
+      });
+      col.assign(mix(col, c.rgb, meanK));
+      rAcc.assign(mix(rAcc, c.a, meanK));
+      nAcc.mulAssign(meanK.oneMinus());
     });
     // normal detail fades out with distance (mip noise), surfaces.normalScale from the environment
     const nk = SU.surfNormalScale.mul(SU.surfDetail).mul(float(1.0).sub(smoothstep(60.0, 250.0, dist)));

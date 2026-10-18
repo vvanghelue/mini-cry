@@ -15,6 +15,8 @@
     { "name": "isla_grande_summit", "cam": "2024,322,-632,2.9,-0.22", "tod": 15 },
     { "name": "isla_mayor_coast", "cam": "2950,5,2600,-2.356,0.08", "tod": 9 },
     { "name": "isla_mayor_jungle", "cam": "2700,26,3300,2.38,-0.05", "tod": 11 },
-    { "name": "isla_mayor_rim", "cam": "3938,406,3336,0.87,-0.1", "tod": 17 }
+    { "name": "isla_mayor_rim", "cam": "3938,406,3336,0.87,-0.1", "tod": 17 },
+    { "name": "mayor_from_sea", "cam": "900,120,1100,-2.276,-0.03", "tod": 18.3 },
+    { "name": "archipelago_high", "cam": "-900,600,-2000,-2.43,-0.1", "tod": 15 }
   ]
 }

@@ -35,6 +35,10 @@ export class World {
     ]);
     const gi = this.loadGI(); // baked probe GI (optional), decoded while the rest loads
     this.terrain = TerrainData.decode(meta, hbin, mbin);
+    // view distance: the whole world square from anywhere in it (its diagonal; the fog hides the edge)
+    const cam = this.engine.camera;
+    cam.far = Math.max(cam.far, Math.ceil(Math.SQRT2 * this.terrain.size));
+    cam.updateProjectionMatrix();
     const colors = this.terrain.precomputeColors(); // in a worker, while the rest loads
     this.envData = env;
     this.lighting.setEnvironment(env);
