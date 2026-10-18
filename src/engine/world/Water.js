@@ -64,7 +64,7 @@ export class Water {
       foam: U(new THREE.Color(this.lighting.env.ocean.foam)),
       night: U(0),
       camPos: U(new THREE.Vector3()),
-      terrainRect: U(new THREE.Vector4(-t.half, -t.half, t.size, 0)), // x0, z0, size, unused
+      terrainRect: U(new THREE.Vector4(t.x0, t.z0, t.size, 0)), // x0, z0, size, unused
       rippleScale: U(river ? 1.6 : 1),
     };
   }

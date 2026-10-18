@@ -30,8 +30,9 @@ import { InstancedBatch } from './Instancing.js';
 
 const SOFT = 0.006; // penumbra half-width per m of occluder distance (the sun's disc is ~0.0093 rad wide)
 const REBAKE = 0.0005; // rad of light motion between bakes (~0.03°)
-const TREE_EVERY = 2; // the tree map with every other bake (each draw is a full 2048² pass)
-const TREE_MAP = 2048; // texels a side of the island tree shadow map
+const TREE_EVERY = 2; // the tree map with every other bake (each draw is a full-map pass)
+const TREE_TEXEL = 1.2; // m: the island tree shadow map's texels (at most), power-of-two sides
+const TREE_MAP = [1024, 4096]; // texels a side of the island tree shadow map: min, max
 const TREE_BIAS = 0.6; // m (light depth): the ground at a trunk's foot
 const CHUNKS = 8; // frames a bake is spread over
 
@@ -107,7 +108,7 @@ export class FarShadows {
     this.heightRange = [Math.min(minY, terrain.seaLevel), maxY];
     // texel (i, j) = heightfield vertex (i, j): uv = (gx + 0.5) / res
     const span = terrain.cell * res;
-    u.farRect.value.set(-terrain.half - terrain.cell / 2, -terrain.half - terrain.cell / 2, 1 / span, 1 / res);
+    u.farRect.value.set(terrain.x0 - terrain.cell / 2, terrain.z0 - terrain.cell / 2, 1 / span, 1 / res);
     u.farSea.value = terrain.seaLevel;
     u.farHeight.value = this.heightTex;
     // the real textures before the loading warm-up compiles the materials: a material built later
@@ -123,6 +124,7 @@ export class FarShadows {
     this.casters = [];
     this.casterScene ??= new THREE.Scene();
     let top = this.heightRange[1], n = 0;
+    const B = (this.treeBox = [Infinity, Infinity, -Infinity, -Infinity]); // x0, z0, x1, z1 of the trunks
     for (const f of fields) {
       if (f.dirty) f._bucket();
       for (const k of f.kinds) {
@@ -133,6 +135,13 @@ export class FarShadows {
           const b = new InstancedBatch(k.impostor.geometry, k.impostor.islandCasterMaterials[vi] ?? k.impostor.islandCasterMaterials[0], count);
           b.instanceMatrix.array.set(v.matrices);
           b.instanceMatrix.needsUpdate = true;
+          for (let o = 12; o < v.matrices.length; o += 16) {
+            const x = v.matrices[o], z = v.matrices[o + 2];
+            if (x < B[0]) B[0] = x;
+            if (z < B[1]) B[1] = z;
+            if (x > B[2]) B[2] = x;
+            if (z > B[3]) B[3] = z;
+          }
           b.instances = count;
           b.matrixAutoUpdate = false;
           this.casterScene.add(b);
@@ -144,9 +153,11 @@ export class FarShadows {
     }
     this.treeTop = top;
     this.stats.trees = n;
-    if (n && this.treeRT.width !== TREE_MAP) {
+    const side = Math.max(B[2] - B[0], B[3] - B[1]) + 24;
+    const map = Math.min(TREE_MAP[1], Math.max(TREE_MAP[0], 2 ** Math.ceil(Math.log2(side / TREE_TEXEL))));
+    if (n && this.treeRT.width !== map) {
       this.treeRT.dispose();
-      this.treeRT = this._treeTarget(TREE_MAP);
+      this.treeRT = this._treeTarget(map);
       this.uniforms.farTreeMap.value = this.treeRT.depthTexture;
     }
     this.uniforms.farTexel.value.set(1 / this.treeRT.width, 0);
@@ -270,22 +281,23 @@ export class FarShadows {
     s.sea.value = t.seaLevel;
   }
 
-  /** The island tree map: ortho from the light, fitted to the island's box in light space. */
+  /** The island tree map: ortho from the light, fitted to the trees' box in light space. */
   _renderTrees(dir) {
     const u = this.uniforms;
     if (!this.casters?.length) { u.farTrees.value = 0; return; }
-    const cam = this.treeCam, h = this.terrain.half;
+    const cam = this.treeCam, B = this.treeBox, R = 12; // m: crowns past the trunks
     const [y0, y1] = [this.heightRange[0] - 2, this.treeTop + 2];
+    const cx = (B[0] + B[2]) / 2, cz = (B[1] + B[3]) / 2, h = Math.max(B[2] - B[0], B[3] - B[1]) / 2 + R;
     cam.up.copy(Math.abs(dir.y) > 0.99 ? _Z : _Y);
-    cam.position.set(0, (y0 + y1) / 2, 0).addScaledVector(dir, 4 * h);
-    cam.lookAt(0, (y0 + y1) / 2, 0);
+    cam.position.set(cx, (y0 + y1) / 2, cz).addScaledVector(dir, 4 * h);
+    cam.lookAt(cx, (y0 + y1) / 2, cz);
     cam.updateMatrixWorld(true);
     _box.makeEmpty();
-    for (const x of [-h, h]) for (const y of [y0, y1]) for (const z of [-h, h]) _box.expandByPoint(_p.set(x, y, z).applyMatrix4(cam.matrixWorldInverse));
+    for (const x of [B[0] - R, B[2] + R]) for (const y of [y0, y1]) for (const z of [B[1] - R, B[3] + R]) _box.expandByPoint(_p.set(x, y, z).applyMatrix4(cam.matrixWorldInverse));
     // square texels (~1-1.4 m): at a low sun the island is a thin band in light space, which a
     // stretched fit would cover with 4x the fragments (crowns 4x taller in texels)
-    const S = Math.max(_box.max.x - _box.min.x, _box.max.y - _box.min.y) / 2, cx = (_box.min.x + _box.max.x) / 2, cy = (_box.min.y + _box.max.y) / 2;
-    cam.left = cx - S; cam.right = cx + S; cam.bottom = cy - S; cam.top = cy + S;
+    const S = Math.max(_box.max.x - _box.min.x, _box.max.y - _box.min.y) / 2, lx = (_box.min.x + _box.max.x) / 2, ly = (_box.min.y + _box.max.y) / 2;
+    cam.left = lx - S; cam.right = lx + S; cam.bottom = ly - S; cam.top = ly + S;
     cam.near = -_box.max.z - 1; cam.far = -_box.min.z + 1;
     cam.updateProjectionMatrix();
     const r = this.renderer, prevTarget = r.getRenderTarget(), prevAuto = r.autoClear;

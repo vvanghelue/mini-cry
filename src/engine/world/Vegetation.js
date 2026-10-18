@@ -18,7 +18,7 @@ export class Vegetation {
     // follows the camera closely; trees and rocks use 64 m sectors (fewer sectors to walk)
     this.near = def.species.map((sp) => (sp.lods?.length ? sp.lods[sp.lods.length - 1].distance : 200) < 160);
     const kinds = def.species.map((sp) => ({ id: sp.id, asset: sp.asset, variants: sp.variants ?? 1, lods: sp.lods, castShadow: sp.castShadow, blend: sp.blend, shareVariantsFrom: sp.shareVariantsFrom, impostor: sp.impostor }));
-    const mk = (name, sector, sub, keep) => new InstancedField({ name, assets, lighting: world.lighting, worldSize: this.terrain.size, sector, sub, kinds: kinds.map((k, i) => (keep(i) ? k : { ...k, lods: [{ distance: 0.001, quality: 0.25 }], castShadow: 0, empty: true })) });
+    const mk = (name, sector, sub, keep) => new InstancedField({ name, assets, lighting: world.lighting, bounds: this.terrain, sector, sub, kinds: kinds.map((k, i) => (keep(i) ? k : { ...k, lods: [{ distance: 0.001, quality: 0.25 }], castShadow: 0, empty: true })) });
     this.fieldNear = mk('VegetationNear', 24, 1, (i) => this.near[i]);
     // (16 m cells for the near LODs' rings: InstancedField sub)
     this.fieldFar = mk('VegetationFar', 64, 4, (i) => !this.near[i]);
@@ -47,6 +47,10 @@ export class Vegetation {
     const d = this.data, T = this.terrain;
     this.fieldNear.clear();
     this.fieldFar.clear();
+    let nNear = 0;
+    for (let k = 0; k < d.n; k++) if (this.near[d.species[k]]) nNear++;
+    this.fieldNear.reserve(nNear);
+    this.fieldFar.reserve(d.n - nNear);
     for (let k = 0; k < d.n; k++) {
       const sp = d.species[k];
       if (sp >= this.near.length) continue;

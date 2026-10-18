@@ -13,10 +13,10 @@ const active = new Uint8Array(W.active);
 const valid = new Uint8Array(W.valid);
 const base = new Float32Array(W.base);
 const job = new Int32Array(W.job);
-const { n, cell, half, terms: T, rays: N, seaLevel, ocean, transmission: TAU } = W;
+const { n, cell, x0: gx0, z0: gz0, terms: T, rays: N, seaLevel, ocean, transmission: TAU } = W;
 const S = T * 12;
 // interior volumes: probes after the world grid (worldCount), atlas order (GIField.js)
-const vols = W.vols?.length ? { list: W.vols, size: W.size, index: buildVolumeIndex(W.vols, W.size) } : null;
+const vols = W.vols?.length ? { list: W.vols, index: buildVolumeIndex(W.vols) } : null;
 const atlas = W.atlas, PW = W.worldCount;
 const VA = { v: null, f: [0, 0, 0], fade: 0 };
 const EV = new Float64Array(T * 3);
@@ -52,8 +52,8 @@ function rotation(p) {
 
 /** Irradiance of every term / channel of `field` at a point for a normal -> E (clamped >= 0). */
 function evalField(field, x, y, z, nx, ny, nz) {
-  const fx = Math.max(0, Math.min(n - 1, (x + half) / cell - 0.5));
-  const fz = Math.max(0, Math.min(n - 1, (z + half) / cell - 0.5));
+  const fx = Math.max(0, Math.min(n - 1, (x - gx0) / cell - 0.5));
+  const fz = Math.max(0, Math.min(n - 1, (z - gz0) / cell - 0.5));
   const i0 = Math.min(n - 2, Math.floor(fx)), j0 = Math.min(n - 2, Math.floor(fz));
   const u = fx - i0, v = fz - j0;
   const k = j0 * n + i0;

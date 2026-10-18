@@ -719,7 +719,7 @@ export class Birds {
     const cells = new Map();
     for (let k = 0; k < d.n; k++) {
       if (!used.has(d.species[k])) continue;
-      const key = Math.floor((d.z[k] + T.half) / cell) * n + Math.floor((d.x[k] + T.half) / cell);
+      const key = Math.floor((d.z[k] - T.z0) / cell) * n + Math.floor((d.x[k] - T.x0) / cell);
       let a = cells.get(key);
       if (!a) cells.set(key, (a = []));
       a.push(k);
@@ -730,9 +730,9 @@ export class Birds {
   _nearestTree(sp, x, z, r) {
     const G = this.trees, d = this.world.vegetation?.data;
     if (!G || !sp.trees) return -1;
-    const h = this.world.terrain.half;
-    const i0 = Math.floor((x - r + h) / G.cell), i1 = Math.floor((x + r + h) / G.cell);
-    const j0 = Math.floor((z - r + h) / G.cell), j1 = Math.floor((z + r + h) / G.cell);
+    const T = this.world.terrain;
+    const i0 = Math.floor((x - r - T.x0) / G.cell), i1 = Math.floor((x + r - T.x0) / G.cell);
+    const j0 = Math.floor((z - r - T.z0) / G.cell), j1 = Math.floor((z + r - T.z0) / G.cell);
     let best = -1, bd = r * r;
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       for (const k of G.cells.get(j * G.n + i) ?? []) {

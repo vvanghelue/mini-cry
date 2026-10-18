@@ -147,10 +147,10 @@ export class Vehicles {
     const F = v.spec.flight, T = this.game.world.terrain;
     this.aimYaw += look.yaw;
     this.aimPitch = THREE.MathUtils.clamp(this.aimPitch + look.pitch, -1.45, 1.45);
-    // past the edge of the map: turn back toward the island
-    const lim = T.half - 120;
-    if (Math.abs(v.pos.x) > lim || Math.abs(v.pos.z) > lim) {
-      let d = Math.atan2(v.pos.x, v.pos.z) - this.aimYaw; // yaw looking at the centre: forward = (-sin, -cos)
+    // past the edge of the map: turn back toward its centre
+    const lim = T.size / 2 - 120, cx = v.pos.x - T.center[0], cz = v.pos.z - T.center[1];
+    if (Math.abs(cx) > lim || Math.abs(cz) > lim) {
+      let d = Math.atan2(cx, cz) - this.aimYaw; // yaw looking at the centre: forward = (-sin, -cos)
       d = Math.atan2(Math.sin(d), Math.cos(d));
       this.aimYaw += d * Math.min(1, dt * 1.5);
     }

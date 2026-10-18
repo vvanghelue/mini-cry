@@ -9,13 +9,14 @@ import { LAYERS } from './layers.js';
 const _v = new THREE.Vector3(), _m = new THREE.Matrix4(), _n = new THREE.Matrix3();
 
 export class StaticBatch {
-  constructor({ name = 'StaticBatch', assets, lighting, worldSize, sector = 128, nearDist = 220, farDist = 1100 }) {
+  constructor({ name = 'StaticBatch', assets, lighting, bounds, sector = 128, nearDist = 220, farDist = 1100 }) {
     this.name = name;
     this.assets = assets;
     this.lighting = lighting;
     this.sector = sector;
-    this.half = worldSize / 2;
-    this.n = Math.ceil(worldSize / sector);
+    this.x0 = bounds.x0; // the square the sectors cover ({ x0, z0, size }: the TerrainData)
+    this.z0 = bounds.z0;
+    this.n = Math.ceil(bounds.size / sector);
     this.nearDist = nearDist;
     this.farDist = farDist;
     this.group = new THREE.Group();
@@ -38,8 +39,8 @@ export class StaticBatch {
     this._dirty = false;
     const groups = new Map();
     for (const it of this.items) {
-      const cx = Math.min(this.n - 1, Math.max(0, Math.floor((it.matrix[12] + this.half) / this.sector)));
-      const cz = Math.min(this.n - 1, Math.max(0, Math.floor((it.matrix[14] + this.half) / this.sector)));
+      const cx = Math.min(this.n - 1, Math.max(0, Math.floor((it.matrix[12] - this.x0) / this.sector)));
+      const cz = Math.min(this.n - 1, Math.max(0, Math.floor((it.matrix[14] - this.z0) / this.sector)));
       const key = cz * this.n + cx;
       let g = groups.get(key);
       if (!g) groups.set(key, (g = []));
@@ -54,7 +55,7 @@ export class StaticBatch {
     for (const [key, g] of groups) {
       if (this.sectors.has(key)) continue;
       const cx = key % this.n, cz = Math.floor(key / this.n);
-      this.sectors.set(key, { key, items: g, sig: signature(g), meshes: [null, null], center: new THREE.Vector3((cx + 0.5) * this.sector - this.half, 0, (cz + 0.5) * this.sector - this.half) });
+      this.sectors.set(key, { key, items: g, sig: signature(g), meshes: [null, null], center: new THREE.Vector3((cx + 0.5) * this.sector + this.x0, 0, (cz + 0.5) * this.sector + this.z0) });
     }
   }
 

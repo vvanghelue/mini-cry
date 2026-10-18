@@ -14,7 +14,7 @@ export function seaDistanceField(terrain, step = 8) {
   const n = Math.floor(terrain.size / step) + 1;
   const d = new Float32Array(n * n).fill(1e9);
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-    const x = i * step - terrain.half, z = j * step - terrain.half;
+    const x = terrain.x0 + i * step, z = terrain.z0 + j * step;
     if (terrain.heightAt(x, z) < terrain.seaLevel) d[j * n + i] = 0;
   }
   const a = step, b = step * Math.SQRT2;
@@ -34,13 +34,14 @@ export function seaDistanceField(terrain, step = 8) {
     if (i > 0 && j < n - 1) v = Math.min(v, d[(j + 1) * n + i - 1] + b);
     d[j * n + i] = v;
   }
-  return { step, n, d, at(x, z) { const i = Math.round((x + terrain.half) / step), j = Math.round((z + terrain.half) / step); return i < 0 || j < 0 || i >= n || j >= n ? 0 : d[j * n + i]; } };
+  return { step, n, d, at(x, z) { const i = Math.round((x - terrain.x0) / step), j = Math.round((z - terrain.z0) / step); return i < 0 || j < 0 || i >= n || j >= n ? 0 : d[j * n + i]; } };
 }
 
 /**
  * exclusions: { circles: [{x, z, r}], paths: [{ points: [[x, z]...], width }] }
- * only: species ids to scatter; the instances of the other species are kept from `existing`
- * (decoded vegetation.bin) and their trunks / rocks stay clear of the new ones.
+ * region: { x0, z0, x1, z1 }: scatter only there; with `existing`, every instance outside it is kept.
+ * only: species ids to scatter; with `existing`, the instances of the other species are kept.
+ * existing: decoded vegetation.bin; the kept instances' trunks / rocks stay clear of the new ones.
  * returns { count, bytes: Uint8Array, perSpecies: {id: n} }
  */
 export function scatterVegetation(terrain, veg, exclusions = {}, { region = null, only = null, existing = null } = {}) {
@@ -66,16 +67,17 @@ export function scatterVegetation(terrain, veg, exclusions = {}, { region = null
   const records = [];
   const perSpecies = {};
   const occupied = new Set(); // 2 m cells taken by trunks / rocks (keeps undergrowth out of them)
-  if (only && existing) {
+  const inRegion = (x, z) => !region || (x >= region.x0 && x < region.x1 && z >= region.z0 && z < region.z1);
+  if (existing && (only || region)) {
     for (let k = 0; k < existing.n; k++) {
       const sp = veg.species[existing.species[k]];
-      if (!sp || only.has(sp.id)) continue;
+      if (!sp || ((!only || only.has(sp.id)) && inRegion(existing.x[k], existing.z[k]))) continue;
       records.push(existing.species[k], existing.variant[k], Math.round((existing.yaw[k] / (Math.PI * 2)) * 256) & 255, encodeScale(existing.scale[k]), existing.x[k], existing.z[k]);
       perSpecies[sp.id] = (perSpecies[sp.id] ?? 0) + 1;
       if (sp.collide) occupied.add(`${Math.floor(existing.x[k] / 2)},${Math.floor(existing.z[k] / 2)}`);
     }
   }
-  const half = terrain.half;
+  const X0 = terrain.x0, Z0 = terrain.z0, X1 = X0 + terrain.size, Z1 = Z0 + terrain.size;
   const n = { x: 0, y: 1, z: 0 };
   veg.species.forEach((sp, si) => {
     const sc = sp.scatter;
@@ -86,14 +88,14 @@ export function scatterVegetation(terrain, veg, exclusions = {}, { region = null
     const maxSlopeCos = Math.cos(((sc.maxSlope ?? 30) * Math.PI) / 180);
     const rng = mulberry32(seed * 31 + si * 977);
     let count = 0;
-    const x0 = region ? region.x0 : -half, x1 = region ? region.x1 : half, z0 = region ? region.z0 : -half, z1 = region ? region.z1 : half;
+    const x0 = Math.max(X0, region?.x0 ?? X0), x1 = Math.min(X1, region?.x1 ?? X1), z0 = Math.max(Z0, region?.z0 ?? Z0), z1 = Math.min(Z1, region?.z1 ?? Z1);
     const gi0 = Math.floor(x0 / spacing), gi1 = Math.ceil(x1 / spacing), gj0 = Math.floor(z0 / spacing), gj1 = Math.ceil(z1 / spacing);
     for (let gj = gj0; gj < gj1; gj++) {
       for (let gi = gi0; gi < gi1; gi++) {
         if (hash2(gi, gj, seed + si * 101) > p) continue;
         const x = (gi + hash2(gi, gj, seed + si * 7 + 1)) * spacing;
         const z = (gj + hash2(gi, gj, seed + si * 7 + 2)) * spacing;
-        if (Math.abs(x) > half - 4 || Math.abs(z) > half - 4) continue;
+        if (x < X0 + 4 || x > X1 - 4 || z < Z0 + 4 || z > Z1 - 4 || !inRegion(x, z)) continue;
         if (fbm(x / (sc.noiseScale ?? 100), z / (sc.noiseScale ?? 100), 3, seed + si * 13) < (sc.noiseMin ?? -1)) continue;
         const h = terrain.heightAt(x, z);
         if (h < (sc.minHeight ?? 0) || h > (sc.maxHeight ?? 1e9)) continue;
@@ -111,7 +113,7 @@ export function scatterVegetation(terrain, veg, exclusions = {}, { region = null
         count++;
       }
     }
-    perSpecies[sp.id] = count;
+    perSpecies[sp.id] = (perSpecies[sp.id] ?? 0) + count;
   });
   return { count: records.length / 6, bytes: encodeRecords(records), perSpecies };
 }

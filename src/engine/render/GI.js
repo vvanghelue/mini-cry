@@ -126,7 +126,7 @@ export class GI {
     const U = this.uniforms;
     U.giField.value = rt.texture;
     U.giBase.value = base;
-    U.giGrid.value.set(meta.size / 2, meta.size / 2, 1 / meta.size, 0);
+    U.giGrid.value.set(-d.x0, -d.z0, 1 / meta.size, 0);
     this.bu.amSky.value = meta.amax[0];
     this._loadVolumes(d);
     this._sync();
@@ -165,7 +165,7 @@ export class GI {
     U.giVolIndex.value = index;
     U.giVols.value = params;
     const size = ix.n * GI_VOL_CELL;
-    U.giVolGrid.value.set(d.meta.size / 2, d.meta.size / 2, 1 / size, 0);
+    U.giVolGrid.value.set(-ix.x0, -ix.z0, 1 / size, 0);
     U.giVolAtlas.value.set(1 / V.aw, 1 / V.ah, V.ad);
   }
 

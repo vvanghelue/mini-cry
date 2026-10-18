@@ -48,7 +48,7 @@ export function terrainMaterial(lighting, terrain, { normalTex }) {
     terMat: arr(info), // rgb: palette colour (linear), a: layer
     terMat2: arr(info2), // x: uv per m, y: roughness scale, z: normal strength, w: chroma
     terMean: arr(means), // per layer: 1 / mean albedo, mean luminance
-    terGrid: U(new THREE.Vector4(-terrain.half, -terrain.half, 1 / terrain.cell, terrain.res)), // world -> grid: x0, z0, 1 / cell, res
+    terGrid: U(new THREE.Vector4(terrain.x0, terrain.z0, 1 / terrain.cell, terrain.res)), // world -> grid: x0, z0, 1 / cell, res
   };
   const mat = new THREE.MeshStandardNodeMaterial({ roughness: 1, metalness: 0 });
   mat.vertexColors = false;

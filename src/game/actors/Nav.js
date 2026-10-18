@@ -45,14 +45,15 @@ export class Nav {
     this.world = world;
     this.T = world.terrain;
     this.n = Math.floor(this.T.size / CELL);
-    this.half = this.T.half;
+    this.x0 = this.T.x0;
+    this.z0 = this.T.z0;
     this.walk = new Int8Array(this.n * this.n).fill(-1); // -1 unknown, 0 blocked, 1 ok
     this.cost = new Float32Array(this.n * this.n);
     this.stats = { searches: 0, expanded: 0 };
   }
 
-  cellOf(x, z) { return [Math.floor((x + this.half) / CELL), Math.floor((z + this.half) / CELL)]; }
-  center(i, j) { return [(i + 0.5) * CELL - this.half, (j + 0.5) * CELL - this.half]; }
+  cellOf(x, z) { return [Math.floor((x - this.x0) / CELL), Math.floor((z - this.z0) / CELL)]; }
+  center(i, j) { return [(i + 0.5) * CELL + this.x0, (j + 0.5) * CELL + this.z0]; }
 
   /** Forget cached walkability around (x, z) (after the editor moved something). */
   invalidate(x, z, r) {

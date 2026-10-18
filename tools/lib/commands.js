@@ -112,7 +112,7 @@ export const commands = {
         for (const e of world.entities ?? []) if (e.pos) markers.push({ x: e.pos[0], z: e.pos[2], color: COLORS[e.type] ?? [255, 0, 255], r: e.type === 'outpost' ? 5 : 2 });
         if (world.player?.pos) markers.push({ x: world.player.pos[0], z: world.player.pos[2], color: [0, 255, 0], r: 5 });
       }
-      const view = opts.span ? { x0: num(opts.x0 ?? -t.half, 'x0'), z0: num(opts.z0 ?? -t.half, 'z0'), span: num(opts.span, 'span') } : null;
+      const view = opts.span ? { x0: num(opts.x0 ?? t.x0, 'x0'), z0: num(opts.z0 ?? t.z0, 'z0'), span: num(opts.span, 'span') } : null;
       const file = outFile(opts, 'shots/map.png');
       fs.writeFileSync(file, terrainPreview(t, size, markers, view));
       return { ok: true, file, note: 'north is up (-z), x grows to the right' };
@@ -121,20 +121,24 @@ export const commands = {
 
   // ---------------------------------------------------------------- vegetation
   'vegetation generate': {
-    usage: '[--seed N] [--species id,id]',
-    help: 'Scatter all vegetation species (rules in vegetation.json) over the terrain -> vegetation.bin. Sites, roads and entities with clearRadius stay clear. --species re-scatters only those species and keeps every other instance (hand edits included).',
+    usage: '[--seed N] [--species id,id] [--region x0,z0,x1,z1]',
+    help: 'Scatter all vegetation species (rules in vegetation.json) over the terrain -> vegetation.bin. Sites, roads and entities with clearRadius stay clear. --species re-scatters only those species, --region only that rectangle; every other instance is kept (hand edits included).',
     run(_, opts) {
       const veg = readJSON('vegetation.json');
       if (opts.seed) { veg.seed = num(opts.seed, 'seed'); writeJSON('vegetation.json', veg); }
       const t = loadTerrain();
       const t0 = Date.now();
-      let only = null, existing = null;
+      let only = null, existing = null, region = null;
       if (opts.species) {
         only = new Set(String(opts.species).split(','));
         for (const id of only) if (!veg.species.some((s) => s.id === id)) throw new Error(`unknown species ${id}`);
-        existing = decodeVegetation(readBin('vegetation.bin'));
       }
-      const r = scatterVegetation(t, veg, vegetationExclusions(), { only, existing });
+      if (opts.region) {
+        const [x0, z0, x1, z1] = String(opts.region).split(',').map((v) => num(v, 'region'));
+        region = { x0: Math.min(x0, x1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), z1: Math.max(z0, z1) };
+      }
+      if (only || region) existing = decodeVegetation(readBin('vegetation.bin'));
+      const r = scatterVegetation(t, veg, vegetationExclusions(), { only, existing, region });
       writeBin('vegetation.bin', r.bytes);
       return { ok: true, ms: Date.now() - t0, instances: r.count, bytes: r.bytes.length, perSpecies: r.perSpecies };
     },

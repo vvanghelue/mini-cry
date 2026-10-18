@@ -202,8 +202,8 @@ export class TerrainRenderer {
   /** Vertex stage: the patch instance's vertex on the heightfield, morphed toward the next level. */
   _positionNode() {
     const t = this.terrain, u = this.u, hT = tex(this.heightTex), tintT = tex(this.tintTex);
-    const half = t.half, cell = t.cell, res = t.res;
-    const hAt = (xz) => hT.load(ivec2(round(xz.add(half).div(cell))).clamp(ivec2(0), ivec2(res - 1))).x;
+    const o = vec2(t.x0, t.z0), cell = t.cell, res = t.res;
+    const hAt = (xz) => hT.load(ivec2(round(xz.sub(o).div(cell))).clamp(ivec2(0), ivec2(res - 1))).x;
     return Fn(() => {
       const p = attribute('terPatch', 'vec4'); // x0, z0, cell size (m), level
       const g = positionLocal.xz;
@@ -217,7 +217,7 @@ export class TerrainRenderer {
       const xz = mix(w, target, k).toVar();
       const y = mix(h0, hAt(target), k);
       // the vertex tint, from the mip level of this cell size
-      const uv = xz.add(half).div(cell).add(0.5).div(res);
+      const uv = xz.sub(o).div(cell).add(0.5).div(res);
       varyingProperty('vec3', 'vTerrTint').assign(tintT.sample(uv).level(p.w).rgb.mul(2.0));
       return vec3(xz.x, y, xz.y);
     })();
@@ -260,7 +260,7 @@ export class TerrainRenderer {
   _nodeBox(L, i, j) {
     const t = this.terrain, P = this.pyr[L], s = this.leaf * 2 ** L, k = j * P.n + i;
     if (!(P.mn[k] <= P.mx[k])) return null; // past the heightfield
-    return this._box.set(_a.set(i * s - t.half, P.mn[k], j * s - t.half), _b.set((i + 1) * s - t.half, P.mx[k], (j + 1) * s - t.half));
+    return this._box.set(_a.set(t.x0 + i * s, P.mn[k], t.z0 + j * s), _b.set(t.x0 + (i + 1) * s, P.mx[k], t.z0 + (j + 1) * s));
   }
 
   /** CDLOD selection (the reference's): a node in range of the next finer level splits; the
@@ -294,7 +294,7 @@ export class TerrainRenderer {
   /** Level 0 node: its quadrants have no pyramid entries of their own (the node's box). */
   _emitQuad(out, i, j, q, cp, frustum, reach) {
     const t = this.terrain, s = this.leaf / 2, P = this.pyr[0], k = j * P.n + i;
-    const x0 = i * this.leaf - t.half + (q & 1) * s, z0 = j * this.leaf - t.half + (q >> 1) * s;
+    const x0 = t.x0 + i * this.leaf + (q & 1) * s, z0 = t.z0 + j * this.leaf + (q >> 1) * s;
     const b = this._box.set(_a.set(x0, P.mn[k], z0), _b.set(x0 + s, P.mx[k], z0 + s));
     if (b.distanceToPoint(cp) > reach || (frustum && !frustum.intersectsBox(b))) return;
     out.push(x0, z0, s / PATCH, 0);
@@ -304,7 +304,7 @@ export class TerrainRenderer {
   _emit(out, i, j, child, L) {
     const t = this.terrain, s = this.leaf * 2 ** child;
     if (out.length >= MAX_PATCHES * 4) return;
-    out.push(i * s - t.half, j * s - t.half, s / PATCH, L);
+    out.push(t.x0 + i * s, t.z0 + j * s, s / PATCH, L);
   }
 
   /** Material id per vertex -> the splatting texture (all of it, or a grid rect after an edit). */

@@ -45,7 +45,7 @@ export function smoothPath(pts, step = 12) {
 
 export function generateTerrain(layout, { onProgress } = {}) {
   const seed = layout.seed ?? 1;
-  const t = new TerrainData({ size: layout.size ?? 2048, res: layout.res ?? 1025, seaLevel: layout.seaLevel ?? 0 });
+  const t = new TerrainData({ size: layout.size ?? 2048, res: layout.res ?? 1025, seaLevel: layout.seaLevel ?? 0, center: layout.center ?? [0, 0] });
   const H = t.heights, M = t.material, res = t.res;
   const islands = layout.islands ?? [], mountains = layout.mountains ?? [], plateaus = layout.plateaus ?? [];
   const lagoons = layout.lagoons ?? [];
@@ -61,7 +61,15 @@ export function generateTerrain(layout, { onProgress } = {}) {
       let mask = -Infinity, landH = 0;
       for (const isl of islands) {
         const c = Math.cos(isl.rot ?? 0), s = Math.sin(isl.rot ?? 0);
-        const dx = wx - isl.x, dz = wz - isl.z;
+        let dx = wx - isl.x, dz = wz - isl.z;
+        if (isl.warp) {
+          // big islands: a coarser warp of their own (bays and capes), skipped far from them
+          const reach = Math.max(isl.rx, isl.rz) + isl.warp * 2;
+          if (Math.abs(dx) > reach || Math.abs(dz) > reach) continue;
+          const ws = isl.warpScale ?? 600;
+          dx += fbm(x / ws + 17.3, z / ws + 4.1, 3, seed + 13) * isl.warp;
+          dz += fbm(x / ws + 2.9, z / ws + 23.7, 3, seed + 14) * isl.warp;
+        }
         const lx = (dx * c - dz * s) / isl.rx, lz = (dx * s + dz * c) / isl.rz;
         const d = Math.hypot(lx, lz);
         const m = 1 - d; // 0 at the coast, 1 at the centre
@@ -83,8 +91,11 @@ export function generateTerrain(layout, { onProgress } = {}) {
       for (const mt of mountains) {
         const d = Math.hypot(x - mt.x, z - mt.z) / mt.r;
         if (d >= 1.2) continue;
-        const prof = Math.pow(smoothstep(1.15, 0.0, d + fbm(x / 120, z / 120, 3, seed + 7) * 0.18), 1.6);
-        const rid = ridged(x / 160, z / 160, 4, seed + 8);
+        // outline noise (relative to r: a big mountain wants a longer wavelength, else spires)
+        const ns = mt.noiseScale ?? 120;
+        const prof = Math.pow(smoothstep(1.15, 0.0, d + fbm(x / ns, z / ns, 3, seed + 7) * (mt.noise ?? 0.18)), 1.6);
+        const rs = mt.ridgeScale ?? 160;
+        const rid = ridged(x / rs, z / rs, 4, seed + 8);
         let add = mt.height * prof * (1 - (mt.ridged ?? 0.35) + (mt.ridged ?? 0.35) * rid);
         if (mt.crater) {
           const dc = Math.hypot(x - mt.x, z - mt.z);

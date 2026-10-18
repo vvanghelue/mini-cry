@@ -227,9 +227,9 @@ export class Physics {
       });
     }
     // world edge
-    const lim = this.terrain.half - 2;
-    pos.x = Math.max(-lim, Math.min(lim, pos.x));
-    pos.z = Math.max(-lim, Math.min(lim, pos.z));
+    const T = this.terrain;
+    pos.x = Math.max(T.x0 + 2, Math.min(T.x0 + T.size - 2, pos.x));
+    pos.z = Math.max(T.z0 + 2, Math.min(T.z0 + T.size - 2, pos.z));
     return hit;
   }
 

@@ -57,7 +57,7 @@ export class GIProbeView {
     const d = this.gi.data, mesh = this.mesh;
     if (!d || !mesh?.visible) return;
     const p = engine.camera.getWorldPosition((this._p ??= new THREE.Vector3()));
-    const ci = Math.round((p.x + d.half) / d.cell - 0.5), cj = Math.round((p.z + d.half) / d.cell - 0.5);
+    const ci = Math.round((p.x - d.x0) / d.cell - 0.5), cj = Math.round((p.z - d.z0) / d.cell - 0.5);
     const w = this.gi.weights, k = this._key;
     const key = [ci, cj, this.radius, this.size, this.layer, w.kA, w.kB, w.f, ...w.sky, ...w.sun];
     let same = true;
@@ -72,7 +72,7 @@ export class GIProbeView {
     for (let j = Math.max(0, cj - R); j <= Math.min(n - 1, cj + R); j++) {
       for (let i = Math.max(0, ci - R); i <= Math.min(n - 1, ci + R); i++) {
         if ((i - ci) ** 2 + (j - cj) ** 2 > r2) continue;
-        const x = (i + 0.5) * cell - d.half, z = (j + 0.5) * cell - d.half;
+        const x = (i + 0.5) * cell + d.x0, z = (j + 0.5) * cell + d.z0;
         const base = d.base[j * n + i], ground = this.groundAt ? this.groundAt(x, z) + 0.25 : -Infinity;
         for (let l = 0; l < GI_LAYERS; l++) {
           if (this.layer >= 0 && l !== this.layer) continue;
@@ -89,7 +89,7 @@ export class GIProbeView {
       }
     }
     // interior volumes (drawn smaller: their probes are closer together), every layer
-    const V = d.vols, vp = (this._vp ??= [0, 0, 0]), cx = (ci + 0.5) * cell - d.half, cz = (cj + 0.5) * cell - d.half;
+    const V = d.vols, vp = (this._vp ??= [0, 0, 0]), cx = (ci + 0.5) * cell + d.x0, cz = (cj + 0.5) * cell + d.z0;
     for (const v of V?.list ?? []) {
       if ((v.c[0] - cx) ** 2 + (v.c[2] - cz) ** 2 > this.radius ** 2) continue;
       for (let y = 0; y < v.res[1]; y++) for (let z = 0; z < v.res[2]; z++) for (let x = 0; x < v.res[0]; x++) {
