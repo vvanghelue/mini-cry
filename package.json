@@ -1,7 +1,7 @@
 {
   "name": "mini-cry",
   "version": "1.0.0",
-  "description": "Mini Cry — open-world FPS engine + game + editor (realistic, photo-textured)",
+  "description": "Mini Cry \u2014 open-world FPS engine + game + editor (realistic, photo-textured)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,7 +11,8 @@
     "bench": "node tools/bench.mjs",
     "play": "node tools/play.mjs",
     "profile": "node tools/profile.mjs",
-    "test": "node tools/test.mjs"
+    "test": "node tools/test.mjs",
+    "quest": "node tools/quest.mjs"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +24,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "iwer": "2.5.0",
     "meshoptimizer": "^1.2.0",
     "playwright": "^1.64.0",
     "sharp": "^0.35.5",

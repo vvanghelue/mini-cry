@@ -18,7 +18,7 @@ import {
   Fn, If, float, int, vec2, vec3, vec4, mat3, max, min, mix, clamp, sqrt, pow, sin, dot, normalize, reflect, length, distance, smoothstep, step, select,
   attribute, varying, lights, output, ambientOcclusion, roughness, diffuseColor, materialColor, materialEmissive, materialRoughness, materialMetalness,
   positionLocal, positionView, positionViewDirection, normalView, normalWorld, normalGeometry, normalLocal, normalViewGeometry, faceDirection, transformNormal,
-  cameraViewMatrix, cameraWorldMatrix, cameraProjectionMatrix, modelViewMatrix, modelWorldMatrix, property,
+  cameraViewMatrix, cameraWorldMatrix, cameraProjectionMatrix, modelViewMatrix, modelWorldMatrix, property, varyingProperty,
 } from 'three/tsl';
 import { SunShadows } from './SunShadows.js';
 import { SSAO } from './SSAO.js';
@@ -45,6 +45,13 @@ export const QUALITY = {
   medium: { dpr: 1, cascades: [{ radius: 22, res: 2048, every: 2 }, { radius: 55, res: 1536, every: 4 }, { radius: 105, res: 1024, every: 8 }], shadowDistance: 140, drawScale: 0.8, grass: 0.8, ao: 8 },
   high: { dpr: 1, cascades: [{ radius: 20, res: 2048, every: 1 }, { radius: 60, res: 2048, every: 2 }, { radius: 130, res: 2048, every: 4 }], shadowDistance: 180, drawScale: 1, grass: 1, ao: 12 },
   ultra: { dpr: 2, cascades: [{ radius: 20, res: 4096, every: 1 }, { radius: 70, res: 4096, every: 1 }, { radius: 160, res: 4096, every: 2 }], shadowDistance: 220, drawScale: 1.25, grass: 1.3, ao: 12 },
+  // VR (Quest 3 class: a mobile GPU drawing two eyes at 72 Hz, WebGL 2 + multiview): one near
+  // cascade, no SSAO, short draw distances; xrScale = eye buffer resolution x the headset's
+  // recommended one, foveation = fixed foveated rendering 0..1 (Engine._xrQuality), pbr: false =
+  // Lambert in place of the textured materials' GGX + sky reflections, vegVariants: at most that many
+  // variants per vegetation species (each variant x LOD is a draw), propScale: props' draw distance,
+  // vertexGI: the probe GI per vertex (Lighting.setupVertex)
+  vr: { dpr: 1, cascades: [{ radius: 20, res: 1024, every: 6 }], shadowDistance: 30, shadowTaps: 1, drawScale: 0.2, propScale: 0.6, vegVariants: 1, grass: 0.15, ao: 0, pbr: false, vertexGI: true, xrScale: 0.75, foveation: 1 },
 };
 
 export const DEFAULT_ENV = {
@@ -131,6 +138,10 @@ class SunLightNode extends THREE.LightingNode {
   }
 }
 
+/** Probe GI computed per vertex (quality `vertexGI`, VR: the probe lookups are the costliest part of
+ *  a lit pixel on a mobile GPU, and the field varies over metres), handed to the fragment stage. */
+const vGIAmb = varyingProperty('vec4', 'vGIAmb');
+
 /** Ambient: the probe GI in place of the hemisphere light, and the sky reflections (PBR). */
 class ProbeLightNode extends THREE.LightingNode {
   constructor(lighting) {
@@ -140,7 +151,7 @@ class ProbeLightNode extends THREE.LightingNode {
 
   setup(builder) {
     const L = this.L, m = builder.material, ctx = builder.context;
-    const amb = L.gi.ambientFn()(fragWorldPos(), normalWorld).toVar('giAmb');
+    const amb = (m.mcVertexGI ? vGIAmb : L.gi.ambientFn()(fragWorldPos(), normalWorld)).toVar('giAmb');
     giDbg.assign(amb.rgb);
     ctx.irradiance.addAssign(amb.rgb);
     if (m.isMeshStandardNodeMaterial && ctx.radiance) {
@@ -165,6 +176,8 @@ export class Lighting {
     this.camera = camera;
     this.qualityName = QUALITY[quality] ? quality : 'medium';
     this.Q = QUALITY[this.qualityName];
+    this.pbr = this.Q.pbr !== false; // (fixed: the materials are built for it)
+    this.vertexGI = this.Q.vertexGI === true;
     this.env = structuredClone(DEFAULT_ENV);
     this.time = 0; // seconds since start (animation clock for wind, water, clouds)
     this.night = 0;
@@ -186,7 +199,7 @@ export class Lighting {
     };
     // texture arrays (terrain, surfaces, foliage) and their shader code; loaded by AssetLibrary / World
     this.surfaces = new Surfaces();
-    this.sun = new SunShadows(renderer, scene, this.Q.cascades, { distance: this.Q.shadowDistance });
+    this.sun = new SunShadows(renderer, scene, this.Q.cascades, { distance: this.Q.shadowDistance, taps: this.Q.shadowTaps ?? 4 });
     // alpha-cut leaves cast / occlude through their cut-out, not as cards
     this.sun.depthMat.maskNode = this.surfaces.leafMaskNode();
     this.sunDir = this.sun.dir;
@@ -408,7 +421,7 @@ export class Lighting {
       transparent: !!opts.transparent,
       color: opts.color ?? 0xffffff,
     };
-    m = opts.textured
+    m = opts.textured && this.pbr
       ? new THREE.MeshStandardNodeMaterial({ ...common, roughness: 1, metalness: 0 })
       : new THREE.MeshLambertNodeMaterial({ ...common, flatShading: !opts.smooth && !opts.foliage });
     m.alphaToCoverage = !!opts.cutout;
@@ -441,6 +454,7 @@ export class Lighting {
     const U2 = this.uniforms, fade = opts.fadeRange ?? null;
     m.mcOpts = opts;
     m.mcFade = fade;
+    m.mcVertexGI = this.vertexGI;
     m.positionNode = Fn((builder) => {
       const inst = isInstanced(builder), geo = builder.geometry;
       const p = positionLocal.toVar();
@@ -455,6 +469,13 @@ export class Lighting {
         const sway = sin(ph).mul(0.7).add(sin(ph.mul(2.31).add(1.7)).mul(0.3)).mul(U2.windStrength).mul(gust).mul(wind);
         p.xz.addAssign(U2.windDir.mul(sway));
         p.y.addAssign(sin(ph.mul(4.7).add(positionLocal.x.mul(2.0)).add(positionLocal.z.mul(2.0))).mul(0.04).mul(wind).mul(U2.windStrength));
+      }
+      if (m.mcVertexGI && builder.material?.colorWrite !== false) {
+        // world position / normal of the vertex (leaves: normals of length 2) -> probe GI (not in
+        // the depth passes, which inherit this node)
+        const Pw = modelWorldMatrix.mul(vec4(inst ? M.mul(vec4(p, 1.0)).xyz : p, 1.0)).xyz;
+        const nl = geo?.attributes?.normal ? (inst ? transformNormal(normalLocal, M) : normalLocal) : vec3(0.0, 1.0, 0.0);
+        vGIAmb.assign(this.gi.ambientFn()(Pw, normalize(mat3(modelWorldMatrix).mul(nl))));
       }
       if (!inst) return p;
       if (geo?.attributes?.normal) normalLocal.assign(transformNormal(normalLocal, M));

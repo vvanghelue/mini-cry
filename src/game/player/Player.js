@@ -36,6 +36,11 @@ export class Player {
     this.stepDist = 0;
     this.noise = 0; // how loud the player is right now (AI hearing), metres of audibility
     this.inVehicle = null;
+    // VR (vr/VRLocomotion.js): the headset's eye position, the collider height from the head's,
+    // and the gliding velocity (in place of the air physics)
+    this.eyeOverride = null;
+    this.heightOverride = null;
+    this.flight = null;
     this.godMode = false;
     this.noclip = false;
     this.speed = 0;
@@ -43,11 +48,12 @@ export class Player {
   }
 
   get eye() {
+    if (this.eyeOverride) return this.eyeOverride.clone();
     const h = THREE.MathUtils.lerp(this.cfg.eyeHeight, this.cfg.crouchEyeHeight, this.crouch);
     return new THREE.Vector3(this.pos.x, this.pos.y + (this.swimming ? 0.25 : h), this.pos.z);
   }
 
-  get height() { return THREE.MathUtils.lerp(this.cfg.height, this.cfg.crouchHeight, this.crouch); }
+  get height() { return this.heightOverride ?? THREE.MathUtils.lerp(this.cfg.height, this.cfg.crouchHeight, this.crouch); }
 
   forward(out = new THREE.Vector3()) { return out.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)); }
 
@@ -168,6 +174,9 @@ export class Player {
       if (!input.down('crouch') && f <= 0.01 && this.pos.y < surface) target.y = Math.max(target.y, 1.4);
       if (this.pos.y > surface && target.y > 0) target.y = Math.min(target.y, (surface - this.pos.y) * 4);
       this.vel.lerp(target, Math.min(1, dt * 4));
+      this.fallStartY = null;
+    } else if (this.flight && !this.onGround) {
+      this.flight(dt);
       this.fallStartY = null;
     } else {
       // ground / air

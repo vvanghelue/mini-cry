@@ -24,7 +24,7 @@ const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4();
 
 /** Rotation taking the orthonormal frame built on (a0, b0) to the one built on (a1, b1). */
-function frameRotation(a0, b0, a1, b1, out) {
+export function frameRotation(a0, b0, a1, b1, out) {
   const f = (a, b, m) => {
     const x = _c.copy(a).normalize(), z = _d.crossVectors(x, b).normalize();
     const y = _b.crossVectors(z, x);
@@ -188,6 +188,20 @@ export class ViewArms {
       this._solve(side, t);
       this._curl(side, grip);
     }
+  }
+
+  /** One hand on a world-space target (VR: the controller, a gun's grip): wrist position, straight
+   *  fingers' and thumb-side directions, grip (finger curls, like the weapon assets' `hands`). */
+  place(s, wrist, fingers, thumb, grip) {
+    const t = this._t, side = this.sides[s];
+    this.root.updateMatrixWorld(true);
+    this.model.getWorldQuaternion(t.rootQ);
+    this.root.parent.getWorldQuaternion(t.camQ);
+    t.T.copy(wrist);
+    t.fingers.copy(fingers);
+    t.thumb.copy(thumb);
+    this._solve(side, t);
+    this._curl(side, grip);
   }
 
   _solve(side, t) {

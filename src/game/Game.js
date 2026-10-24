@@ -62,7 +62,8 @@ export class Game {
     const fps = params.get('fps');
     this.engine.maxFps = fps !== null ? Number(fps) || 0 : this.settings.fpsLimit;
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
-    if (this.settings.flare === false) this.engine.lighting.flare.setEnabled(false);
+    // (VR: no flare, a screen-space effect drawn per eye)
+    if (this.settings.flare === false || app.vr) this.engine.lighting.flare.setEnabled(false);
     // water reflections: off | ultralow | low | medium | high (`?ssr=` overrides the saved choice)
     if (params.get('ssr')) this.settings.ssr = params.get('ssr');
     this.engine.lighting.ssr.setLevel(this.settings.ssr);
@@ -120,6 +121,7 @@ export class Game {
     this.vehicles = new Vehicles(this);
     this.menus = new Menus(this);
     if (this.app.mobile) this.touch = new TouchControls(this); // phones / tablets
+    if (this.app.vr) { const { VR } = await import('./vr/VR.js'); this.vr = new VR(this); } // headsets
     // game entity types can be created now
     this.world.entities.mode = 'game';
     this.world.entities.createPending();
@@ -170,7 +172,7 @@ export class Game {
 
   newGame({ fromCheckpoint = false, keepPosition = false, skipIntro = false } = {}) {
     this.started = true;
-    this.hud.setVisible(true);
+    this.hud.setVisible(!this.vr?.presenting); // (VR: its own panels)
     this.menus.hideAll();
     if (fromCheckpoint && this.restore(loadJSON(SAVE_KEY))) {
       this.hud.notify('Game loaded');
@@ -196,6 +198,7 @@ export class Game {
     this.paused = false;
     this.engine.timeScale = this.cheats.timeScale;
     this.menus.hideAll();
+    this.vr?.ui.hide();
     this.input.clear();
     this.input.lock();
     this.audio?.resume?.();
@@ -206,7 +209,7 @@ export class Game {
   onPlayerDeath() {
     this.stats.deaths++;
     this.hud.showBanner('You died', '', 3000, 'fail');
-    setTimeout(() => { this.input.unlock(); this.menus.showDeath(); }, 2200);
+    setTimeout(() => { this.input.unlock(); this.menus.showDeath(); this.vr?.ui.showDeath(); }, 2200);
   }
 
   // --- per frame -----------------------------------------------------------------------------
@@ -214,21 +217,25 @@ export class Game {
     this.frame++;
     nextCharacterFrame();
     const inp = this.input;
-    const ui = this.menus.mapOpen || this.menus.open;
+    // VR: the headset and controllers first (they drive the in-headset menus too)
+    const vr = this.vr?.presenting ? this.vr : null;
+    vr?.poll(this.engine.realDt);
+    const ui = this.menus.mapOpen || this.menus.open || !!vr?.ui.open;
     inp.poll(ui);
     if (inp.hit('map') && this.started && this.player.alive) this.menus.toggleMap();
     // gamepad: Start pauses / resumes, menus and the map are driven with the pad
     if (inp.keyHit('Pad:Start') && this.started && this.player.alive && !this.menus.mapOpen) { if (this.paused) this.resume(); else this.pause(); }
     else this.menus.pad(inp);
     if (ui) inp.endFrame(); // presses that drove a menu / the map don't reach the game too
-    if (this.paused || !this.started) { inp.endFrame(); this.audio?.update?.(0, this.engine.camera, this._ambientState()); return; }
+    if (this.paused || !this.started) { vr?.idle(this.engine.realDt); inp.endFrame(); this.audio?.update?.(0, this.engine.camera, this._ambientState()); return; }
     this.time += dt;
     this.stats.playTime += dt;
     const p = this.player;
     // vehicles take the input when driven
     if (p.inVehicle) this.vehicles.updateDriving(dt, inp);
+    else if (vr) vr.locomotion.update(dt, inp);
     else p.update(dt, inp);
-    this._binoculars(dt);
+    if (!vr) this._binoculars(dt);
     this.weapons.update(dt, inp);
     this._interact(inp);
     if (!this.cheats.freezeAI) {
@@ -241,11 +248,12 @@ export class Game {
     this.dialogue.update(dt);
     this.effects.update(dt);
     this._reinforcementWaves(dt);
-    // camera
-    if (this._cine) this._updateCinematic(dt);
+    // camera (VR: the rig under the player / in the seat; then the gun, the hands and the panels)
+    if (vr) { vr.place(); vr.update(dt); }
+    else if (this._cine) this._updateCinematic(dt);
     else if (p.inVehicle) this.vehicles.applyCamera(this.engine.camera, dt);
     else p.applyCamera(this.engine.camera, dt);
-    if (this.effects.shake > 0) {
+    if (this.effects.shake > 0 && !vr) {
       const s = this.effects.shake * 0.08;
       this.engine.camera.rotation.x += (Math.random() - 0.5) * s;
       this.engine.camera.rotation.y += (Math.random() - 0.5) * s;
@@ -542,6 +550,8 @@ export class Game {
 
   // --- cinematic camera ----------------------------------------------------------------------
   cinematic(a) {
+    // VR: the view is the player's head; only the text
+    if (this.vr?.presenting) { if (a.text) this.hud.subtitle('', a.text, (a.duration ?? 4) * 1000); return; }
     const from = this.resolvePos(a.from) ?? this.player.eye.toArray();
     const to = this.resolvePos(a.to) ?? from;
     const look = this.resolvePos(a.lookAt) ?? this.player.pos.toArray();
@@ -629,6 +639,7 @@ export class Game {
     this.started = false;
     this.input.unlock();
     this.menus.showEnd(a);
+    this.vr?.ui.showEnd(a);
   }
 
   saveSettings(s) {
@@ -643,9 +654,9 @@ export class Game {
     this.audio?.setVolume?.('music', this.settings.music);
     this.audio?.setVolume?.('voice', this.settings.voiceVolume);
     this.dialogue.voice = this.settings.voices;
-    if (this.settings.quality !== this.engine.quality) this.engine.setQuality(this.settings.quality);
+    if (this.settings.quality !== this.engine.quality && !this.app.vr) this.engine.setQuality(this.settings.quality);
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
-    this.engine.lighting.flare.setEnabled(this.settings.flare !== false);
+    this.engine.lighting.flare.setEnabled(this.settings.flare !== false && !this.app.vr);
     this.engine.lighting.ssr.setLevel(this.settings.ssr);
     this._applyFog();
     if ('fpsLimit' in s) this.engine.maxFps = this.settings.fpsLimit;

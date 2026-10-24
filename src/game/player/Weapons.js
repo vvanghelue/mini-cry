@@ -1,6 +1,8 @@
 // Player weapons: inventory (slots), ammo, first-person view model (separate overlay pass),
 // hitscan firing with spread / bloom / recoil, aiming down sights (scopes), reloads, melee
 // (stealth takedowns), grenades and rockets (simulated projectiles), explosions.
+// VR: `vr` (vr/VRWeapons.js) holds, aims, fires and reloads the guns with the hands; the view
+// model and the desktop input are off.
 import * as THREE from 'three';
 import { LAYERS } from '../../engine/render/layers.js';
 import { ViewArms } from './ViewArms.js';
@@ -97,7 +99,7 @@ export class Weapons {
     this.vmWeapon.add(this.flash);
     this.vm = { scene, camera, visible: true, beforeRender: () => this.vmLight.follow() };
     // realistic arms (public/models/fp, posed by IK on the weapon grips); box arms as fallback
-    const armsModel = this.game.viewModels?.arms;
+    const armsModel = this.game.app.vr ? null : this.game.viewModels?.arms; // VR: its own arms (VRHands)
     try { if (armsModel) this.arms = new ViewArms(armsModel, this.game.data.player?.arms, camera); } catch (e) { console.warn('view arms unavailable', e); }
     if (this.arms) { this.arms.visible = false; this.vmLight.patch(this.arms.root); }
     this.game.engine.overlay = this.vm;
@@ -148,7 +150,7 @@ export class Weapons {
       g.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.4).translate(0, 0.02, -0.15), this.vmMat));
     }
     info.hands = assets.has(d.asset) ? assets.get(d.asset).hands : null;
-    if (!this.arms || !info.hands) {
+    if ((!this.arms && !this.game.app.vr) || !info.hands) {
       // right hand on the grip, forearm going back / down / right (toward the camera's lower right)
       g.add(this._arm(new THREE.Vector3(0, -0.04, 0.02), new THREE.Vector3(0.25, -0.55, 0.8), 0.4));
       if (d.type !== 'melee' && d.slot !== 2) {
@@ -184,6 +186,12 @@ export class Weapons {
     this.kick = Math.max(0, this.kick - dt * 8);
     const canAct = p.alive && !p.inVehicle && !g.ui?.blocking;
     const w = this.current;
+    if (this.vr) {
+      // VR: the hands do the rest (VRWeapons.update, after the rig moved)
+      if (this.state === 'switching') this._switch();
+      this._updateProjectiles(dt);
+      return;
+    }
 
     // selection
     if (canAct) {
@@ -191,15 +199,7 @@ export class Weapons {
       if (input.hit('nextWeapon')) this._cycle(1);
       if (input.hit('prevWeapon')) this._cycle(-1);
     }
-    if (this.state === 'switching') {
-      if (this.stateT > 0.22 && this.pendingId) {
-        this.currentId = this.pendingId;
-        this.pendingId = null;
-        this._showVM(this.currentId);
-        g.hud?.refreshWeapon();
-      }
-      if (this.stateT > 0.45) this.state = 'idle';
-    }
+    if (this.state === 'switching') this._switch();
 
     // aim down sights
     const wantAds = canAct && w && w.type !== 'melee' && input.down('aim') && !p.sprinting && this.state !== 'reloading' && this.state !== 'switching';
@@ -228,7 +228,31 @@ export class Weapons {
     this._animateVM(dt);
   }
 
+  _switch() {
+    if (this.stateT > 0.22 && this.pendingId) {
+      this.currentId = this.pendingId;
+      this.pendingId = null;
+      this._showVM(this.currentId);
+      this.game.hud?.refreshWeapon();
+    }
+    if (this.stateT > 0.45) this.state = 'idle';
+  }
+
   // --- firing ------------------------------------------------------------------------------
+  /** Where shots go: { origin, dir, up, right, muzzle } (world). Desktop: the view; VR: the barrel. */
+  aim() {
+    if (this.vr) return this.vr.aim();
+    const cam = this.game.engine.camera;
+    cam.updateMatrixWorld();
+    return {
+      origin: cam.getWorldPosition(new THREE.Vector3()),
+      dir: cam.getWorldDirection(new THREE.Vector3()),
+      up: new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion),
+      right: new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion),
+      muzzle: this._muzzleWorld(),
+    };
+  }
+
   _spreadDeg(w) {
     const p = this.game.player;
     const move = Math.min(1, p.speed / p.cfg.walkSpeed) + (p.onGround || p.swimming ? 0 : 1);
@@ -238,14 +262,11 @@ export class Weapons {
   }
 
   _fire(w) {
-    const g = this.game, p = g.player, cam = g.engine.camera;
+    const g = this.game, p = g.player;
     const id = this.currentId;
     if (!g.cheats?.infiniteAmmo) this.clip[id]--;
     this.fireCd = 60 / w.rpm;
-    cam.updateMatrixWorld();
-    const origin = cam.getWorldPosition(new THREE.Vector3());
-    const dir = cam.getWorldDirection(new THREE.Vector3());
-    const muzzleW = this._muzzleWorld();
+    const { origin, dir, up, right, muzzle: muzzleW } = this.aim();
     if (w.type === 'launcher') {
       this._spawnRocket(w, muzzleW, dir);
     } else {
@@ -255,7 +276,6 @@ export class Weapons {
         const d = dir.clone();
         if (spread > 0) {
           const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * Math.tan(spread);
-          const up = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion), right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
           d.addScaledVector(up, Math.sin(a) * r).addScaledVector(right, Math.cos(a) * r).normalize();
         }
         const shotIndex = (this._shots = (this._shots ?? 0) + 1);
@@ -265,17 +285,20 @@ export class Weapons {
     // feedback
     this.bloom = Math.min(6, this.bloom + (w.recoil ?? 1) * 0.35);
     const rk = (w.recoil ?? 1) * (1 - 0.45 * this.adsBlend) * (p.crouched ? 0.75 : 1);
-    p.recoilPitch += rk * 0.012;
-    p.pitch += rk * 0.004; // a part of the recoil stays (you have to pull down)
-    p.recoilYaw += (Math.random() - 0.5) * rk * 0.008;
-    this.kick = Math.min(1, this.kick + 0.4 + rk * 0.1);
-    this.flashT = 0.05;
-    g.input.rumble(w.type === 'launcher' ? 0.9 : 0.12 * rk, 0.25 + 0.1 * rk, w.type === 'launcher' ? 250 : 70);
+    if (this.vr) this.vr.recoil(w, rk);
+    else {
+      p.recoilPitch += rk * 0.012;
+      p.pitch += rk * 0.004; // a part of the recoil stays (you have to pull down)
+      p.recoilYaw += (Math.random() - 0.5) * rk * 0.008;
+      this.kick = Math.min(1, this.kick + 0.4 + rk * 0.1);
+      this.flashT = 0.05;
+      g.input.rumble(w.type === 'launcher' ? 0.9 : 0.12 * rk, 0.25 + 0.1 * rk, w.type === 'launcher' ? 250 : 70);
+    }
     g.effects.muzzleFlash(muzzleW, dir, w.type === 'launcher' ? 0.4 : 0.16);
     g.audio?.play(w.sound, { volume: 0.9, priority: 2 });
     g.ai?.noise(p.pos, w.noise ?? 100, 'gunshot');
     g.stats.shots++;
-    if (this.clip[id] <= 0 && (this.ammo[w.ammo] ?? 0) > 0) setTimeout(() => this.state === 'idle' && this.currentId === id && this._reload(), 250);
+    if (this.clip[id] <= 0 && (this.ammo[w.ammo] ?? 0) > 0 && !this.vr) setTimeout(() => this.state === 'idle' && this.currentId === id && this._reload(), 250);
     if (w.boltSound) setTimeout(() => g.audio?.play(w.boltSound, { volume: 0.5 }), 350);
     if (w.pumpSound) setTimeout(() => g.audio?.play(w.pumpSound, { volume: 0.5 }), 300);
     g.hud?.refreshWeapon();
@@ -390,17 +413,8 @@ export class Weapons {
         if (_v.normalize().dot(fwd) < 0.55) continue;
         best = a; bd = d;
       }
-      if (best) {
-        // takedown when the target doesn't see us coming (not in combat, or hit from behind)
-        const back = _v2.set(Math.sin(best.heading), 0, Math.cos(best.heading)).dot(fwd) > 0.3;
-        const stealth = !best.ai || best.ai.state !== 'combat' || back;
-        const dmg = stealth ? (w.stealthDamage ?? 999) : w.damage ?? 50;
-        best.damage(dmg, eye, { part: 'body', attacker: 'player', melee: true, stealth, dir: fwd });
-        g.effects.impact(best.pos.clone().setY(best.pos.y + 1.3), _v.copy(fwd).negate(), 'flesh');
-        g.audio?.play(w.hitSound ?? 'machete_hit', { volume: 0.7 });
-        g.hud?.hitMarker(!best.alive, false);
-        if (stealth && !best.alive) g.stats.takedowns++;
-      } else {
+      if (best) this.meleeStrike(best, w, fwd, eye);
+      else {
         // hit the world (plants, walls)
         const cam = g.engine.camera;
         const o = cam.getWorldPosition(new THREE.Vector3()), d = cam.getWorldDirection(new THREE.Vector3());
@@ -409,6 +423,20 @@ export class Weapons {
       }
       g.ai?.noise(p.pos, 6, 'melee');
     }, (w.hitDelay ?? 0.12) * 1000);
+  }
+
+  /** A melee hit on `target` coming along `fwd` from `from`: a takedown when it doesn't see us
+   *  coming (not in combat, or hit from behind). */
+  meleeStrike(target, w, fwd, from) {
+    const g = this.game;
+    const back = _v2.set(Math.sin(target.heading), 0, Math.cos(target.heading)).dot(fwd) > 0.3;
+    const stealth = !target.ai || target.ai.state !== 'combat' || back;
+    const dmg = stealth ? (w.stealthDamage ?? 999) : w.damage ?? 50;
+    target.damage(dmg, from, { part: 'body', attacker: 'player', melee: true, stealth, dir: fwd });
+    g.effects.impact(target.pos.clone().setY(target.pos.y + 1.3), _v.copy(fwd).negate(), 'flesh');
+    g.audio?.play(w.hitSound ?? 'machete_hit', { volume: 0.7 });
+    g.hud?.hitMarker(!target.alive, false);
+    if (stealth && !target.alive) g.stats.takedowns++;
   }
 
   // --- grenades & rockets ------------------------------------------------------------------

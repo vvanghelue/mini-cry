@@ -127,7 +127,7 @@ export class Impostors {
   _material(build, layer) {
     const L = this.lighting, LU = L.uniforms, sunU = L.sun.uniforms;
     const sphere = this._sphere(build), inset = 0.5 / this.cell;
-    const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.9, metalness: 0 });
+    const m = this.lighting?.pbr === false ? new THREE.MeshLambertNodeMaterial() : new THREE.MeshStandardNodeMaterial({ roughness: 0.9, metalness: 0 });
     m.alphaToCoverage = true;
     m.vertexColors = false;
     const impM = () => modelWorldMatrix.mul(instanceMatrix());

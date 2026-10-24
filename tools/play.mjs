@@ -105,7 +105,8 @@ try {
   report.final = await page.evaluate(() => window.__mc.live.commands.state());
   // shader programs compiled after the loading warm-up (each one is a frame hitch in game)
   // (WebGPU: render pipelines built after the warm-up)
-  report.lateShaders = await page.evaluate(() => { const w = window.__mc.world, r = window.__mc.engine.renderer; return w?.warmUpStats ? (r._pipelines?.caches?.size ?? 0) - w.warmUpStats.total : null; });
+  // (VR: the multiview pipelines compiled in the session's first frame are no hitch: VR.warmUpStats)
+  report.lateShaders = await page.evaluate(() => { const w = window.__mc.world, r = window.__mc.engine.renderer; return w?.warmUpStats ? (r._pipelines?.caches?.size ?? 0) - w.warmUpStats.total - (window.__mc.game?.vr?.warmUpStats?.programs ?? 0) : null; });
 } catch (e) {
   report.fatal = String(e.message ?? e);
 } finally {
