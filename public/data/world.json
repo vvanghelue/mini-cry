@@ -7001,6 +7001,72 @@
         0
       ],
       "id": "pickup_21"
+    },
+    {
+      "icon": "boat",
+      "type": "marker",
+      "id": "mk_isla_grande",
+      "pos": [
+        1342,
+        1.201,
+        -144
+      ],
+      "label": "Isla Grande"
+    },
+    {
+      "icon": "none",
+      "type": "marker",
+      "id": "mk_pico_grande",
+      "pos": [
+        2024,
+        302.649,
+        -632
+      ],
+      "label": "Pico Grande"
+    },
+    {
+      "icon": "none",
+      "type": "marker",
+      "id": "mk_mesa_viento",
+      "pos": [
+        1670,
+        120.569,
+        -380
+      ],
+      "label": "Mesa del Viento"
+    },
+    {
+      "icon": "boat",
+      "type": "marker",
+      "id": "mk_isla_mayor",
+      "pos": [
+        2994,
+        1.665,
+        2644
+      ],
+      "label": "Isla Mayor"
+    },
+    {
+      "icon": "none",
+      "type": "marker",
+      "id": "mk_volcan_mayor",
+      "pos": [
+        3938,
+        401.9,
+        3336
+      ],
+      "label": "Volcán Mayor"
+    },
+    {
+      "icon": "none",
+      "type": "marker",
+      "id": "mk_meseta_roja",
+      "pos": [
+        4200,
+        105.033,
+        2700
+      ],
+      "label": "Meseta Roja"
     }
   ]
 }

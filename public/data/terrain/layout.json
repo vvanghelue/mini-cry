@@ -1,7 +1,7 @@
 {
   "seed": 1337,
-  "size": 2048,
-  "res": 1025,
+  "size": 8192,
+  "res": 4097,
   "seaLevel": 0,
   "islands": [
     {
@@ -38,6 +38,123 @@
       "rx": 70,
       "rz": 55,
       "height": 5
+    },
+    {
+      "name": "Isla Grande",
+      "x": 2050,
+      "z": -500,
+      "rx": 620,
+      "rz": 1460,
+      "rot": 0.12,
+      "height": 40,
+      "warp": 300,
+      "warpScale": 650
+    },
+    {
+      "name": "Isla Grande Norte",
+      "x": 2230,
+      "z": -1760,
+      "rx": 450,
+      "rz": 400,
+      "rot": -0.5,
+      "height": 40,
+      "warp": 300,
+      "warpScale": 650
+    },
+    {
+      "name": "Peninsula Oeste",
+      "x": 1470,
+      "z": -880,
+      "rx": 420,
+      "rz": 190,
+      "rot": 0.3,
+      "height": 40,
+      "warp": 300,
+      "warpScale": 650
+    },
+    {
+      "name": "Cabo Sur",
+      "x": 1710,
+      "z": 860,
+      "rx": 380,
+      "rz": 280,
+      "rot": -0.4,
+      "height": 40,
+      "warp": 300,
+      "warpScale": 650
+    },
+    {
+      "name": "Isla Mayor",
+      "x": 3500,
+      "z": 3350,
+      "rx": 1750,
+      "rz": 1050,
+      "rot": 0.3,
+      "height": 45,
+      "warp": 380,
+      "warpScale": 820
+    },
+    {
+      "name": "Mayor Oeste",
+      "x": 1550,
+      "z": 2750,
+      "rx": 700,
+      "rz": 360,
+      "rot": 0.35,
+      "height": 40,
+      "warp": 300,
+      "warpScale": 650
+    },
+    {
+      "name": "Mayor Este",
+      "x": 5350,
+      "z": 2650,
+      "rx": 820,
+      "rz": 620,
+      "rot": -0.35,
+      "height": 45,
+      "warp": 380,
+      "warpScale": 820
+    },
+    {
+      "name": "Cabo Mayor",
+      "x": 3900,
+      "z": 4650,
+      "rx": 620,
+      "rz": 430,
+      "rot": 0.6,
+      "height": 40,
+      "warp": 300,
+      "warpScale": 650
+    },
+    {
+      "name": "Punta Norte",
+      "x": 4750,
+      "z": 1350,
+      "rx": 280,
+      "rz": 820,
+      "rot": 0.25,
+      "height": 35,
+      "warp": 250,
+      "warpScale": 600
+    },
+    {
+      "name": "Cayo Mayor",
+      "x": 6350,
+      "z": 3750,
+      "rx": 130,
+      "rz": 95,
+      "rot": 0.4,
+      "height": 8
+    },
+    {
+      "name": "Isla Tortuga",
+      "x": 2250,
+      "z": 4650,
+      "rx": 230,
+      "rz": 160,
+      "rot": -0.3,
+      "height": 22
     }
   ],
   "mountains": [
@@ -65,6 +182,117 @@
       "r": 150,
       "height": 42,
       "ridged": 0.4
+    },
+    {
+      "name": "Pico Grande",
+      "x": 2100,
+      "z": -700,
+      "r": 520,
+      "height": 330,
+      "ridged": 0.35,
+      "ridgeScale": 380
+    },
+    {
+      "name": "Sierra Norte",
+      "x": 2280,
+      "z": -1700,
+      "r": 420,
+      "height": 260,
+      "ridged": 0.38,
+      "ridgeScale": 340
+    },
+    {
+      "name": "Cumbre Este",
+      "x": 2450,
+      "z": -1120,
+      "r": 300,
+      "height": 180,
+      "ridged": 0.4,
+      "ridgeScale": 300
+    },
+    {
+      "name": "Cerro Partido",
+      "x": 1950,
+      "z": 320,
+      "r": 420,
+      "height": 210,
+      "crater": 80,
+      "ridged": 0.3,
+      "ridgeScale": 320
+    },
+    {
+      "name": "Loma Larga",
+      "x": 1590,
+      "z": -1000,
+      "r": 300,
+      "height": 90,
+      "ridged": 0.3,
+      "ridgeScale": 240
+    },
+    {
+      "name": "Volcan Mayor",
+      "x": 3800,
+      "z": 3450,
+      "r": 820,
+      "height": 470,
+      "crater": 150,
+      "ridged": 0.15,
+      "ridgeScale": 300,
+      "noiseScale": 480,
+      "noise": 0.08
+    },
+    {
+      "name": "Cordillera Este",
+      "x": 5000,
+      "z": 2450,
+      "r": 480,
+      "height": 280,
+      "ridged": 0.4,
+      "ridgeScale": 380,
+      "noiseScale": 300,
+      "noise": 0.12
+    },
+    {
+      "name": "Cordillera Este Sur",
+      "x": 5650,
+      "z": 2900,
+      "r": 400,
+      "height": 230,
+      "ridged": 0.4,
+      "ridgeScale": 340,
+      "noiseScale": 280,
+      "noise": 0.12
+    },
+    {
+      "name": "Sierra Oeste",
+      "x": 2250,
+      "z": 2950,
+      "r": 450,
+      "height": 200,
+      "ridged": 0.35,
+      "ridgeScale": 340,
+      "noiseScale": 280,
+      "noise": 0.12
+    },
+    {
+      "name": "Cerro del Sur",
+      "x": 3700,
+      "z": 4600,
+      "r": 380,
+      "height": 160,
+      "ridged": 0.35,
+      "ridgeScale": 300,
+      "noiseScale": 240,
+      "noise": 0.14
+    },
+    {
+      "name": "Loma Norte",
+      "x": 4720,
+      "z": 1300,
+      "r": 380,
+      "height": 130,
+      "ridged": 0.3,
+      "ridgeScale": 260
     }
   ],
   "plateaus": [
@@ -74,6 +302,20 @@
       "z": -40,
       "r": 105,
       "height": 62
+    },
+    {
+      "name": "Mesa del Viento",
+      "x": 1670,
+      "z": -380,
+      "r": 140,
+      "height": 120
+    },
+    {
+      "name": "Meseta Roja",
+      "x": 4200,
+      "z": 2700,
+      "r": 190,
+      "height": 105
     }
   ],
   "lagoons": [
@@ -123,6 +365,52 @@
       "source": 30,
       "mouth": 0.1,
       "bank": 26
+    },
+    {
+      "name": "Rio Verde",
+      "points": [
+        [
+          3060,
+          3380
+        ],
+        [
+          2950,
+          3400
+        ],
+        [
+          2750,
+          3420
+        ],
+        [
+          2600,
+          3480
+        ],
+        [
+          2450,
+          3600
+        ],
+        [
+          2300,
+          3720
+        ],
+        [
+          2150,
+          3830
+        ],
+        [
+          2020,
+          3920
+        ],
+        [
+          1870,
+          3995
+        ]
+      ],
+      "width": 22,
+      "depth": 2.6,
+      "source": 16,
+      "mouth": 0.1,
+      "bank": 34
     }
   ],
   "roads": [
@@ -383,5 +671,9 @@
       "height": 1,
       "material": "sand"
     }
+  ],
+  "center": [
+    3040,
+    1568
   ]
 }
