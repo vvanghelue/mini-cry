@@ -35,8 +35,10 @@ import { FarShadows } from './FarShadows.js';
 const MAX = 3;
 
 export class SunShadows {
-  /** cascades: [{ radius, res, every }] smallest first; distance: shadow distance (m) */
-  constructor(renderer, scene, cascades, { distance = Infinity } = {}) {
+  /** cascades: [{ radius, res, every }] smallest first; distance: shadow distance (m); taps: PCF
+   *  taps per lookup (4, or 1 on mobile GPUs: VR, one hardware 2x2 compare) */
+  constructor(renderer, scene, cascades, { distance = Infinity, taps = 4 } = {}) {
+    this.taps = taps;
     this.renderer = renderer;
     this.scene = scene;
     this.dir = new THREE.Vector3(0, 1, 0);
@@ -245,6 +247,8 @@ export class SunShadows {
     scene.fogNode = prevFog;
     scene.background = prevBg;
     this.uniforms.sunMat[index].value.multiplyMatrices(c.cam.projectionMatrix, c.cam.matrixWorldInverse);
+    // WebGL backend (VR): clip z in -1..1; the shaders compare WebGPU's 0..1 depth
+    if (r.coordinateSystem === THREE.WebGLCoordinateSystem) this.uniforms.sunMat[index].value.premultiply(_toWebGPU);
     c.rendered = true;
   }
 
@@ -307,7 +311,7 @@ export class SunShadows {
         // rotated 4-tap pattern (each tap is a hardware 2x2 bilinear compare)
         const t = vec2(p.y.mul(p.w)).toVar(), m = u.sunMap[i];
         const tap = (dx, dy) => m.sample(c.xy.add(vec2(t.x.mul(dx), t.y.mul(dy)))).compare(c.z);
-        s.assign(tap(-1, -0.5).add(tap(0.5, -1)).add(tap(1, 0.5)).add(tap(-0.5, 1)).mul(0.25));
+        s.assign(this.taps === 1 ? tap(0, 0) : tap(-1, -0.5).add(tap(0.5, -1)).add(tap(1, 0.5)).add(tap(-0.5, 1)).mul(0.25));
       });
       return vec2(s, e);
     }).setLayout({ name: `sunCascade${i}`, type: 'vec2', inputs: P3 });
@@ -435,3 +439,4 @@ export class DepthMaterial extends THREE.MeshBasicNodeMaterial {
 const _Y = new THREE.Vector3(0, 1, 0), _Z = new THREE.Vector3(0, 0, 1);
 const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _lup = new THREE.Vector3(), _snap = new THREE.Vector3();
 const _cfwd = new THREE.Vector3(), _center = new THREE.Vector3();
+const _toWebGPU = new THREE.Matrix4().set(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0.5, 0.5, 0, 0, 0, 1); // z: -1..1 -> 0..1

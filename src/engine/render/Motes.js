@@ -96,7 +96,8 @@ export class Motes {
     u.moteBox.value = Math.max(cfg.box, 2);
     u.moteSize.value = cfg.size;
     this.geometry.instanceCount = Math.min(MAX, Math.round(cfg.count));
-    this.points.visible = this.enabled && cfg.intensity > 0 && cfg.count > 0;
+    // (WebGL backend, VR: the vertex stage can't read the cascades' depth textures: off)
+    this.points.visible = this.enabled && cfg.intensity > 0 && cfg.count > 0 && !this.lighting.renderer.backend?.isWebGLBackend;
   }
 
   /** Player setting: dust motes on / off. */

@@ -45,6 +45,11 @@ export const QUALITY = {
   medium: { dpr: 1, cascades: [{ radius: 22, res: 2048, every: 2 }, { radius: 55, res: 1536, every: 4 }, { radius: 105, res: 1024, every: 8 }], shadowDistance: 140, drawScale: 0.8, grass: 0.8, ao: 8 },
   high: { dpr: 1, cascades: [{ radius: 20, res: 2048, every: 1 }, { radius: 60, res: 2048, every: 2 }, { radius: 130, res: 2048, every: 4 }], shadowDistance: 180, drawScale: 1, grass: 1, ao: 12 },
   ultra: { dpr: 2, cascades: [{ radius: 20, res: 4096, every: 1 }, { radius: 70, res: 4096, every: 1 }, { radius: 160, res: 4096, every: 2 }], shadowDistance: 220, drawScale: 1.25, grass: 1.3, ao: 12 },
+  // VR (Quest 3 class: a mobile GPU drawing two eyes at 72 Hz, WebGL 2 + multiview): one near
+  // cascade, no SSAO, short draw distances; xrScale = eye buffer resolution x the headset's
+  // recommended one, foveation = fixed foveated rendering 0..1 (Engine._xrQuality), pbr: false =
+  // Lambert in place of the textured materials' GGX + sky reflections
+  vr: { dpr: 1, cascades: [{ radius: 20, res: 1024, every: 2 }], shadowDistance: 30, shadowTaps: 1, drawScale: 0.2, grass: 0.15, ao: 0, pbr: false, xrScale: 0.8, foveation: 1 },
 };
 
 export const DEFAULT_ENV = {
@@ -165,6 +170,7 @@ export class Lighting {
     this.camera = camera;
     this.qualityName = QUALITY[quality] ? quality : 'medium';
     this.Q = QUALITY[this.qualityName];
+    this.pbr = this.Q.pbr !== false; // (fixed: the materials are built for it)
     this.env = structuredClone(DEFAULT_ENV);
     this.time = 0; // seconds since start (animation clock for wind, water, clouds)
     this.night = 0;
@@ -186,7 +192,7 @@ export class Lighting {
     };
     // texture arrays (terrain, surfaces, foliage) and their shader code; loaded by AssetLibrary / World
     this.surfaces = new Surfaces();
-    this.sun = new SunShadows(renderer, scene, this.Q.cascades, { distance: this.Q.shadowDistance });
+    this.sun = new SunShadows(renderer, scene, this.Q.cascades, { distance: this.Q.shadowDistance, taps: this.Q.shadowTaps ?? 4 });
     // alpha-cut leaves cast / occlude through their cut-out, not as cards
     this.sun.depthMat.maskNode = this.surfaces.leafMaskNode();
     this.sunDir = this.sun.dir;
@@ -408,7 +414,7 @@ export class Lighting {
       transparent: !!opts.transparent,
       color: opts.color ?? 0xffffff,
     };
-    m = opts.textured
+    m = opts.textured && this.pbr
       ? new THREE.MeshStandardNodeMaterial({ ...common, roughness: 1, metalness: 0 })
       : new THREE.MeshLambertNodeMaterial({ ...common, flatShading: !opts.smooth && !opts.foliage });
     m.alphaToCoverage = !!opts.cutout;

@@ -9,7 +9,7 @@
 //    every instanced mesh of a material shares one shader (three keys InstancedMesh shaders per
 //    object).
 import { NodeBuilder, FunctionNode, TextureNode } from 'three/webgpu';
-import { Fn, uniform, renderGroup, texture, texture3D, float, int, ivec2, vec2, vec3, vec4, mat4, uvec2, uint, mix, attribute, modelWorldMatrix, positionGeometry } from 'three/tsl';
+import { Fn, uniform, renderGroup, texture, texture3D, textureSize, float, int, ivec2, vec2, vec3, vec4, mat4, uvec2, uint, mix, attribute, modelWorldMatrix, positionGeometry } from 'three/tsl';
 
 // WGSL functions (Fn().setLayout) are generated once per backend in three.js r186 and their code
 // reused by every later shader, without visiting their body again: the uniforms and textures they
@@ -41,6 +41,17 @@ TextureNode.prototype.clone = function () {
   const n = _clone.call(this);
   n.updateMatrix = this.updateMatrix;
   return n;
+};
+
+// WebGL backend (VR): three flips the v of render-target / depth textures through a uniform that
+// every texture sample gets, updated per object and uploaded with each draw — on a headset's CPU
+// that was the biggest share of a frame. What a node samples keeps its kind (render target or
+// not): the flip is decided when the shader is built.
+TextureNode.prototype.setupUV = function (builder, uvNode) {
+  if (!builder.isFlipY()) return uvNode;
+  const t = this.value;
+  if (!((typeof ImageBitmap !== 'undefined' && t.image instanceof ImageBitmap && t.flipY === true) || t.isRenderTargetTexture || t.isFramebufferTexture || t.isDepthTexture)) return uvNode;
+  return this.sampler ? uvNode.flipY() : uvNode.setY(int(textureSize(this, this.levelNode).y).sub(uvNode.y).sub(1));
 };
 
 let _uid = 0;

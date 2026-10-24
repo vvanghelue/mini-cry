@@ -53,7 +53,7 @@ export function terrainMaterial(lighting, terrain, { normalTex }) {
     // m: the far ground fades from the full splatting to its layers' mean colours between x and y
     terFar: U(new THREE.Vector2(1400, 2000)),
   };
-  const mat = new THREE.MeshStandardNodeMaterial({ roughness: 1, metalness: 0 });
+  const mat = lighting.pbr ? new THREE.MeshStandardNodeMaterial({ roughness: 1, metalness: 0 }) : new THREE.MeshLambertNodeMaterial();
   mat.vertexColors = false;
   const vTerrW = varying(modelWorldMatrix.mul(vec4(positionLocal, 1.0)).xyz, 'vTerrW');
   const vCol = varyingProperty('vec3', 'vTerrTint');

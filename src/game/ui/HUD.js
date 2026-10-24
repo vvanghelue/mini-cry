@@ -1,6 +1,7 @@
 // In-game HUD (DOM). Everything is created once; per-frame updates only touch styles / text that
 // changed. Far Cry style: compass with markers, minimap, detection arrows around the crosshair,
 // damage direction arcs, objective panel, radio subtitles, banners, interaction prompt.
+// VR: the events are forwarded to the in-headset panels (game.vr.ui, vr/VRUI.js).
 import * as THREE from 'three';
 
 const el = (tag, cls, parent, html) => {
@@ -134,6 +135,7 @@ export class HUD {
 
   // --- events ------------------------------------------------------------------------------
   hitMarker(kill, head) {
+    this.game.vr?.ui.hitMarker(kill, head);
     this.hit.className = 'hud-hit';
     void this.hit.offsetWidth;
     this.hit.className = 'hud-hit show' + (kill ? ' kill' : '') + (head ? ' head' : '');
@@ -141,6 +143,7 @@ export class HUD {
   }
 
   onPlayerHurt(dmg, from) {
+    this.game.vr?.ui.onPlayerHurt(dmg, from);
     this._hurtFlash = Math.min(1, (this._hurtFlash ?? 0) + dmg / 30);
     if (!from) return;
     const arc = el('div', 'arc', this.dmg);
@@ -171,6 +174,7 @@ export class HUD {
   }
 
   showBanner(title, sub = '', ms = 3500, cls = '') {
+    this.game.vr?.ui.showBanner(title, sub, ms, cls);
     this.banner.className = 'hud-banner show ' + cls;
     this.banner.querySelector('.b1').textContent = title;
     this.banner.querySelector('.b2').textContent = sub;
@@ -179,12 +183,14 @@ export class HUD {
   }
 
   notify(text, ms = 3000) {
+    this.game.vr?.ui.notify(text, ms);
     const n = el('div', 'note', this.notes, text);
     setTimeout(() => n.classList.add('out'), ms);
     setTimeout(() => n.remove(), ms + 600);
   }
 
   subtitle(speaker, text, ms) {
+    this.game.vr?.ui.subtitle(speaker, text, ms);
     this.subs.innerHTML = speaker ? `<b>${speaker}:</b> ${text}` : text;
     this.subs.classList.add('show');
     clearTimeout(this._subT);
@@ -194,6 +200,7 @@ export class HUD {
   setPrompt(text) {
     if (this._last.prompt === text) return;
     this._last.prompt = text;
+    this.game.vr?.ui.setPrompt(text);
     this.prompt.innerHTML = text ?? '';
     this.prompt.style.opacity = text ? 1 : 0;
   }
@@ -209,6 +216,7 @@ export class HUD {
   }
 
   setObjective(title, text) {
+    this.game.vr?.ui.setObjective(title, text);
     this.obj.querySelector('.mt').textContent = title ?? '';
     this.obj.querySelector('.ot').textContent = text ?? '';
     this.obj.style.opacity = title || text ? 1 : 0;
