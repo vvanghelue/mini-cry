@@ -148,6 +148,7 @@ export class Input {
 
   /** Name of the key / button bound to an action, for the device in use ('E', 'X', '□'...). */
   label(action) {
+    if (this.device === 'xr') return this.xrLabels?.[action] ?? ''; // VR controllers (vr/VR.js)
     const b = this.bindings[action] ?? [];
     if (this.device === 'pad') {
       const c = b.find((c) => c.startsWith('Pad:'));

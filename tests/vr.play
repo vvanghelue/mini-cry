@@ -1,0 +1,93 @@
+# VR (WebXR on the WebGL backend, a Meta Quest 3 emulated by IWER: window.__xrDevice drives the
+# headset and controllers, poses in the rig's space): the session starts and compiles its multiview
+# pipelines in its first frame; the gun follows the right hand along its pointing ray and fires on
+# the trigger; the left hand on the foregrip holds it with both hands; B ejects the magazine, a new
+# one taken from the belt pouch goes into the well; a grenade taken at the chest flies with the
+# hand's throw; the left stick walks, the right stick snap turns; Y pauses, the laser + trigger
+# resumes; grips on a wall climb it; falling with the arms spread glides.
+# query: vr=1&xremu=1
+# spawn: -505,2,525,0
+eval (async () => { await game.vr.enter(); return game.vr.presenting })()
+wait 2
+expect game.vr.presenting && game.vr.warmUpStats?.programs > 0 && game.engine.renderer.backend.isWebGLBackend
+eval (()=>{ game.player.godMode = true; game.weapons.give('pistol', { select: true }); game.weapons.addAmmo('pistol', 48); const d = __xrDevice; d.controllers.right.position.set(0.15, 1.35, -0.45); d.controllers.right.quaternion.set(0, 0, 0, 1); d.controllers.left.position.set(-0.25, 1.0, -0.2); return true })()
+wait 1
+expect game.vr.weapons.gun.visible && game.vr.weapons.aim().dir.z < -0.99
+eval (window.__shots = game.stats.shots, __xrDevice.controllers.right.updateButtonValue('trigger', 1), true)
+wait 0.2
+eval (__xrDevice.controllers.right.updateButtonValue('trigger', 0), true)
+wait 0.2
+expect game.stats.shots === window.__shots + 1 && game.weapons.clip.pistol === 11
+# rifle: the left hand closes on the foregrip, raising it raises the barrel
+eval (()=>{ game.weapons.give('rifle_ak', { select: true }); game.weapons.addAmmo('rifle', 90); game.weapons.grenades = 2; return true })()
+wait 1
+eval (()=>{ const r = game.engine.xrRig, W = game.vr.weapons, s = W._spec(game.weapons.currentId); r.updateMatrixWorld(); const p = W.gun.localToWorld(s.leftFist.clone()).applyMatrix4(r.matrixWorld.clone().invert()); window.__fg = p.toArray(); __xrDevice.controllers.left.position.set(...__fg); __xrDevice.controllers.left.quaternion.set(0, 0, 0, 1); return __fg })()
+wait 0.3
+eval (__xrDevice.controllers.left.updateButtonValue('squeeze', 1), true)
+wait 0.3
+eval (__xrDevice.controllers.left.position.set(__fg[0], __fg[1] + 0.1, __fg[2]), true)
+wait 0.3
+expect game.vr.weapons.twoHand && game.vr.weapons.aim().dir.y > 0.2
+# B ejects (the rounds go back to the reserve), a magazine from the belt goes into the well
+eval (__xrDevice.controllers.left.updateButtonValue('squeeze', 0), __xrDevice.controllers.right.updateButtonValue('b-button', 1), true)
+wait 0.15
+eval (__xrDevice.controllers.right.updateButtonValue('b-button', 0), true)
+wait 0.2
+expect game.weapons.clip.rifle_ak === 0 && game.weapons.ammo.rifle === 120
+eval (()=>{ const r = game.engine.xrRig; r.updateMatrixWorld(); const p = game.vr.weapons._pouch('ammo', new app.THREE.Vector3()).applyMatrix4(r.matrixWorld.clone().invert()); __xrDevice.controllers.left.position.set(...p.toArray()); return true })()
+wait 0.3
+eval (__xrDevice.controllers.left.updateButtonValue('squeeze', 1), true)
+wait 0.3
+expect [...game.vr.weapons.held.values()].some((h) => h.kind === 'mag')
+eval (()=>{ const r = game.engine.xrRig, W = game.vr.weapons, s = W._spec(game.weapons.currentId); r.updateMatrixWorld(); const p = W.gun.localToWorld(s.well.clone()).applyMatrix4(r.matrixWorld.clone().invert()); __xrDevice.controllers.left.position.set(...p.toArray()); return true })()
+wait 0.4
+expect game.weapons.clip.rifle_ak === 30 && game.weapons.ammo.rifle === 90 && game.vr.weapons.held.size === 0
+# a grenade from the chest, thrown forward
+eval (__xrDevice.controllers.left.updateButtonValue('squeeze', 0), true)
+wait 0.2
+eval (()=>{ const r = game.engine.xrRig; r.updateMatrixWorld(); const p = game.vr.weapons._pouch('grenade', new app.THREE.Vector3()).applyMatrix4(r.matrixWorld.clone().invert()); __xrDevice.controllers.left.position.set(...p.toArray()); return true })()
+wait 0.3
+eval (__xrDevice.controllers.left.updateButtonValue('squeeze', 1), true)
+wait 0.3
+eval (async () => { for (let k = 0; k < 10; k++) { __xrDevice.controllers.left.position.set(-0.2, 1.3 + k * 0.03, -0.1 - k * 0.1); await new Promise((r) => requestAnimationFrame(r)); } __xrDevice.controllers.left.updateButtonValue('squeeze', 0); return true })()
+wait 0.2
+eval game.vr.weapons.lastThrow?.toArray()
+expect game.weapons.grenades === 1 && game.weapons.projectiles.some((p) => p.kind === 'grenade') && game.vr.weapons.lastThrow.z < -2
+# left stick walks, right stick snap turns 30°
+eval (window.__p0 = game.player.pos.clone(), __xrDevice.controllers.left.updateAxes('thumbstick', 0, -1), true)
+wait 1
+eval (__xrDevice.controllers.left.updateAxes('thumbstick', 0, 0), __xrDevice.controllers.right.updateAxes('thumbstick', 1, 0), true)
+wait 0.2
+eval (__xrDevice.controllers.right.updateAxes('thumbstick', 0, 0), true)
+wait 0.2
+expect game.player.pos.distanceTo(window.__p0) > 2.5 && Math.abs(game.vr.yaw + Math.PI / 6) < 0.01
+# Y pauses; pointing the right controller at Resume and pulling the trigger resumes
+eval (__xrDevice.controllers.left.updateButtonValue('y-button', 1), true)
+wait 0.15
+eval (__xrDevice.controllers.left.updateButtonValue('y-button', 0), true)
+wait 0.3
+expect game.paused && game.vr.ui.page === 'PAUSE'
+eval (()=>{ const ui = game.vr.ui, m = ui.menu.mesh, it = ui.items[0], H = ui.menu.canvas.height, T = app.THREE; const w = m.localToWorld(new T.Vector3(0, (0.5 - (it.y + it.h / 2) / H) * ui.menu.h, 0)); const r = game.engine.xrRig; r.updateMatrixWorld(); const t = w.applyMatrix4(r.matrixWorld.clone().invert()); const o = new T.Vector3(0.2, 1.3, -0.3), q = new T.Quaternion().setFromUnitVectors(new T.Vector3(0, 0, -1), t.sub(o).normalize()); const c = __xrDevice.controllers.right; c.position.copy(o); c.quaternion.set(q.x, q.y, q.z, q.w); __xrDevice.controllers.left.position.set(-0.3, 0.9, 0); return true })()
+wait 0.3
+eval (__xrDevice.controllers.right.updateButtonValue('trigger', 1), true)
+wait 0.15
+eval (__xrDevice.controllers.right.updateButtonValue('trigger', 0), true)
+wait 0.3
+expect !game.paused && !game.vr.ui.open
+# climbing: both hands into a wall, grips, pulled down 1 m: the body rises 1 m
+eval (()=>{ const P = game.world.physics, T = game.world.terrain, p = game.player.pos; let best = null, bd = 1e9; for (const s of P.shapes) { if (!s || s.type !== 'box' || s.hy < 1.2 || s.hy > 6 || Math.min(s.hx, s.hz) < 1.5) continue; if (Math.abs(s.y - s.hy - T.heightAt(s.x, s.z)) > 0.6) continue; const d = Math.hypot(s.x - p.x, s.z - p.z); if (d < bd) { bd = d; best = s; } } const c = Math.cos(best.yaw), sn = Math.sin(best.yaw), alongX = best.hx > best.hz, nx = alongX ? sn : c, nz = alongX ? c : -sn, h = alongX ? best.hz : best.hx; const px = best.x + nx * (h + 0.7), pz = best.z + nz * (h + 0.7); game.weapons.select(null); game.player.teleport([px, T.heightAt(px, pz) + 0.1, pz]); game.vr.yaw = Math.atan2(nx, nz); return true })()
+wait 1
+eval (()=>{ const d = __xrDevice; window.__y0 = game.player.pos.y; d.controllers.right.position.set(0.2, 1.7, -1.35); d.controllers.left.position.set(-0.2, 1.7, -1.35); d.controllers.right.quaternion.set(0, 0, 0, 1); d.controllers.left.quaternion.set(0, 0, 0, 1); return true })()
+wait 0.3
+eval (__xrDevice.controllers.right.updateButtonValue('squeeze', 1), __xrDevice.controllers.left.updateButtonValue('squeeze', 1), true)
+wait 0.2
+eval (async () => { for (let k = 1; k <= 20; k++) { __xrDevice.controllers.right.position.y = 1.7 - k * 0.05; __xrDevice.controllers.left.position.y = 1.7 - k * 0.05; await new Promise((r) => setTimeout(r, 30)); } return true })()
+wait 0.2
+expect !!game.vr.locomotion.climb && Math.abs(game.player.pos.y - window.__y0 - 1) < 0.1
+# gliding: falling from 40 m with the arms spread: forward speed, a slow sink
+eval (__xrDevice.controllers.right.updateButtonValue('squeeze', 0), __xrDevice.controllers.left.updateButtonValue('squeeze', 0), true)
+wait 0.3
+eval (()=>{ const p = game.player.pos; game.player.teleport([p.x + 10, p.y + 40, p.z]); __xrDevice.controllers.right.position.set(0.8, 1.4, 0); __xrDevice.controllers.left.position.set(-0.8, 1.4, 0); return true })()
+wait 1.2
+expect game.vr.locomotion.gliding && game.player.vel.y > -3 && Math.hypot(game.player.vel.x, game.player.vel.z) > 9
+state

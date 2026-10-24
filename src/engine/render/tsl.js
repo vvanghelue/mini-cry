@@ -8,8 +8,8 @@
 //  - instancing: our own instanced attributes (render/Instancing.js), not three's InstancedMesh, so
 //    every instanced mesh of a material shares one shader (three keys InstancedMesh shaders per
 //    object).
-import { NodeBuilder, FunctionNode, TextureNode } from 'three/webgpu';
-import { Fn, uniform, renderGroup, texture, texture3D, float, int, ivec2, vec2, vec3, vec4, mat4, uvec2, uint, mix, attribute, modelWorldMatrix, positionGeometry } from 'three/tsl';
+import { NodeBuilder, FunctionNode, TextureNode, WebGLBackend } from 'three/webgpu';
+import { Fn, uniform, renderGroup, texture, texture3D, textureSize, float, int, ivec2, vec2, vec3, vec4, mat4, uvec2, uint, mix, attribute, modelWorldMatrix, positionGeometry } from 'three/tsl';
 
 // WGSL functions (Fn().setLayout) are generated once per backend in three.js r186 and their code
 // reused by every later shader, without visiting their body again: the uniforms and textures they
@@ -41,6 +41,58 @@ TextureNode.prototype.clone = function () {
   const n = _clone.call(this);
   n.updateMatrix = this.updateMatrix;
   return n;
+};
+
+// WebGL backend (VR): three flips the v of render-target / depth textures through a uniform that
+// every texture sample gets, updated per object and uploaded with each draw — on a headset's CPU
+// that was the biggest share of a frame. What a node samples keeps its kind (render target or
+// not): the flip is decided when the shader is built.
+TextureNode.prototype.setupUV = function (builder, uvNode) {
+  if (!builder.isFlipY()) return uvNode;
+  const t = this.value;
+  if (!((typeof ImageBitmap !== 'undefined' && t.image instanceof ImageBitmap && t.flipY === true) || t.isRenderTargetTexture || t.isFramebufferTexture || t.isDepthTexture)) return uvNode;
+  return this.sampler ? uvNode.flipY() : uvNode.setY(int(textureSize(this, this.levelNode).y).sub(uvNode.y).sub(1));
+};
+
+// WebGL backend (VR): uniform arrays of the render group (with multiview, the camera matrices of both
+// eyes; our uniformArray()s) get a GPU buffer per material / object binding, each re-specified with
+// bufferData at every draw: dozens of uploads per frame of the same bytes. They share one buffer per
+// node instead, uploaded when its bytes change (once per pass: the cascades have their own camera).
+const _shared = new WeakMap(); // render-group buffer node -> { bufferGPU, last, users }
+const sharedOf = (binding) => (binding.isNodeUniformBuffer && binding.groupNode?.name === 'render' ? binding.nodeUniform ?? null : null);
+const _createUniformBuffer = WebGLBackend.prototype.createUniformBuffer;
+WebGLBackend.prototype.createUniformBuffer = function (binding) {
+  const node = sharedOf(binding), d = this.get(binding);
+  if (!node || d.bufferGPU !== undefined) return _createUniformBuffer.call(this, binding);
+  let sh = _shared.get(node);
+  if (!sh) {
+    _createUniformBuffer.call(this, binding);
+    _shared.set(node, (sh = { bufferGPU: d.bufferGPU, last: null, users: 0 }));
+  }
+  d.bufferGPU = sh.bufferGPU;
+  d.mcShared = sh;
+  sh.users++;
+};
+const _destroyUniformBuffer = WebGLBackend.prototype.destroyUniformBuffer;
+WebGLBackend.prototype.destroyUniformBuffer = function (binding) {
+  const sh = this.get(binding).mcShared;
+  if (sh && --sh.users > 0) { this.delete(binding); return; }
+  if (sh) _shared.delete(sharedOf(binding)); // the last user: the buffer goes
+  return _destroyUniformBuffer.call(this, binding);
+};
+const _updateBinding = WebGLBackend.prototype.updateBinding;
+WebGLBackend.prototype.updateBinding = function (binding) {
+  const sh = this.get(binding).mcShared, a = sh ? binding.buffer : null;
+  if (a?.buffer && a.byteLength % 4 === 0) {
+    const w = new Uint32Array(a.buffer, a.byteOffset, a.byteLength >> 2), last = sh.last;
+    if (last && last.length === w.length) {
+      let same = true;
+      for (let i = 0; i < w.length; i++) if (w[i] !== last[i]) { same = false; break; }
+      if (same) return;
+      last.set(w);
+    } else sh.last = w.slice();
+  }
+  return _updateBinding.call(this, binding);
 };
 
 let _uid = 0;

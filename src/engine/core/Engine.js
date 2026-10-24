@@ -2,6 +2,12 @@
 // scene, main camera, lighting, the frame loop (ordered systems, optional frame rate cap) and
 // performance counters (CPU / GPU ms, draw calls).
 //
+// VR (`xr`): the WebGL 2 backend (headset browsers have no WebXR binding for WebGPU) with
+// multiview (both eyes in one pass), the frame loop driven by the XR session once it presents,
+// and the headset pose applied relative to `xrRig` (an Object3D the game moves: the player's
+// position and snap turns). The camera stays in the scene root: after each frame it holds the
+// head's world pose, so every system keeps reading camera.position / quaternion as world values.
+//
 // A "system" is any object with update(dt, engine) (and optionally lateUpdate(dt, engine) after
 // every system updated, before rendering). Systems run in the order they were added.
 //
@@ -19,14 +25,15 @@ export class Engine {
   /** antialias (fixed when the renderer is created): 'msaa' / 'msaa4' (the canvas' own MSAA, 4x;
    *  WebGPU offers 1 or 4 samples: 'msaa2' / 'msaa8' fall back to 4x), 'fxaa' (a post pass on the
    *  final image, ~20-30 % less GPU time than MSAA 4x with this much vegetation), 'off' */
-  constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600, antialias = 'msaa' } = {}) {
+  constructor({ container = document.body, quality = 'medium', fov = 70, far = 2600, antialias = 'msaa', xr = false } = {}) {
     this.container = container;
-    const aa = antialias === true ? 'msaa' : antialias === false ? 'off' : String(antialias);
+    const aa = xr ? 'msaa' : antialias === true ? 'msaa' : antialias === false ? 'off' : String(antialias);
     const m = /^msaa(\d*)$/.exec(aa);
     this.aa = m ? 'msaa' : aa;
     this.samples = m ? 4 : 0; // MSAA samples (0 = no MSAA)
     this.msaaCounts = [4];
-    const renderer = createRenderer({ antialias: this.samples === 4, trackTimestamp: true });
+    this.xr = xr;
+    const renderer = createRenderer({ antialias: this.samples === 4, trackTimestamp: !xr, xr });
     this.quality = QUALITY[quality] ? quality : 'medium';
     this.maxDpr = Math.min(devicePixelRatio, QUALITY[this.quality].dpr * Math.max(1, devicePixelRatio / 2));
     this.resScale = 1; // resolution factor (x maxDpr, debug panel)
@@ -45,6 +52,13 @@ export class Engine {
     this.scene.add(this.camera);
 
     this.lighting = new Lighting(renderer, this.scene, this.camera, { quality: this.quality });
+    if (xr) {
+      // the headset pose is relative to this (the game places it: player position, turns)
+      this.xrRig = new THREE.Object3D();
+      renderer.xr.enabled = true;
+      renderer.xr.setReferenceSpaceType('local-floor');
+      this._xrQuality();
+    }
     this.perf = new Perf(renderer);
     this.systems = [];
     this.maxFramesInFlight = Number(new URLSearchParams(location.search).get('inflight')) || 4; // (frame pacing, _paced)
@@ -77,6 +91,7 @@ export class Engine {
   async init() {
     await this.renderer.init();
     this.backend = this.renderer.backend.isWebGPUBackend ? 'webgpu' : 'webgl2';
+    this._clipControl();
     this.lighting.init?.();
     return this;
   }
@@ -113,12 +128,34 @@ export class Engine {
     this.maxDpr = Math.min(devicePixelRatio, QUALITY[name].dpr * Math.max(1, devicePixelRatio / 2));
     this.resScale = 1;
     this.renderer.setPixelRatio(this.maxDpr);
+    if (this.xr) this._xrQuality();
     this.emit('quality', name);
+  }
+
+  /** WebGL backend: the Quest browser hands out contexts in zero-to-one clip depth (EXT_clip_control),
+   *  while three's projections are -1..1 and only set the mode for a reversed depth buffer: the near
+   *  half of every depth range was clipped (a sun cascade lost every caster closer to the sun than
+   *  the middle of its range: no shadows, and a band where the terrain was cut). Set it explicitly
+   *  (again each XR frame: the session's compositor shares the context). */
+  _clipControl() {
+    const gl = this.renderer.backend.gl;
+    if (!gl || this.renderer.reversedDepthBuffer) return;
+    const ext = (this._clipExt ??= gl.getExtension('EXT_clip_control') ?? false);
+    if (ext) ext.clipControlEXT(ext.LOWER_LEFT_EXT, ext.NEGATIVE_ONE_TO_ONE_EXT);
+  }
+
+  /** XR eye buffers: resolution scale (applies to the next session) and fixed foveation. */
+  _xrQuality() {
+    const q = QUALITY[this.quality], xr = this.renderer.xr;
+    if (!xr.isPresenting) xr.setFramebufferScaleFactor(q.xrScale ?? 1);
+    xr.setFoveation(q.foveation ?? 1);
   }
 
   start() {
     if (this.running) return;
     this.running = true;
+    // VR: three's animation loop (the window's rAF, the session's while presenting)
+    if (this.xr) { this.renderer.setAnimationLoop((t) => this.frame(t)); return; }
     const loop = (t) => {
       this._raf = requestAnimationFrame(loop);
       if (this.maxFps > 0) {
@@ -159,6 +196,7 @@ export class Engine {
   stop() {
     this.running = false;
     cancelAnimationFrame(this._raf);
+    if (this.xr) this.renderer.setAnimationLoop(null);
   }
 
   frame(t) {
@@ -184,13 +222,15 @@ export class Engine {
     const auto = scene.matrixWorldAutoUpdate;
     scene.matrixWorldAutoUpdate = false;
     const fx = this.aa === 'fxaa' ? this._fxaaTarget() : null;
+    if (renderer.xr.isPresenting) this._clipControl();
     try {
       this.lighting.prepass(camera);
       // the sun probes (occlusion queries) and the flare ride along in the main pass (LensFlare.js)
       this.lighting.flare.beforeRender(camera);
       renderer.setRenderTarget(fx);
-      renderer.render(scene, camera);
-      if (this.overlay?.scene && this.overlay.visible !== false) {
+      if (renderer.xr.isPresenting) this._renderXR();
+      else renderer.render(scene, camera);
+      if (this.overlay?.scene && this.overlay.visible !== false && !this.xr) {
         // over the world: same colour buffer, depth cleared (one pass, no separate clear)
         renderer.autoClearColor = false;
         this.overlay.beforeRender?.();
@@ -205,6 +245,23 @@ export class Engine {
     } finally {
       renderer.setRenderTarget(null);
       scene.matrixWorldAutoUpdate = auto;
+    }
+  }
+
+  /** Both eyes: three puts the XR camera at rig x headset pose (it reads the camera's parent for
+   *  that); the camera keeps the head's world pose afterwards. */
+  _renderXR() {
+    const { renderer, scene, camera } = this;
+    this._clipControl();
+    this.xrRig.updateMatrixWorld();
+    const parent = camera.parent;
+    camera.parent = this.xrRig;
+    try {
+      renderer.render(scene, camera);
+    } finally {
+      camera.parent = parent;
+      camera.matrixWorld.decompose(camera.position, camera.quaternion, camera.scale);
+      camera.matrix.copy(camera.matrixWorld);
     }
   }
 
@@ -257,8 +314,8 @@ const _size = new THREE.Vector2();
 
 /** A WebGPU renderer (WebGL 2 where WebGPU is missing, or with ?webgl=1) set up the engine's way:
  *  output straight to the canvas, tone mapping + sRGB inside the materials (Grade.js: no HDR buffer
- *  and output pass). Call `await renderer.init()` before rendering. */
-export function createRenderer({ canvas, antialias = true, trackTimestamp = false } = {}) {
+ *  and output pass). xr: WebGL 2 + multiview (VR). Call `await renderer.init()` before rendering. */
+export function createRenderer({ canvas, antialias = true, trackTimestamp = false, xr = false } = {}) {
   const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
   const renderer = new THREE.WebGPURenderer({
     canvas,
@@ -267,11 +324,12 @@ export function createRenderer({ canvas, antialias = true, trackTimestamp = fals
     stencil: false,
     alpha: false,
     trackTimestamp,
-    forceWebGL: params.get('webgl') === '1',
+    forceWebGL: xr || params.get('webgl') === '1',
+    multiview: xr && params.get('multiview') !== '0',
   });
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
-  renderer.contextNode = outputContext();
+  renderer.contextNode = outputContext({ cheap: xr });
   return renderer;
 }
 

@@ -2,7 +2,7 @@
 
 Open-world FPS (Far Cry 1 style) with a realistic, textured look (CC0 photo textures, PBR, alpha-cut
 foliage) + engine + editor, Three.js r186 (WebGPURenderer + TSL node materials, WebGL 2 fallback:
-`?webgl=1`; see "WebGPU" below) + Vite, plain JS ES
+`?webgl=1`; see "WebGPU" below; VR mode on a Meta Quest 3: WebXR on the WebGL backend, docs/VR.md) + Vite, plain JS ES
 modules (editor UI: Preact + @preact/signals, `.jsx`). Everything is in English (code, comments, game
 and editor UI, docs) except the story content in `public/data/`: missions, dialogue, voices, place and
 character names stay French.
@@ -14,13 +14,14 @@ character names stay French.
 - **Look at what you change.** After a visual change: `npm run mc -- asset shot <name>` (assets;
   `--lineup` = every variant at every LOD side by side; first-person weapons + arms: `npm run mc -- viewmodel shot <weapon> [--ads 1]`;
   NPC bodies: `npm run mc -- character shot <body|archetype,…> [--clip Walk_Aim] [--face 140 --yaw 140]`),
-  `npm run shot -- --cam x,y,z,yaw,pitch` or `--at <entityId>` (world), `npm run play -- ...` (gameplay).
+  `npm run shot -- --cam x,y,z,yaw,pitch` or `--at <entityId>` (world), `npm run play -- ...` (gameplay),
+  `npm run quest -- shot` (the Quest headset's screen, VR: docs/VR.md).
   Read the PNGs with the Read tool. Check `errors` in the JSON the tools print.
 - **Validate.** `npm run mc -- validate` must report `ok: true` (it checks assets, entity schemas,
   every mission / dialogue / entity reference).
 - **Regression tests.** `npm test` runs every `tests/*.play` scenario headless on the production
   build (opening, full story fast-forwarded, shooting, stealth takedown, detection, hostage escort, driving, flying the plane (take-off, turn, crash) and landing it, AI fight, enemy lethality on normal, NPC bodies (every soldier body: hitboxes, death, LODs), birds, water reflections (SSR levels), first-person models (every weapon's realistic model, both wrists on its grips),
-  frame pacing while driving / flying fast, gamepad (simulated pad: play, menus, driving)). Add a scenario with `expect <js>` assertions when you add
+  frame pacing while driving / flying fast, gamepad (simulated pad: play, menus, driving), VR (a Quest 3 emulated by IWER: session, gun in hand, two hands, magazine reload, grenade throw, stick walk / snap turn, menu laser, climbing, gliding)). Add a scenario with `expect <js>` assertions when you add
   gameplay. Each report has `lateShaders` (render pipelines created after the loading warm-up = hitches):
   keep it at 0 — if a new material / object type shows up late, make `World.warmUp` cover it.
 - **Performance budget**: 120 fps on a MacBook Air M1 ≈ 8.3 ms per frame. Check with
@@ -60,6 +61,10 @@ character names stay French.
   LOD (55-220 m) costs most. Each draw costs ~10-25 µs of CPU in three's WebGPU renderer: count
   draw calls. The machine drifts (thermal, other apps: ±1 ms GPU between runs minutes apart):
   compare builds interleaved, never against a number measured earlier.
+  VR (Quest 3, 72 Hz): the renderer's main thread runs the JS and the WebXR submission (~2-3 ms):
+  keep the JS under ~8 ms and the GPU under ~13 ms (`npm run quest -- fps|breakdown|calls|profile|trace`
+  on the real headset over USB; numbers depend on where the headset looks); each draw costs ~70 µs
+  of JS in three's WebGL backend. The `vr` quality preset holds the trade-offs (docs/VR.md).
 - The dev server (`npm run dev`, port 5190) hot-reloads pages on any source change; tools start it
   if needed. Use `--prod` for stable benchmarks (builds + serves `dist/` on 5191).
 
@@ -71,6 +76,13 @@ character names stay French.
 - `src/engine/assets/ModelBuilder.js` (asset JSON → geometry with normals, metric uvs, per-vertex `surface`; format in docs/ASSETS.md), `generators.js` (textured trees / palms / plants: leaf cards, frond strips), `surfaces.js` (surface name → layer id, shared with the Node tools).
 - `src/engine/anim/Characters.js` NPC bodies: realistic Rocketbox bodies of `public/models/characters` (built by `mc character build` from `characters.json`: one skinned mesh on the game rig, photo atlas, distance LODs = index ranges, `setLodDistance`) and the older flat-coloured Quaternius models (merged mesh); UAL retargeting (once per rig, shared), clip aliases, hitboxes, palettes (part tints), weapon grip. Archetypes pick `model` / `models` (one per actor), entities can set `model`.
 - `src/game/Game.js` game rules + live commands; `player/` (Player, Weapons, ViewModels = loads the realistic first-person weapons / arms of `public/models/fp` (built by `mc viewmodel build` from `viewmodels.json`), ViewArms = realistic skinned arms (Rocketbox) on the weapon grips by two-bone IK, grips = weapon asset `hands`, config `player.json` `arms`, ViewLight = light of the view-model pass: its camera follows the world camera, the materials get the world sun + cascaded shadows and the probe GI, a procedural sky PMREM for reflections; no SSAO), `actors/` (Actors, AI, Nav), `missions/` (Missions runtime, Dialogue), `entities/index.js` (game entity types & schemas), `vehicles/`, `fx/Effects.js`, `fx/Birds.js` (flocks around the camera: perched on tree crowns / beaches, soaring, Bezier flights between the two; startled by gunshots and the player, can be shot; wings flapped in the vertex shader; `?birds=0` off), `ui/` (HUD, Menus, PerfOverlay = stats graphs bottom right, F3; DebugPanel = lil-gui cheats / toggles, F2; both on by default, `?stats=0` / `?debug=0` hide them, off with `?bot` / `?bench` / `?nohud`; in debug mode settings are never read from / written to localStorage, so a reload restores the defaults).
+- `src/game/vr/` VR mode (docs/VR.md): `VR.js` session, controllers, rig (`engine.xrRig`: the headset
+  pose is relative to it; the camera keeps the head's world pose), controls → game actions, XR
+  warm-up; `VRLocomotion.js` (room-scale, stick, snap turns, climbing, gliding), `VRWeapons.js`
+  (guns held / aimed along the controller ray / two hands / physical reload, grenades, machete),
+  `VRHands.js` (forearms + hands by IK), `VRUI.js` (world-space menus with a laser, head-locked
+  toasts, wrist watch, ammo counter, objective marker, vignette); `detect.js` (headset browsers,
+  `?vr=1`, `?xremu=1` = IWER's emulated Quest 3). Engine: `xr` (WebGL 2 + multiview, session loop).
 - `src/editor/core.js` editor logic (signals `S`, selection, gizmo, brushes, undo, save, live commands), `ui/`, `panels/`.
 
 ## WebGPU (three.js WebGPURenderer, TSL)
@@ -104,8 +116,14 @@ character names stay French.
 - Timing tests (`*_smooth.play`, `plane.play`) check the CPU time of the rendered frames
   (`perf.onFrame`), not rAF intervals: without vsync Chrome presents WebGPU canvases in bursts
   (fast frames, then a ~18 ms wait on the Metal queue). With vsync frames are even.
-- `?webgl=1` (WebGPURenderer's WebGL 2 backend) runs, but the engine's own passes assume WebGPU
-  conventions (texture origin top-left, depth 0..1): no sun shadows there yet.
+- `?webgl=1` (WebGPURenderer's WebGL 2 backend, VR) runs: the sun cascades' matrices map clip z
+  -1..1 to 0..1 there; no dust motes (the vertex stage can't read the cascades), FarShadows / SSR are
+  WebGPU only. `render/tsl.js` patches three's WebGL backend: texture v-flips decided at build time
+  (not a per-object uniform), render-group uniform arrays sharing one GPU buffer per node (not a
+  bufferData per draw). Nested `select()`s inside a Fn can break the GLSL builder (GI.js). The Quest
+  browser hands out WebGL contexts in zero-to-one clip depth while three's projections are -1..1:
+  `Engine._clipControl` sets -1..1 (else the near half of the sun cascades' depth range was clipped:
+  no tree / vehicle shadows, a band where the terrain was cut).
 
 ## Data files
 | file | content | edit with |
@@ -117,7 +135,7 @@ character names stay French.
 | `textures.json` + `public/textures/*` | texture layers (Poly Haven / ambientCG CC0 sources, scales, means) and the packed arrays (docs/TEXTURES.md) | edit JSON, `mc textures fetch|build|info` |
 | `world.json` | player start + entities (props, enemies, npcs, pickups, outposts, alarms, zones, markers, paths, vehicles…) | `mc entity list|add|set|move|remove|types` |
 | `game/missions.json`, `game/dialogue.json` | story (docs/MISSIONS.md) | `mc mission list|show`, `mc data set`, editor 🎯 / 💬 |
-| `game/weapons.json`, `archetypes.json`, `items.json`, `player.json`, `birds.json` | gameplay tuning (archetypes: body `model` / `models`, palette, stats; birds: species → asset, flight, habitat, flocks, calls) | `mc data get|set`, editor 📊 |
+| `game/weapons.json`, `archetypes.json`, `items.json`, `player.json`, `birds.json` | gameplay tuning (archetypes: body `model` / `models`, palette, stats; birds: species → asset, flight, habitat, flocks, calls; player `vr`: VR arms, grip, climb, glide, pouches) | `mc data get|set`, editor 📊 |
 | `characters.json` + `public/models/characters/*.glb` | NPC bodies: Rocketbox avatars (MIT, credits in `models/characters/CREDITS.md`), texture scales, LODs, camouflage `recolor`, insignia `erase` | `mc character fetch|build|shot|list` (docs/ASSETS.md) |
 | `viewmodels.json` + `public/models/fp/*.glb` | first-person arms (Rocketbox, MIT) and realistic weapons (CC0 / CC-BY, credits in `models/fp/CREDITS.md`): sources, import parameters; the weapon points (`muzzle`, `sight`, `hands`) stay in the weapon assets | `mc viewmodel fetch|build|shot|list` (docs/ASSETS.md) |
 | `environment.json` | time of day, light, SSAO (`ao`), GI / auto exposure (`gi`, `autoExposure`), lens flare (`flare`), light halos (`glows`), water reflections (`ssr`), far fog (`fogDensity`), near haze (`haze`), dust motes (`motes`), sky / ocean colours | `mc data set`, editor ☀ |

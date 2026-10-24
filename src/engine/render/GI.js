@@ -189,15 +189,16 @@ export class GI {
     da.needsUpdate = true;
     const terms = tex(da);
     const bu = (this.bu = {
-      terms, chan: U(0), layer: U(0), n: U(1), kA: U(0), kB: U(0),
+      terms, chan: U(0), chanMask: U(new THREE.Vector3(1, 0, 0)), layer: U(0), n: U(1), kA: U(0), kB: U(0),
       wSky: U(new THREE.Vector3()), wA: U(new THREE.Vector3()), wB: U(new THREE.Vector3()),
       amSky: U(1), amA: U(1), amB: U(1),
     });
-    const pick = (v, c) => select(c.lessThan(0.5), v.x, select(c.lessThan(1.5), v.y, select(c.lessThan(2.5), v.z, v.w)));
+    // the channel's component: a one-hot mask (nested selects break three's GLSL builder, WebGL backend)
+    const pick = (v) => dot(v.xyz, bu.chanMask);
     const fetch = (q, slice) => terms.load(q).depth(slice);
     const key = (q, k, am) => {
       const a = fetch(q, int(k).mul(2).add(3)), b = fetch(q, int(k).mul(2).add(4));
-      const A = pick(a, bu.chan).pow(2.0).mul(am);
+      const A = pick(a).pow(2.0).mul(am);
       return vec4(A, vec3(a.w, b.x, b.y).mul(4.0).sub(2.0).mul(A));
     };
     const m = new THREE.NodeMaterial();
@@ -205,9 +206,9 @@ export class GI {
       const q = ivec2(screenCoordinate.xy).add(ivec2(0, int(bu.layer).mul(int(bu.n)))).toVar();
       const s = fetch(q, int(bu.chan));
       const A = s.x.pow(2.0).mul(bu.amSky);
-      return vec4(A, s.yzw.mul(4.0).sub(2.0).mul(A)).mul(pick(bu.wSky, bu.chan))
-        .add(key(q, bu.kA, bu.amA).mul(pick(bu.wA, bu.chan)))
-        .add(key(q, bu.kB, bu.amB).mul(pick(bu.wB, bu.chan)));
+      return vec4(A, s.yzw.mul(4.0).sub(2.0).mul(A)).mul(pick(bu.wSky))
+        .add(key(q, bu.kA, bu.amA).mul(pick(bu.wA)))
+        .add(key(q, bu.kB, bu.amB).mul(pick(bu.wB)));
     })();
     m.depthTest = m.depthWrite = false;
     m.toneMapped = false;
@@ -235,7 +236,7 @@ export class GI {
       u.amSky.value = fd.am[0]; u.amA.value = fd.am[1 + w.kA]; u.amB.value = fd.am[1 + w.kB];
       for (let c = 0; c < 3; c++) {
         for (let l = 0; l < fd.layers; l++) {
-          u.chan.value = c; u.layer.value = l;
+          u.chan.value = c; u.chanMask.value.set(+(c === 0), +(c === 1), +(c === 2)); u.layer.value = l;
           r.setRenderTarget(fd.rt, c * fd.layers + l);
           this.quad.render(r);
         }
