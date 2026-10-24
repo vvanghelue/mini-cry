@@ -17,7 +17,9 @@ export class Vegetation {
     // two fields: small plants (short draw distance) use fine 24 m sectors so their LOD / culling
     // follows the camera closely; trees and rocks use 64 m sectors (fewer sectors to walk)
     this.near = def.species.map((sp) => (sp.lods?.length ? sp.lods[sp.lods.length - 1].distance : 200) < 160);
-    const kinds = def.species.map((sp) => ({ id: sp.id, asset: sp.asset, variants: sp.variants ?? 1, lods: sp.lods, castShadow: sp.castShadow, blend: sp.blend, shareVariantsFrom: sp.shareVariantsFrom, impostor: sp.impostor }));
+    // (quality preset `vegVariants`: fewer variants = fewer draws, VR)
+    const maxVariants = world.lighting.Q.vegVariants ?? Infinity;
+    const kinds = def.species.map((sp) => ({ id: sp.id, asset: sp.asset, variants: Math.min(sp.variants ?? 1, maxVariants), lods: sp.lods, castShadow: sp.castShadow, blend: sp.blend, shareVariantsFrom: sp.shareVariantsFrom, impostor: sp.impostor }));
     const mk = (name, sector, sub, keep) => new InstancedField({ name, assets, lighting: world.lighting, bounds: this.terrain, sector, sub, kinds: kinds.map((k, i) => (keep(i) ? k : { ...k, lods: [{ distance: 0.001, quality: 0.25 }], castShadow: 0, empty: true })) });
     this.fieldNear = mk('VegetationNear', 24, 1, (i) => this.near[i]);
     // (16 m cells for the near LODs' rings: InstancedField sub)

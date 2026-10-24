@@ -15,6 +15,7 @@ class Pool {
     this.mesh.frustumCulled = false;
     this.mesh.layers.set(layer);
     this.mesh.count = 0;
+    this.mesh.visible = false; // no draw until first used (a draw of 0 instances still costs)
     this.max = max;
     this.items = [];
     this.next = 0;
@@ -82,6 +83,7 @@ export class Effects {
     pool.mesh.instanceColor.setXYZ(p.i, _c.r, _c.g, _c.b);
     pool.mesh.instanceColor.needsUpdate = true;
     pool.mesh.count = Math.max(pool.mesh.count, p.i + 1);
+    pool.mesh.visible = true;
     return p;
   }
 
@@ -125,6 +127,7 @@ export class Effects {
     this.decals.mesh.instanceColor.needsUpdate = true;
     this.decals.mesh.instanceMatrix.needsUpdate = true;
     this.decals.mesh.count = Math.max(this.decals.mesh.count, p.i + 1);
+    this.decals.mesh.visible = true;
   }
 
   tracer(from, to, { color = 0xfff0b0, width = 0.025, life = 0.07, speed = 0 } = {}) {
@@ -138,6 +141,7 @@ export class Effects {
     this.tracers.mesh.instanceColor.setXYZ(p.i, _c.r, _c.g, _c.b);
     this.tracers.mesh.instanceColor.needsUpdate = true;
     this.tracers.mesh.count = Math.max(this.tracers.mesh.count, p.i + 1);
+    this.tracers.mesh.visible = true;
     void speed;
   }
 

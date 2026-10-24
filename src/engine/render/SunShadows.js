@@ -316,6 +316,16 @@ export class SunShadows {
       return vec2(s, e);
     }).setLayout({ name: `sunCascade${i}`, type: 'vec2', inputs: P3 });
     const C = [cascade(0), cascade(1), cascade(2)];
+    if (this.cascades.length === 1) {
+      // one cascade (VR preset; the cascade count is fixed per preset): no selection, blend
+      // bands or split, the edge fade only
+      const one = Fn(([P, N, NdL]) => {
+        const c = C[0](P, N, NdL);
+        return select(c.y.greaterThan(0.0), mix(1.0, c.x, smoothstep(0.0, u.sunBlend, c.y)), float(1.0));
+      }).setLayout({ name: 'sunOne', type: 'float', inputs: P3 });
+      this._cascadeFns = [one, one];
+      return this._combine(kind, one, one);
+    }
     // smallest cascade containing the point; across the blend band at its border, mix with the
     // next one (or fade out after the last)
     const cascaded = Fn(([P, N, NdL]) => {
@@ -362,6 +372,7 @@ export class SunShadows {
         const d = length(P.xz.sub(cameraPosition.xz)).toVar();
         k.assign(smoothstep(u.sunFade.x, u.sunFade.y, d));
         If(d.lessThan(u.sunFade.y), () => {
+          if (cascaded === last) { s.assign(cascaded(P, N, NdL)); return; } // (one cascade)
           If(d.lessThan(u.sunSplit.y), () => { s.assign(cascaded(P, N, NdL)); });
           If(d.greaterThan(u.sunSplit.x), () => { s.assign(mix(s, last(P, N, NdL), smoothstep(u.sunSplit.x, u.sunSplit.y, d))); });
         });

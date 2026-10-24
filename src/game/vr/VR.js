@@ -30,7 +30,8 @@ import { VRUI } from './VRUI.js';
 export const VR_CONFIG = {
   fps: 72, // headset refresh rate asked for (the `vr` quality preset is tuned for it)
   arms: { shoulder: [0, -0.2, 0.08], pole: [0.45, -1, 0.35], reach: 0.6, yaw: 0 },
-  // gun in the hand: fist centre from the wrist along the fingers (m), pitch tweak (deg)
+  // gun in the hand: fist centre from the wrist along the fingers (m); the barrel follows the
+  // controller's pointing ray, tilted by `pitch` (deg, + = up)
   grip: { forward: 0.075, pitch: 0 },
   crouch: 0.78, // head below this x the standing eye height = crouched (stealth, collider)
   climb: { reach: 0.07, fling: 6 }, // grab distance beyond the hand (m), max release speed (m/s)
@@ -71,9 +72,12 @@ class Hand {
     this.world = new THREE.Matrix4();
     this.pos = new THREE.Vector3(); // grip (centre of the fist), world
     this.quat = new THREE.Quaternion();
-    this.rayPos = new THREE.Vector3();
+    this.rayPos = new THREE.Vector3(); // pointing ray (where the controller points), world
+    this.rayQuat = new THREE.Quaternion();
     this.rayDir = new THREE.Vector3(0, 0, -1);
     this.vel = new THREE.Vector3(); // world, m/s (smoothed)
+    this._vels = Array.from({ length: 6 }, () => new THREE.Vector3()); // the last frames' (throws)
+    this._vi = 0;
     this._prev = new THREE.Vector3();
     this._hasPrev = false;
     this.btn = { trigger: new Button(), squeeze: new Button(), stick: new Button(), a: new Button(), b: new Button(), thumbrest: new Button() };
@@ -84,6 +88,13 @@ class Hand {
   fingers(out = new THREE.Vector3()) { return out.set(0, -1, 0).applyQuaternion(this.quat); }
   /** Thumb side of the fist (grip -Z: along the closed fist), world. */
   thumb(out = new THREE.Vector3()) { return out.set(0, 0, -1).applyQuaternion(this.quat); }
+
+  /** Release speed of a throw: the mean of the three fastest of the last six frames (the hand
+   *  slows down as the fingers open). */
+  throwVelocity(out = new THREE.Vector3()) {
+    const s = [...this._vels].sort((a, b) => b.lengthSq() - a.lengthSq());
+    return out.copy(s[0]).add(s[1]).add(s[2]).divideScalar(3);
+  }
 
   pulse(intensity, ms) {
     try { this.source?.gamepad?.hapticActuators?.[0]?.pulse?.(Math.min(1, intensity), ms); } catch { /* */ }
@@ -116,11 +127,12 @@ class Hand {
     this.world.multiplyMatrices(rig, this.gripLocal);
     this.world.decompose(this.pos, this.quat, _v);
     _m.multiplyMatrices(rig, this.rayLocal);
-    this.rayPos.setFromMatrixPosition(_m);
-    this.rayDir.set(-_m.elements[8], -_m.elements[9], -_m.elements[10]).normalize();
+    _m.decompose(this.rayPos, this.rayQuat, _v);
+    this.rayDir.set(0, 0, -1).applyQuaternion(this.rayQuat);
     if (this._hasPrev && dt > 0) {
       _v.subVectors(this.pos, this._prev).divideScalar(dt);
       this.vel.lerp(_v, Math.min(1, dt * 30));
+      this._vels[this._vi++ % this._vels.length].copy(_v);
     }
     this._prev.copy(this.pos);
     this._hasPrev = true;
@@ -191,6 +203,9 @@ export class VR {
     this.input.device = 'xr';
     g.hud.setVisible(false); // the DOM HUD doesn't show in the headset: its panels do (VRUI)
     this.locomotion.reset();
+    // multiview pipelines differ from the page's: compile them all in the session's first frame
+    // (World.warmUpShow: everything shown once) instead of hitching while playing
+    this._warm = 'show';
     if (!g.started) this.ui.showMain();
     else if (g.paused) this.ui.showPause();
   }
@@ -223,6 +238,13 @@ export class VR {
   poll(dt) {
     const xr = this.renderer.xr, frame = xr.getFrame?.(), ref = xr.getReferenceSpace?.();
     if (!frame || !ref || !this.session) { this.head.tracked = false; return; }
+    if (this._warm === 'restore') { this._restore(); this._warm = null; }
+    if (this._warm === 'show') {
+      const t0 = performance.now(), p0 = this.renderer.info.memory?.programs ?? 0;
+      const restore = this.game.world.warmUpShow(this.engine.camera, this.game.warmUpExtras());
+      this._restore = () => { restore(); this.warmUpStats = { programs: (this.renderer.info.memory?.programs ?? 0) - p0, ms: Math.round(performance.now() - t0) }; };
+      this._warm = 'restore';
+    }
     const vp = frame.getViewerPose(ref);
     if (vp) {
       this.head.local.fromArray(vp.transform.matrix);

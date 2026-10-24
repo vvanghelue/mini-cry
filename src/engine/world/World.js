@@ -122,7 +122,7 @@ export class World {
   applyQuality() {
     const Q = this.lighting.Q;
     if (this.vegetation) this.vegetation.drawScale = Q.drawScale;
-    if (this.entities?.props) this.entities.props.drawScale = Math.max(0.8, Q.drawScale);
+    if (this.entities?.props) this.entities.props.drawScale = Q.propScale ?? Math.max(0.8, Q.drawScale);
     this.grass?.setDensityScale(Q.grass);
     if (this.terrainRenderer) this.terrainRenderer.range0 = 160 * Math.max(0.7, Q.drawScale); // (CDLOD level 0, at least ~134 m)
   }
@@ -139,6 +139,25 @@ export class World {
   async warmUp(camera = this.engine.camera, extras = []) {
     const e = this.engine, r = e.renderer, scene = this.scene;
     const t0 = performance.now(), p0 = pipelineCount(r);
+    const restore = this.warmUpShow(camera, extras);
+    try {
+      // main-pass pipelines compile in parallel
+      await r.compileAsync(scene, camera);
+      if (e.overlay?.scene) await r.compileAsync(e.overlay.scene, e.overlay.camera);
+      for (const s of this.lighting.flare.scenes) await r.compileAsync(s, camera); // drawn only when the sun shows
+      // depth-pass (override material) variants: draw the cascades and the SSAO pre-pass once
+      e.render();
+    } catch (err) { console.warn('warm-up', err); }
+    restore();
+    const total = pipelineCount(r);
+    this.warmUpStats = { programs: total - p0, total, ms: Math.round(performance.now() - t0) };
+  }
+
+  /** The warm-up's scene: a stand-in per cached material and `extras` in front of the camera, every
+   *  object shown with culling off, the cascades due. Returns the function that puts it all back.
+   *  (VR: shown for one frame of the session, which compiles the multiview pipelines at once.) */
+  warmUpShow(camera = this.engine.camera, extras = []) {
+    const e = this.engine, scene = this.scene;
     const stand = new THREE.Group();
     stand.name = 'WarmUp';
     // the attributes every asset build has (ModelBuilder): the materials' code depends on them
@@ -175,23 +194,15 @@ export class World {
     const show = (root) => root.traverse((o) => { saved.push(o, o.visible, o.frustumCulled); o.visible = true; o.frustumCulled = false; });
     show(scene);
     if (e.overlay?.scene) show(e.overlay.scene);
-    try {
-      // main-pass pipelines compile in parallel
-      await r.compileAsync(scene, camera);
-      if (e.overlay?.scene) await r.compileAsync(e.overlay.scene, e.overlay.camera);
-      for (const s of this.lighting.flare.scenes) await r.compileAsync(s, camera); // drawn only when the sun shows
-      // depth-pass (override material) variants: draw the cascades and the SSAO pre-pass once
-      for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
-      e.render();
-    } catch (err) { console.warn('warm-up', err); }
-    for (let i = 0; i < saved.length; i += 3) { saved[i].visible = saved[i + 1]; saved[i].frustumCulled = saved[i + 2]; }
-    stand.removeFromParent();
-    for (const x of extras) x.removeFromParent();
-    for (const b of tmp) b.disposeShared();
-    geo.dispose();
     for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
-    const total = pipelineCount(r);
-    this.warmUpStats = { programs: total - p0, total, ms: Math.round(performance.now() - t0) };
+    return () => {
+      for (let i = 0; i < saved.length; i += 3) { saved[i].visible = saved[i + 1]; saved[i].frustumCulled = saved[i + 2]; }
+      stand.removeFromParent();
+      for (const x of extras) x.removeFromParent();
+      for (const b of tmp) b.disposeShared();
+      geo.dispose();
+      for (const c of this.lighting.sun.cascades ?? []) c.rendered = false;
+    };
   }
 
   /** world.json content with the current entities. */

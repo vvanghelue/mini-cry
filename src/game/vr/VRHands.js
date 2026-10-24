@@ -1,7 +1,9 @@
 // Hands and arms in VR: the first-person arms model (ViewArms: Rocketbox arms, two-bone IK) in the
 // world, its shoulders under the head (turned with the head's yaw only), each wrist put where the
 // controller is — or on what the hand holds (the gun's grips: VRWeapons.handPose) — and the
-// fingers curled by the trigger / grip pressure (the thumb by touching the buttons).
+// fingers curled by the trigger / grip pressure (the thumb by touching the buttons). Only the
+// forearms and hands show: the real arms reach farther than the model's from a guessed shoulder,
+// and the shoulder then moves out, which would drag the upper arm's skin (cutAtElbows).
 import * as THREE from 'three';
 import { ViewArms } from '../player/ViewArms.js';
 
@@ -19,7 +21,7 @@ export class VRHands {
     // real arm lengths (the desktop view model stretches them)
     const cfg = { ...g.data.player.arms, ...vr.cfg.arms, stretch: 1 };
     try { if (model) this.arms = new ViewArms(model, cfg, this.body); } catch (e) { console.warn('VR arms', e); }
-    if (this.arms) g.weapons.vmLight.patch(this.arms.root);
+    if (this.arms) { cutAtElbows(this.arms); g.weapons.vmLight.patch(this.arms.root); }
     this.pose = { wrist: new THREE.Vector3(), fingers: new THREE.Vector3(), thumb: new THREE.Vector3(), grip: null };
     this.free = { curl: [[0, 0, 0], 0, 0, 0], thumbCurl: [0, 0, 0], thumbFold: 0 };
     this.body.visible = false;
@@ -59,4 +61,29 @@ export class VRHands {
     c.thumbFold = thumb ? 35 : 8;
     return c;
   }
+}
+
+/** Keep the forearms and hands: the vertices that mostly follow other bones (upper arms,
+ *  shoulders, torso) collapse onto their elbow (degenerate triangles), skinned to the forearm. */
+function cutAtElbows(arms) {
+  const mesh = arms.mesh, geo = mesh.geometry, sk = mesh.skeleton;
+  const pos = geo.attributes.position, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+  const keep = new Set(), elbows = [];
+  for (const side of Object.values(arms.sides)) {
+    side.lower.traverse((b) => { if (b.isBone) keep.add(sk.bones.indexOf(b)); });
+    const i = sk.bones.indexOf(side.lower);
+    elbows.push({ i, p: new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(sk.boneInverses[i]).invert()).applyMatrix4(mesh.bindMatrixInverse) });
+  }
+  const v = new THREE.Vector3();
+  for (let k = 0; k < pos.count; k++) {
+    let main = -1, best = -1;
+    for (let j = 0; j < 4; j++) { const w = sw.getComponent(k, j); if (w > best) { best = w; main = si.getComponent(k, j); } }
+    if (keep.has(main)) continue;
+    v.fromBufferAttribute(pos, k);
+    const e = elbows[0].p.distanceToSquared(v) < elbows[1].p.distanceToSquared(v) ? elbows[0] : elbows[1];
+    pos.setXYZ(k, e.p.x, e.p.y, e.p.z);
+    si.setXYZW(k, e.i, 0, 0, 0);
+    sw.setXYZW(k, 1, 0, 0, 0);
+  }
+  pos.needsUpdate = si.needsUpdate = sw.needsUpdate = true;
 }

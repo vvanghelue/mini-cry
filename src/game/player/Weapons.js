@@ -150,7 +150,7 @@ export class Weapons {
       g.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.4).translate(0, 0.02, -0.15), this.vmMat));
     }
     info.hands = assets.has(d.asset) ? assets.get(d.asset).hands : null;
-    if (!this.arms || !info.hands) {
+    if ((!this.arms && !this.game.app.vr) || !info.hands) {
       // right hand on the grip, forearm going back / down / right (toward the camera's lower right)
       g.add(this._arm(new THREE.Vector3(0, -0.04, 0.02), new THREE.Vector3(0.25, -0.55, 0.8), 0.4));
       if (d.type !== 'melee' && d.slot !== 2) {

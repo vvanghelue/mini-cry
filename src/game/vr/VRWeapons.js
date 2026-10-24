@@ -1,9 +1,10 @@
 // VR weapons: the guns held, aimed, fired and reloaded with the hands (Weapons.js keeps the
 // inventory, ammo, hitscan, projectiles, explosions; its view model and desktop input are off):
-//  - the gun sits in the main hand: the weapon asset's right grip (`hands.right`: wrist, fingers,
-//    thumb) on the controller's grip pose. The other hand closing on the foregrip (`hands.left`)
-//    holds it with both hands: it then points from one fist to the other, steadier (less spread,
-//    less recoil);
+//  - the gun sits in the main hand, its barrel along the controller's pointing ray (aiming = pointing
+//    the controller), the weapon asset's right grip (`hands.right`: wrist, fingers, thumb) on the
+//    controller's grip, where the hand is drawn. The other hand closing on the foregrip
+//    (`hands.left`) holds it with both hands: it then points from one fist to the other, steadier
+//    (less spread, less recoil);
 //  - the trigger fires down the barrel (Weapons.aim); the recoil kicks the gun up and back,
 //    haptics in the hands holding it; the sight held in front of an eye = aiming down sights;
 //  - physical reload: B ejects the magazine (its rounds go back to the reserve), the other hand
@@ -70,11 +71,9 @@ export class VRWeapons {
     const mx = this.vr.settings.hand === 'left' ? -1 : 1; // left-handed: the right grip mirrored
     const vec = (a) => new THREE.Vector3(a[0] * mx, a[1], a[2]);
     const right = info.hands?.right ?? DEFAULT_RIGHT;
-    const f = vec(right.fingers).normalize(), t = vec(right.thumb);
-    t.addScaledVector(f, -t.dot(f)).normalize();
-    // weapon space -> grip space: the thumb side along the closed fist (-Z), the fingers along -Y
-    const R = frameRotation(t, f, new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, -1, 0), new THREE.Quaternion());
-    R.premultiply(new THREE.Quaternion().setFromAxisAngle(X, (cfg.pitch ?? 0) * D2R));
+    const f = vec(right.fingers).normalize();
+    // weapon space -> pointing ray space: the barrel (-Z) along the ray, tilted by cfg.pitch
+    const R = new THREE.Quaternion().setFromAxisAngle(X, (cfg.pitch ?? 0) * D2R);
     const fist = vec(right.pos).addScaledVector(f, cfg.forward);
     const left = info.hands?.left;
     const leftFist = left ? vec(left.pos).addScaledVector(vec(left.fingers).normalize(), cfg.forward) : fist.clone().add(new THREE.Vector3(0, 0.02, -0.28));
@@ -126,7 +125,7 @@ export class VRWeapons {
   /** The gun's world pose from the main hand (+ the other on the foregrip), recoil applied. */
   _pose(s) {
     const m = this.vr.main, o = this.vr.off;
-    _q.copy(m.quat).multiply(s.R); // weapon -> world
+    _q.copy(m.rayQuat).multiply(s.R); // weapon -> world
     if (this.twoHand) {
       // the axis between the fists points the gun; the main hand keeps the roll
       _a.subVectors(s.leftFist, s.fist);
@@ -249,7 +248,7 @@ export class VRWeapons {
       } else if (held?.kind === 'grenade' && !h.btn.squeeze.down) {
         this.held.delete(h);
         if (!g.cheats?.infiniteAmmo) W.grenades--;
-        W.spawnGrenade(h.pos.clone(), h.vel.clone().multiplyScalar(this.vr.cfg.throwBoost), 'player');
+        W.spawnGrenade(h.pos.clone(), h.throwVelocity().multiplyScalar(this.vr.cfg.throwBoost), 'player');
         g.hud?.refreshWeapon();
       }
     }

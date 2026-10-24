@@ -153,7 +153,7 @@ export class InstancedField {
     const i = this.count;
     if (i >= this._id.length) this.reserve(Math.max(1024, i * 2));
     this._kv[i * 2] = kind;
-    this._kv[i * 2 + 1] = Math.min(variant, k.variants.length - 1);
+    this._kv[i * 2 + 1] = variant % k.variants.length;
     this._mat.set(m, i * 16);
     this._y[i * 2] = y - 1;
     this._y[i * 2 + 1] = y + k.height * s;

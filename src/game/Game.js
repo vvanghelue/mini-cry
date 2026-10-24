@@ -62,7 +62,8 @@ export class Game {
     const fps = params.get('fps');
     this.engine.maxFps = fps !== null ? Number(fps) || 0 : this.settings.fpsLimit;
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
-    if (this.settings.flare === false) this.engine.lighting.flare.setEnabled(false);
+    // (VR: no flare, a screen-space effect drawn per eye)
+    if (this.settings.flare === false || app.vr) this.engine.lighting.flare.setEnabled(false);
     // water reflections: off | ultralow | low | medium | high (`?ssr=` overrides the saved choice)
     if (params.get('ssr')) this.settings.ssr = params.get('ssr');
     this.engine.lighting.ssr.setLevel(this.settings.ssr);
@@ -171,7 +172,7 @@ export class Game {
 
   newGame({ fromCheckpoint = false, keepPosition = false, skipIntro = false } = {}) {
     this.started = true;
-    this.hud.setVisible(true);
+    this.hud.setVisible(!this.vr?.presenting); // (VR: its own panels)
     this.menus.hideAll();
     if (fromCheckpoint && this.restore(loadJSON(SAVE_KEY))) {
       this.hud.notify('Game loaded');
@@ -655,7 +656,7 @@ export class Game {
     this.dialogue.voice = this.settings.voices;
     if (this.settings.quality !== this.engine.quality && !this.app.vr) this.engine.setQuality(this.settings.quality);
     this.engine.lighting.ao.setEnabled(this.settings.ao !== false);
-    this.engine.lighting.flare.setEnabled(this.settings.flare !== false);
+    this.engine.lighting.flare.setEnabled(this.settings.flare !== false && !this.app.vr);
     this.engine.lighting.ssr.setLevel(this.settings.ssr);
     this._applyFog();
     if ('fpsLimit' in s) this.engine.maxFps = this.settings.fpsLimit;
