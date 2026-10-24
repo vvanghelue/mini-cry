@@ -279,6 +279,16 @@ export class DebugPanel {
     fs.add(o, 'bias', 0.1, 4, 0.05).name('bias x');
     fs.add(o, 'softness', 0.25, 4, 0.05).name('softness x');
     fs.add(o, 'levels', { '1': 1, '2': 2, '3': 3 }).name('levels').listen();
+    // static cache: world-anchored maps of the static casters, drawn again only when out of date
+    const fcache = fs.addFolder('static cache');
+    fcache.add({ get v() { return sun.cached; }, set v(x) { sun.setCached(x); } }, 'v').name('enabled').listen();
+    fcache.add(sun, 'margin', 0, 1, 0.05).name('margin (x cascade)').onFinishChange(() => sun.setCached(sun.cached));
+    fcache.add(sun, 'refreshHeight', 1, 60, 1).name('refresh: caster height (m)');
+    fcache.add(sun, 'refreshTexels', 0.25, 8, 0.25).name('refresh: its shadow moved (texels)');
+    fcache.add(sun, 'refreshTurn', 2, 90, 1).name('refresh: view turned (°)');
+    fcache.add({ get v() { return sun.stats.refresh.join(' / '); }, set v(_) {} }, 'v').name('refreshes').listen().disable();
+    fcache.add({ get v() { return sun.stats.dynamic.join(' / '); }, set v(_) {} }, 'v').name('dynamic passes').listen().disable();
+    fcache.close();
     // per cascade: radius / resolution rebuild the cascades once the control is released
     ['near', 'mid', 'far'].forEach((name, i) => {
       const fc = fs.addFolder(`${name} (cascade ${i})`);

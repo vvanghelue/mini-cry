@@ -75,6 +75,7 @@ export class Engine {
 
   /** Create the GPU device (WebGPU, else the WebGL 2 fallback). Required before rendering. */
   async init() {
+    await requestLimits(this.renderer);
     await this.renderer.init();
     this.backend = this.renderer.backend.isWebGPUBackend ? 'webgpu' : 'webgl2';
     this.lighting.init?.();
@@ -273,6 +274,18 @@ export function createRenderer({ canvas, antialias = true, trackTimestamp = fals
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.contextNode = outputContext();
   return renderer;
+}
+
+/** Before renderer.init(): ask for more sampled textures / samplers per shader stage than WebGPU's
+ *  default 16 when the adapter has them (the sun cascades' dynamic maps, SunShadows.js; without
+ *  them it does without its static cache). */
+export async function requestLimits(renderer) {
+  const p = renderer.backend?.parameters;
+  if (!p || p.forceWebGL || typeof navigator === 'undefined' || !navigator.gpu) return;
+  const a = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).catch(() => null);
+  if (!a) return;
+  const up = (k) => Math.min(a.limits[k], 32);
+  p.requiredLimits = { ...p.requiredLimits, maxSampledTexturesPerShaderStage: up('maxSampledTexturesPerShaderStage'), maxSamplersPerShaderStage: up('maxSamplersPerShaderStage') };
 }
 
 export { LAYERS };
