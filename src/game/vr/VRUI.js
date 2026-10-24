@@ -166,18 +166,21 @@ export class VRUI {
   }
 
   _open(title, buttons, footer = '', red = false) {
-    const vr = this.vr, head = vr.head;
     this.page = title;
     this.items = buttons.map(([label, fn]) => ({ label, fn }));
     this.hover = -1;
     this.menu.key = null;
     this._menuDraw = { title, footer, red };
-    // in front of the head, at its height, facing it
-    const yaw = head.yaw;
+    this._placeMenu();
+    this.menu.mesh.visible = true;
+  }
+
+  /** The menu panel in front of the head, at its height, facing it. */
+  _placeMenu() {
+    const head = this.vr.head, yaw = head.yaw;
     this.menu.mesh.position.set(head.pos.x - Math.sin(yaw) * 1.3, head.pos.y - 0.1, head.pos.z - Math.cos(yaw) * 1.3);
     this.menu.mesh.rotation.set(0, yaw, 0);
     this.menu.mesh.updateMatrixWorld();
-    this.menu.mesh.visible = true;
   }
 
   hide() {
@@ -281,7 +284,13 @@ export class VRUI {
     const on = vr.presenting;
     this.root.visible = on;
     if (!on) return;
-    if (this.page) { this._drawMenu(); this._point(); } else this.laser.visible = false;
+    if (this.page) {
+      // out of sight (the session's first poses, a turn): back in front of the head
+      _v.subVectors(this.menu.mesh.position, head.pos).setY(0).normalize();
+      if (_v.x * -Math.sin(head.yaw) + _v.z * -Math.cos(head.yaw) < 0.5) this._placeMenu();
+      this._drawMenu();
+      this._point();
+    } else this.laser.visible = false;
     // a menu asked by the game (pause, death, end) while the panel shows something else
     if (g.started && g.paused && !this.page && g.player.alive) this.showPause();
     if (!g.paused && this.page === 'PAUSE') this.hide();

@@ -91,6 +91,7 @@ export class Engine {
   async init() {
     await this.renderer.init();
     this.backend = this.renderer.backend.isWebGPUBackend ? 'webgpu' : 'webgl2';
+    this._clipControl();
     this.lighting.init?.();
     return this;
   }
@@ -129,6 +130,18 @@ export class Engine {
     this.renderer.setPixelRatio(this.maxDpr);
     if (this.xr) this._xrQuality();
     this.emit('quality', name);
+  }
+
+  /** WebGL backend: the Quest browser hands out contexts in zero-to-one clip depth (EXT_clip_control),
+   *  while three's projections are -1..1 and only set the mode for a reversed depth buffer: the near
+   *  half of every depth range was clipped (a sun cascade lost every caster closer to the sun than
+   *  the middle of its range: no shadows, and a band where the terrain was cut). Set it explicitly
+   *  (again each XR frame: the session's compositor shares the context). */
+  _clipControl() {
+    const gl = this.renderer.backend.gl;
+    if (!gl || this.renderer.reversedDepthBuffer) return;
+    const ext = (this._clipExt ??= gl.getExtension('EXT_clip_control') ?? false);
+    if (ext) ext.clipControlEXT(ext.LOWER_LEFT_EXT, ext.NEGATIVE_ONE_TO_ONE_EXT);
   }
 
   /** XR eye buffers: resolution scale (applies to the next session) and fixed foveation. */
@@ -209,6 +222,7 @@ export class Engine {
     const auto = scene.matrixWorldAutoUpdate;
     scene.matrixWorldAutoUpdate = false;
     const fx = this.aa === 'fxaa' ? this._fxaaTarget() : null;
+    if (renderer.xr.isPresenting) this._clipControl();
     try {
       this.lighting.prepass(camera);
       // the sun probes (occlusion queries) and the flare ride along in the main pass (LensFlare.js)
@@ -238,6 +252,7 @@ export class Engine {
    *  that); the camera keeps the head's world pose afterwards. */
   _renderXR() {
     const { renderer, scene, camera } = this;
+    this._clipControl();
     this.xrRig.updateMatrixWorld();
     const parent = camera.parent;
     camera.parent = this.xrRig;

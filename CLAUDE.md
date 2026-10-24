@@ -120,7 +120,10 @@ character names stay French.
   -1..1 to 0..1 there; no dust motes (the vertex stage can't read the cascades), FarShadows / SSR are
   WebGPU only. `render/tsl.js` patches three's WebGL backend: texture v-flips decided at build time
   (not a per-object uniform), render-group uniform arrays sharing one GPU buffer per node (not a
-  bufferData per draw). Nested `select()`s inside a Fn can break the GLSL builder (GI.js).
+  bufferData per draw). Nested `select()`s inside a Fn can break the GLSL builder (GI.js). The Quest
+  browser hands out WebGL contexts in zero-to-one clip depth while three's projections are -1..1:
+  `Engine._clipControl` sets -1..1 (else the near half of the sun cascades' depth range was clipped:
+  no tree / vehicle shadows, a band where the terrain was cut).
 
 ## Data files
 | file | content | edit with |

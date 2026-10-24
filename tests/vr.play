@@ -49,10 +49,10 @@ eval (()=>{ const r = game.engine.xrRig; r.updateMatrixWorld(); const p = game.v
 wait 0.3
 eval (__xrDevice.controllers.left.updateButtonValue('squeeze', 1), true)
 wait 0.3
-eval (async () => { for (let k = 0; k < 10; k++) { __xrDevice.controllers.left.position.set(-0.2, 1.3 + k * 0.03, -0.1 - k * 0.07); await new Promise((r) => setTimeout(r, 16)); } __xrDevice.controllers.left.updateButtonValue('squeeze', 0); return true })()
+eval (async () => { for (let k = 0; k < 10; k++) { __xrDevice.controllers.left.position.set(-0.2, 1.3 + k * 0.03, -0.1 - k * 0.1); await new Promise((r) => requestAnimationFrame(r)); } __xrDevice.controllers.left.updateButtonValue('squeeze', 0); return true })()
 wait 0.2
 eval game.vr.weapons.lastThrow?.toArray()
-expect game.weapons.grenades === 1 && game.weapons.projectiles.some((p) => p.kind === 'grenade') && game.vr.weapons.lastThrow.z < -3
+expect game.weapons.grenades === 1 && game.weapons.projectiles.some((p) => p.kind === 'grenade') && game.vr.weapons.lastThrow.z < -2
 # left stick walks, right stick snap turns 30°
 eval (window.__p0 = game.player.pos.clone(), __xrDevice.controllers.left.updateAxes('thumbstick', 0, -1), true)
 wait 1

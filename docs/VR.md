@@ -115,7 +115,12 @@ What it took (in order of gain):
    flare, no dust motes (WebGL can't read the cascades in a vertex shader), no SSAO / SSR.
 5. **Eye buffers** 0.75 of the recommended size (1260 × 1320 per eye) with fixed foveation 1; MSAA 4x
    stays (cheap on a tiled GPU).
-6. **XR warm-up**: multiview pipelines differ from the 2D page's; the session's first frame draws
+6. **Clip depth** (`Engine._clipControl`): the Quest browser's WebGL contexts start in zero-to-one
+   clip depth (`EXT_clip_control`) while three's projections are -1..1; the near half of every
+   depth range was clipped — invisible for the eyes (the first 16 cm) but the sun cascade lost every
+   caster closer to the sun than the middle of its range (no tree / vehicle shadows, a dark band
+   where the terrain was cut). Set to -1..1 at start and every XR frame.
+7. **XR warm-up**: multiview pipelines differ from the 2D page's; the session's first frame draws
    everything (`World.warmUpShow`) instead of ~140 compiles hitching the first minute of play.
 
 `npm run quest -- breakdown` measures each system's GPU ms (toggled on / off five times, VrApi
