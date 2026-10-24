@@ -25,6 +25,7 @@ import { VRLocomotion } from './VRLocomotion.js';
 import { VRHands } from './VRHands.js';
 import { VRWeapons } from './VRWeapons.js';
 import { VRUI } from './VRUI.js';
+import { pipelineCount } from '../../engine/world/World.js';
 
 /** game/player.json `vr` defaults */
 export const VR_CONFIG = {
@@ -239,12 +240,6 @@ export class VR {
     const xr = this.renderer.xr, frame = xr.getFrame?.(), ref = xr.getReferenceSpace?.();
     if (!frame || !ref || !this.session) { this.head.tracked = false; return; }
     if (this._warm === 'restore') { this._restore(); this._warm = null; }
-    if (this._warm === 'show') {
-      const t0 = performance.now(), p0 = this.renderer.info.memory?.programs ?? 0;
-      const restore = this.game.world.warmUpShow(this.engine.camera, this.game.warmUpExtras());
-      this._restore = () => { restore(); this.warmUpStats = { programs: (this.renderer.info.memory?.programs ?? 0) - p0, ms: Math.round(performance.now() - t0) }; };
-      this._warm = 'restore';
-    }
     const vp = frame.getViewerPose(ref);
     if (vp) {
       this.head.local.fromArray(vp.transform.matrix);
@@ -352,6 +347,7 @@ export class VR {
     this.weapons.update(dt);
     this.visuals.update(dt);
     this.ui.update(dt);
+    this._warmUp();
   }
 
   /** Paused / menus: the rig stays, the hands and the pointer still move. */
@@ -359,6 +355,19 @@ export class VR {
     this.place();
     this.visuals.update(dt);
     this.ui.update(dt);
+    this._warmUp();
+  }
+
+  /** The session's first frame draws everything (after the updates hid what isn't in use): its
+   *  multiview pipelines compile at once. Put back at the next poll(). */
+  _warmUp() {
+    if (this._warm !== 'show') return;
+    const t0 = performance.now(), p0 = pipelineCount(this.renderer);
+    const extras = this.game.warmUpExtras(); // (makes every weapon model)
+    this.weapons.adopt();
+    const restore = this.game.world.warmUpShow(this.engine.camera, extras);
+    this._restore = () => { restore(); this.warmUpStats = { programs: pipelineCount(this.renderer) - p0, ms: Math.round(performance.now() - t0) }; };
+    this._warm = 'restore';
   }
 }
 

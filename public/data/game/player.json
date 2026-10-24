@@ -58,5 +58,52 @@
       -1,
       0.1
     ]
+  },
+  "vr": {
+    "fps": 72,
+    "arms": {
+      "shoulder": [
+        0,
+        -0.2,
+        0.08
+      ],
+      "pole": [
+        0.45,
+        -1,
+        0.35
+      ],
+      "reach": 0.6,
+      "yaw": 0
+    },
+    "grip": {
+      "forward": 0.075,
+      "pitch": 0
+    },
+    "crouch": 0.78,
+    "climb": {
+      "reach": 0.07,
+      "fling": 6
+    },
+    "glide": {
+      "speed": 13,
+      "sink": 2.4,
+      "fall": 3.5,
+      "span": 1.05,
+      "turn": 1.4
+    },
+    "throwBoost": 1.35,
+    "pouch": {
+      "ammo": [
+        0.17,
+        -0.62,
+        0.06
+      ],
+      "grenade": [
+        0,
+        -0.4,
+        0.12
+      ],
+      "radius": 0.2
+    }
   }
 }

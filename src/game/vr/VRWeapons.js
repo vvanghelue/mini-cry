@@ -63,6 +63,11 @@ export class VRWeapons {
 
   get current() { return this.W.current; }
 
+  /** The weapon models (made for the overlay pass) into the world's gun group. */
+  adopt() {
+    for (const v of Object.values(this.W.vmMeshes)) if (v.group.parent !== this.gun) this.gun.add(v.group);
+  }
+
   /** What the gun needs from the grips of weapon `id` (weapon space), cached. */
   _spec(id) {
     if (this.specs[id]) return this.specs[id];
@@ -93,10 +98,8 @@ export class VRWeapons {
     const canAct = p.alive && !p.inVehicle && !vr.ui.open;
     const s = id ? this._spec(id) : null;
     // the model of the current weapon in the gun group
-    for (const [k, v] of Object.entries(W.vmMeshes)) {
-      if (v.group.parent !== this.gun) this.gun.add(v.group);
-      v.group.visible = k === id && W.state !== 'switching';
-    }
+    this.adopt();
+    for (const [k, v] of Object.entries(W.vmMeshes)) v.group.visible = k === id && W.state !== 'switching';
     this.holstered = vr.locomotion.climb?.hand === vr.main;
     this.gun.visible = !!s && canAct && !this.holstered && vr.main.connected;
     if (canAct && !this._holding(vr.off) && vr.off.btn.a.hit) W._cycle(1);
@@ -248,7 +251,8 @@ export class VRWeapons {
       } else if (held?.kind === 'grenade' && !h.btn.squeeze.down) {
         this.held.delete(h);
         if (!g.cheats?.infiniteAmmo) W.grenades--;
-        W.spawnGrenade(h.pos.clone(), h.throwVelocity().multiplyScalar(this.vr.cfg.throwBoost), 'player');
+        this.lastThrow = h.throwVelocity().multiplyScalar(this.vr.cfg.throwBoost);
+        W.spawnGrenade(h.pos.clone(), this.lastThrow, 'player');
         g.hud?.refreshWeapon();
       }
     }
