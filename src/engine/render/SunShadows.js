@@ -25,6 +25,15 @@
 // - The depth passes draw everything with one override material (DepthMaterial, shared with the
 //   SSAO pre-pass): it inherits each object's position node (instancing, wind, LOD collapse) and
 //   cuts alpha-tested leaves through their texture.
+// - Static cache (`cached`, on unless ?shadowcache=0): the static casters (LAYERS.STATIC + CASCADE)
+//   of each cascade go into a world-anchored map `margin` wider than the cascade (same texel), drawn
+//   again only when it no longer fits: the cascade's box drifted out of it, the sun moved enough for
+//   a `refreshHeight` m caster's shadow to move `refreshTexels` texels (elevation-adaptive: shadows
+//   move faster with a low sun), the view turned `refreshTurn`° (vegetation past 40 m is culled to
+//   the view, InstancedField) — at most one cascade per frame, the most out of date. The cascade's
+//   own map, placed and timed as before, then holds the dynamic casters (LAYERS.DYNAMIC) alone,
+//   drawn only when one is in its box; the receivers take the min of the two, the dynamic taps only
+//   inside the uv rectangle of those casters (sunDynRect). Wind sway is frozen in the cached shadows.
 import * as THREE from 'three/webgpu';
 import { Fn, If, float, ivec2, vec2, vec3, vec4, mix, min, max, length, smoothstep, select, texture, cameraPosition } from 'three/tsl';
 import { LAYERS } from './layers.js';
@@ -33,6 +42,8 @@ import { lodPassMode } from './LodFade.js';
 import { FarShadows } from './FarShadows.js';
 
 const MAX = 3;
+const CULL_NEAR = 40; // m: InstancedField culls the sectors farther than this to the view frustum
+const NO_RECT = new THREE.Vector4(1, 1, 0, 0);
 
 export class SunShadows {
   /** cascades: [{ radius, res, every }] smallest first; distance: shadow distance (m) */
@@ -48,14 +59,27 @@ export class SunShadows {
       sunColor: U(new THREE.Color(1, 1, 1)),
       sunCascades: U(0),
       sunShadowOn: U(1),
-      sunMat: Array.from({ length: MAX }, () => U(new THREE.Matrix4())),
-      sunParams: Array.from({ length: MAX }, () => U(new THREE.Vector4(0.1, 1 / 1024, 0, 1))), // x: world texel size, y: 1/res, z: depth bias, w: kernel step (texels)
+      sunMat: Array.from({ length: MAX }, () => U(new THREE.Matrix4())), // static casters' map (the cache when cached)
+      sunBox: Array.from({ length: MAX }, () => U(new THREE.Matrix4())), // the cascade's box: selection, blend band, dynamic casters
+      sunParams: Array.from({ length: MAX }, () => U(new THREE.Vector4(0.1, 1 / 1024, 0, 1))), // x: world texel size, y: 1/res of sunMap, z: depth bias, w: kernel step (texels)
+      sunDynRect: Array.from({ length: MAX }, () => U(NO_RECT.clone())), // uv rect of the dynamic casters in the box map (empty: none)
+      sunDynTexel: Array.from({ length: MAX }, () => U(1 / 1024)), // 1/res of the box map
       sunFade: U(new THREE.Vector2(1e8, 2e8)), // shadows fade out between these horizontal distances from the camera
       sunSplit: U(new THREE.Vector2(1e8, 2e8)), // past these horizontal distances only the last cascade (it alone has the far trees)
       sunBlend: U(0.06), // blend band at a cascade's border (fraction of its width, edge distance in uv)
       sunDebug: U(0), // 1: tint by cascade (debug panel)
       sunMap: Array.from({ length: MAX }, (_, i) => T(tex(dummy), `SunMap${i}`)),
+      sunDynMap: Array.from({ length: MAX }, (_, i) => T(tex(dummy), `SunDynMap${i}`)),
     };
+    // static cache (header): margin = the cache's extra half-width (x the cascade's), refreshed when
+    // a refreshHeight m caster's shadow moved refreshTexels texels or the view turned refreshTurn°
+    this.cached = !(typeof location !== 'undefined' && new URLSearchParams(location.search).get('shadowcache') === '0');
+    this.margin = 0.25;
+    this.refreshHeight = 20;
+    this.refreshTexels = 1;
+    this.refreshTurn = 15;
+    this.stats = { refresh: [0, 0, 0], dynamic: [0, 0, 0] }; // cache refreshes / dynamic passes per cascade
+    this._dyn = { list: [], frame: -1, spheres: [], n: 0 };
     this.casterReach = new Map(); // caster set -> distance its far casters stop at (setCasterReach)
     // live tuning (debug panel): fade length (fraction of the distance), the distance clamp to the
     // casters, depth / normal bias and PCF kernel size multipliers
@@ -76,16 +100,24 @@ export class SunShadows {
     this.far = new FarShadows(renderer);
     this.setCascades(cascades, { distance });
     this._shadowFns = {};
-    this.shadowFn = this.shadowFnFor('any');
     this.tintFn = this._tintFn();
   }
 
   /** distance: where shadows end (fading out over its last `fade`, 20 %), Infinity = the far cascade's border. */
   setCascades(cascades, { distance = Infinity } = {}) {
-    for (const c of this.cascades ?? []) c.rt.dispose();
+    for (const c of this.cascades ?? []) { c.rt.dispose(); c.cache?.rt.dispose(); }
     this.cascades = cascades.slice(0, MAX).map((c) => this._make(c.radius, c.res, c.every ?? 1, c.depth ?? 600));
+    const S = 1 << LAYERS.STATIC, D = 1 << LAYERS.DYNAMIC;
     this.cascades.forEach((c, i) => {
-      c.cam.layers.mask = (1 << LAYERS.STATIC) | (1 << LAYERS.DYNAMIC) | (1 << (LAYERS.CASCADE + i));
+      const own = 1 << (LAYERS.CASCADE + i);
+      if (this.cached) {
+        // same texel as the cascade, `margin` wider on each side
+        const res = Math.ceil((c.res * (1 + this.margin)) / 32) * 32;
+        c.cache = { res, rt: this._target(res), cam: new THREE.OrthographicCamera(), size: 0, rendered: false,
+          center: new THREE.Vector3(), dir: new THREE.Vector3(), view: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3(), fwd: new THREE.Vector3() };
+        c.cache.cam.layers.mask = S | own;
+        c.cam.layers.mask = D;
+      } else c.cam.layers.mask = S | D | own;
       this._fit(c);
     });
     this.maxDistance = distance;
@@ -94,10 +126,33 @@ export class SunShadows {
     u.sunCascades.value = this.cascades.length;
     // unused slots point at a valid depth texture so the bindings stay valid
     const dummy = this.cascades[0]?.rt.depthTexture ?? this._dummy();
-    for (let i = 0; i < MAX; i++) u.sunMap[i].value = this.cascades[i]?.rt.depthTexture ?? dummy;
+    for (let i = 0; i < MAX; i++) {
+      const c = this.cascades[i];
+      u.sunMap[i].value = (c?.cache ?? c)?.rt.depthTexture ?? dummy;
+      u.sunDynMap[i].value = c?.cache ? c.rt.depthTexture : dummy;
+      u.sunDynRect[i].value.copy(NO_RECT);
+    }
     this.cascades.forEach((c, i) => this._setParams(i, c));
     this.frame = 0;
     this.version++;
+  }
+
+  /** Static cache on / off (debug panel, A/B): rebuilds the cascades. */
+  setCached(on) {
+    this.cached = on && this._device() && this._fnDyn !== false;
+    this.setCascades(this.config(), { distance: this.maxDistance });
+  }
+
+  /** Can the receivers bind the dynamic maps: 3 textures more than WebGPU's default 16 per shader
+   *  stage (Engine requestLimits asks the adapter for more)? Without, no static cache. Decided
+   *  once the device exists. */
+  _device() {
+    if (this.dynamicMaps === undefined && this.renderer._initialized) {
+      const b = this.renderer.backend, l = b?.isWebGPUBackend ? b.device?.limits : null;
+      this.dynamicMaps = !!l && l.maxSampledTexturesPerShaderStage >= 20;
+      if (!this.dynamicMaps && this.cached) this.setCached(false);
+    }
+    return this.dynamicMaps === true;
   }
 
   _dummy() {
@@ -105,14 +160,18 @@ export class SunShadows {
     return this.dummy.rt.depthTexture;
   }
 
-  _make(radius, res, every, depth) {
+  _target(res) {
     const rt = new THREE.RenderTarget(res, res, { format: THREE.RedFormat, type: THREE.UnsignedByteType, depthBuffer: true, generateMipmaps: false });
     rt.depthTexture = new THREE.DepthTexture(res, res, THREE.UnsignedIntType);
     rt.depthTexture.format = THREE.DepthFormat;
     rt.depthTexture.compareFunction = THREE.LessEqualCompare;
     rt.depthTexture.minFilter = rt.depthTexture.magFilter = THREE.LinearFilter;
+    return rt;
+  }
+
+  _make(radius, res, every, depth) {
     const cam = new THREE.OrthographicCamera(-radius, radius, radius, -radius, 1, depth);
-    return { radius, res, every, depth, rt, cam, size: radius, span: depth, texel: (2 * radius) / res, rendered: false };
+    return { radius, res, every, depth, rt: this._target(res), cam, cache: null, size: radius, span: depth, texel: (2 * radius) / res, rendered: false };
   }
 
   /** Size the cascade for the altitude scale: size (half-width), span (depth range), texel. */
@@ -120,16 +179,25 @@ export class SunShadows {
     c.size = c.radius * this.scale;
     c.span = c.depth * Math.max(1, this.scale * 0.5);
     c.texel = (2 * c.size) / c.res;
-    const cam = c.cam;
-    cam.left = cam.bottom = -c.size;
-    cam.right = cam.top = c.size;
-    cam.far = c.span;
-    cam.updateProjectionMatrix();
+    const fit = (cam, h) => {
+      cam.left = cam.bottom = -h;
+      cam.right = cam.top = h;
+      cam.near = 1;
+      cam.far = c.span;
+      cam.updateProjectionMatrix();
+    };
+    fit(c.cam, c.size);
+    if (c.cache) {
+      c.cache.size = (c.cache.res * c.texel) / 2;
+      fit(c.cache.cam, c.cache.size);
+      c.cache.rendered = false;
+    }
   }
 
   _setParams(i, c) {
     const step = THREE.MathUtils.clamp(0.05 / c.texel, 1, 2.5) * this.softness;
-    this.uniforms.sunParams[i].value.set(c.texel * this.bias, 1 / c.res, (c.texel * 0.8 * this.bias) / c.span, step);
+    this.uniforms.sunParams[i].value.set(c.texel * this.bias, 1 / (c.cache?.res ?? c.res), (c.texel * 0.8 * this.bias) / c.span, step);
+    this.uniforms.sunDynTexel[i].value = 1 / c.res;
   }
 
   /** Altitude scale for the camera: 1 near the ground, x sqrt(2) per half octave of height above
@@ -187,15 +255,16 @@ export class SunShadows {
   /** Farthest horizontal distance from the camera, for any camera yaw, of a ground point cascade i
    *  covers: its square (half-size R, centred R/2 ahead of the camera) stretches 1 / sin(sun
    *  elevation) along the sun's azimuth. Capped by the shadow distance, and by the split for all
-   *  but the last cascade (receivers past it don't look them up). */
+   *  but the last cascade (receivers past it don't look them up). Cached: + how far the camera may
+   *  drift from where the cache was drawn (its casters must cover the box wherever it is in it). */
   reach(i) {
-    const R = this.cascades[i].size, s = Math.max(this.dir.y, 0.1);
+    const c = this.cascades[i], R = c.size, s = Math.max(this.dir.y, 0.1);
     let m = 0;
     for (let k = 0; k <= 8; k++) {
       const a = (k / 16) * Math.PI;
       m = Math.max(m, Math.hypot(R + 0.5 * R * Math.cos(a), R / s + 0.5 * R * Math.sin(a)));
     }
-    return Math.min(m, this.distance, i < this.cascades.length - 1 ? this.split : Infinity);
+    return Math.min(m, this.distance, i < this.cascades.length - 1 ? this.split : Infinity) + (c.cache ? c.cache.size - R : 0);
   }
 
   setSun(dir, color, intensity) {
@@ -208,25 +277,29 @@ export class SunShadows {
     this.uniforms.sunShadowOn.value = on ? 1 : 0;
   }
 
-  _place(c, center) {
-    const cam = c.cam;
+  /** Light-space basis of the current sun direction (_fwd = towards the ground, _right, _lup). */
+  _basis() {
     const up = Math.abs(this.dir.y) > 0.99 ? _Z : _Y;
     _fwd.copy(this.dir).negate();
     _right.crossVectors(_fwd, up).normalize();
     _lup.crossVectors(_right, _fwd).normalize();
-    const t = c.texel;
+  }
+
+  /** Aim an orthographic depth camera (span deep) at `center`, texel-snapped across the sun. */
+  _place(cam, texel, span, center) {
+    const t = texel;
     const x = center.dot(_right), y = center.dot(_lup), z = center.dot(_fwd);
     _snap.set(0, 0, 0)
       .addScaledVector(_right, Math.round(x / t) * t)
       .addScaledVector(_lup, Math.round(y / t) * t)
       .addScaledVector(_fwd, z);
-    cam.position.copy(_snap).addScaledVector(this.dir, c.span * 0.5);
+    cam.position.copy(_snap).addScaledVector(this.dir, span * 0.5);
     cam.up.copy(_lup);
     cam.lookAt(_snap);
     cam.updateMatrixWorld(true);
   }
 
-  _render(c, index) {
+  _render(cam, rt) {
     const r = this.renderer, scene = this.scene;
     const prevOverride = scene.overrideMaterial, prevTarget = r.getRenderTarget(), prevFog = scene.fogNode, prevBg = scene.background, prevAuto = r.autoClear;
     scene.overrideMaterial = this.depthMat;
@@ -235,8 +308,8 @@ export class SunShadows {
     lodPassMode.value = 1;
     this.onBeforeShadow?.();
     r.autoClear = true;
-    r.setRenderTarget(c.rt);
-    r.render(scene, c.cam);
+    r.setRenderTarget(rt);
+    r.render(scene, cam);
     r.setRenderTarget(prevTarget);
     r.autoClear = prevAuto;
     this.onAfterShadow?.();
@@ -244,13 +317,13 @@ export class SunShadows {
     scene.overrideMaterial = prevOverride;
     scene.fogNode = prevFog;
     scene.background = prevBg;
-    this.uniforms.sunMat[index].value.multiplyMatrices(c.cam.projectionMatrix, c.cam.matrixWorldInverse);
-    c.rendered = true;
   }
 
   /** Re-fit and render the cascades due this frame around the camera. */
   update(camera, force = false) {
     this.far.update(this.dir);
+    // no dynamic maps on this device, or the receivers' shaders were built without them
+    if (this.cached && (!this._device() || this._fnDyn === false)) this.setCached(false);
     if (!this.enabled || this.dir.y < -0.05) return;
     this.frame++;
     const fast = (this._lastCam ??= camera.position.clone()).distanceToSquared(camera.position) > 0.03 * 0.03;
@@ -263,20 +336,118 @@ export class SunShadows {
       this.version++;
       force = true;
     }
-    camera.getWorldDirection(_cfwd);
+    camera.getWorldDirection(_view);
+    _cfwd.copy(_view);
     _cfwd.y = 0;
     if (_cfwd.lengthSq() < 1e-4) _cfwd.set(0, 0, -1);
     _cfwd.normalize();
+    this._basis();
+    const u = this.uniforms;
+    let due = null, urgency = 1;
     this.cascades.forEach((c, i) => {
-      const every = fast && c.every <= 2 ? 1 : c.every;
-      if (!force && c.rendered && (this.frame + i) % every !== 0) return;
       // on the ground (not at the camera's height: seen from above, a cascade around the camera
       // would cover the air and miss the ground below)
-      _center.copy(camera.position).addScaledVector(_cfwd, c.size * 0.5);
-      if (this.groundAt) _center.y = Math.min(_center.y, this.groundAt(_center.x, _center.z));
-      this._place(c, _center);
-      this._render(c, i);
+      const center = (c.want ??= new THREE.Vector3()).copy(camera.position).addScaledVector(_cfwd, c.size * 0.5);
+      if (this.groundAt) center.y = Math.min(center.y, this.groundAt(center.x, center.z));
+      const first = force || !c.rendered;
+      if (c.cache) {
+        // never drawn / invalidated / box mostly out of it: now; else the most out of date one, below
+        const s = first || !c.cache.rendered ? Infinity : this._staleness(c, i, center);
+        if (s === Infinity) this._refresh(c, i, center, true);
+        else if (s >= urgency) { urgency = s; due = c; }
+      }
+      const every = fast && c.every <= 2 ? 1 : c.every;
+      if (!first && (this.frame + i) % every !== 0) return;
+      this._place(c.cam, c.texel, c.span, center);
+      const box = u.sunBox[i].value.multiplyMatrices(c.cam.projectionMatrix, c.cam.matrixWorldInverse);
+      if (!c.cache) {
+        this._render(c.cam, c.rt);
+        u.sunMat[i].value.copy(box);
+      } else {
+        // the dynamic casters alone; no pass at all when none is in the box (always once: warm-up)
+        const rect = this._dynamicRect(c, box);
+        u.sunDynRect[i].value.copy(rect ?? NO_RECT);
+        if (rect || first) { this._render(c.cam, c.rt); this.stats.dynamic[i]++; }
+      }
+      c.rendered = true;
     });
+    if (due) this._refresh(due, this.cascades.indexOf(due), due.want);
+  }
+
+  /** How out of date cascade i's cache is for a box at `center` (>= 1: refresh; Infinity: now):
+   *  the largest of the box's drift over the margin, the sun's shadow motion over refreshTexels,
+   *  the view's turn over refreshTurn (for a cascade reaching past InstancedField's culling radius). */
+  _staleness(c, i, center) {
+    const k = c.cache;
+    _d.subVectors(center, k.center);
+    const drift = Math.max(Math.abs(_d.dot(k.right)), Math.abs(_d.dot(k.up))), dz = Math.abs(_d.dot(k.fwd));
+    if (drift > c.size || dz > c.span * 0.4) return Infinity;
+    // drawn in a hurry (camera jump, invalidation): the fields' and the terrain's selections for
+    // the new place lag a frame, so once more when they have caught up
+    if (k.again && this.frame >= k.again) return 1;
+    // ground motion of the shadow of a refreshHeight m caster since the cache was drawn
+    const sy = Math.max(this.dir.y, 0.1), ky = Math.max(k.dir.y, 0.1);
+    const shift = this.refreshHeight * Math.hypot(this.dir.x / sy - k.dir.x / ky, this.dir.z / sy - k.dir.z / ky);
+    let s = Math.max(drift / Math.max(k.size - c.size, 1e-3), shift / (this.refreshTexels * c.texel), dz / (c.span * 0.2));
+    if (this.reach(i) > CULL_NEAR) s = Math.max(s, THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(_view.dot(k.view), -1, 1))) / this.refreshTurn);
+    return s;
+  }
+
+  /** Draw cascade i's static cache around `center` (urgent: again a few frames later). */
+  _refresh(c, i, center, urgent = false) {
+    const k = c.cache;
+    this._place(k.cam, c.texel, c.span, center);
+    this._render(k.cam, k.rt);
+    this.uniforms.sunMat[i].value.multiplyMatrices(k.cam.projectionMatrix, k.cam.matrixWorldInverse);
+    k.center.copy(center);
+    k.dir.copy(this.dir);
+    k.view.copy(_view);
+    k.right.copy(_right);
+    k.up.copy(_lup);
+    k.fwd.copy(_fwd);
+    k.rendered = true;
+    k.again = urgent ? this.frame + 3 : 0;
+    this.stats.refresh[i]++;
+  }
+
+  /** Visible dynamic casters (LAYERS.DYNAMIC meshes) as world bounding spheres, once per frame; the
+   *  candidates are gathered from the scene every 30 frames (spawns, deaths). */
+  _dynamicCasters() {
+    const d = this._dyn;
+    if (d.frame === this.frame) return d;
+    if (!(this.frame % 30) || d.frame < 0) {
+      d.list.length = 0;
+      const bit = 1 << LAYERS.DYNAMIC;
+      this.scene.traverse((o) => { if ((o.isMesh || o.isPoints || o.isLine) && o.geometry && (o.layers.mask & bit)) d.list.push(o); });
+    }
+    d.frame = this.frame;
+    d.n = 0;
+    for (const o of d.list) {
+      let p = o;
+      while (p && p.visible && p !== this.scene) p = p.parent;
+      if (p !== this.scene) continue; // hidden, or out of the scene
+      if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();
+      (d.spheres[d.n++] ??= new THREE.Sphere()).copy(o.geometry.boundingSphere).applyMatrix4(o.matrixWorld);
+    }
+    return d;
+  }
+
+  /** uv rectangle (x0, y0, x1, y1) of the dynamic casters in the box whose matrix is `m`, padded by
+   *  the PCF kernel and a little animation slack; null when none is in it. */
+  _dynamicRect(c, m) {
+    const d = this._dynamicCasters(), r = _rect.set(Infinity, Infinity, -Infinity, -Infinity);
+    const pad = 0.5 + c.texel * (2 + 2.5 * this.softness), w = 0.5 / c.size, zr = 1 / c.span;
+    for (let j = 0; j < d.n; j++) {
+      const s = d.spheres[j];
+      _p.copy(s.center).applyMatrix4(m);
+      const ru = (s.radius + pad) * w;
+      if (_p.z + s.radius * zr < 0 || _p.z - s.radius * zr > 1) continue;
+      const x = _p.x * 0.5 + 0.5, y = 0.5 - _p.y * 0.5;
+      if (x + ru < 0 || x - ru > 1 || y + ru < 0 || y - ru > 1) continue;
+      r.x = Math.min(r.x, x - ru); r.y = Math.min(r.y, y - ru);
+      r.z = Math.max(r.z, x + ru); r.w = Math.max(r.w, y + ru);
+    }
+    return r.x <= r.z ? r : null;
   }
 
   // --- shader side ------------------------------------------------------------------------------
@@ -293,21 +464,35 @@ export class SunShadows {
    *  share darkens everywhere (min: the cascades miss what is out of their box). */
   _shadowFn(kind) {
     if (this._cascadeFns) return this._combine(kind, ...this._cascadeFns);
-    const u = this.uniforms;
+    const u = this.uniforms, dyn = (this._fnDyn = this._device());
     const P3 = [{ name: 'P', type: 'vec3' }, { name: 'N', type: 'vec3' }, { name: 'NdL', type: 'float' }];
-    // cascade i: vec2(shadow, edge distance in uv; <= 0 outside), the PCF taps only inside
+    // cascade i: vec2(shadow, edge distance in uv; <= 0 outside), the PCF taps only inside. The
+    // box (sunBox) selects and blends; the static casters come from sunMap (its cache when cached:
+    // a point out of the cache counts as out of the cascade), the dynamic ones from sunDynMap, only
+    // inside their rectangle
     const cascade = (i) => Fn(([P, N, NdL]) => {
       const p = u.sunParams[i];
       const nb = p.x.mul(NdL.oneMinus().mul(2.5).add(1.0)).mul(max(p.w, 1.0));
-      const c4 = u.sunMat[i].mul(vec4(P.add(N.mul(nb)), 1.0));
+      const Q = vec4(P.add(N.mul(nb)), 1.0).toVar();
+      const b4 = u.sunBox[i].mul(Q), c4 = u.sunMat[i].mul(Q);
+      const b = vec3(ndcToUv(b4), b4.z.sub(p.z)).toVar();
       const c = vec3(ndcToUv(c4), c4.z.sub(p.z)).toVar();
-      const e = select(c.z.greaterThanEqual(1.0).or(c.z.lessThanEqual(0.0)).or(u.sunCascades.lessThanEqual(i)), float(-1.0), min(min(c.x, c.x.oneMinus()), min(c.y, c.y.oneMinus()))).toVar();
+      const edge = (v) => min(min(v.x, v.x.oneMinus()), min(v.y, v.y.oneMinus()));
+      const out = b.z.greaterThanEqual(1.0).or(b.z.lessThanEqual(0.0)).or(c.z.greaterThanEqual(1.0)).or(c.z.lessThanEqual(0.0)).or(edge(c).lessThanEqual(0.0)).or(u.sunCascades.lessThanEqual(i));
+      const e = select(out, float(-1.0), edge(b)).toVar();
       const s = float(1.0).toVar();
       If(e.greaterThan(0.0), () => {
         // rotated 4-tap pattern (each tap is a hardware 2x2 bilinear compare)
-        const t = vec2(p.y.mul(p.w)).toVar(), m = u.sunMap[i];
-        const tap = (dx, dy) => m.sample(c.xy.add(vec2(t.x.mul(dx), t.y.mul(dy)))).compare(c.z);
-        s.assign(tap(-1, -0.5).add(tap(0.5, -1)).add(tap(1, 0.5)).add(tap(-0.5, 1)).mul(0.25));
+        const pcf = (m, uv, texel) => {
+          const t = vec2(texel.mul(p.w)).toVar();
+          const tap = (dx, dy) => m.sample(uv.xy.add(vec2(t.x.mul(dx), t.y.mul(dy)))).compare(uv.z);
+          return tap(-1, -0.5).add(tap(0.5, -1)).add(tap(1, 0.5)).add(tap(-0.5, 1)).mul(0.25);
+        };
+        s.assign(pcf(u.sunMap[i], c, p.y));
+        const r = u.sunDynRect[i];
+        if (dyn) If(b.x.greaterThanEqual(r.x).and(b.y.greaterThanEqual(r.y)).and(b.x.lessThanEqual(r.z)).and(b.y.lessThanEqual(r.w)), () => {
+          s.assign(min(s, pcf(u.sunDynMap[i], b, u.sunDynTexel[i])));
+        });
       });
       return vec2(s, e);
     }).setLayout({ name: `sunCascade${i}`, type: 'vec2', inputs: P3 });
@@ -399,7 +584,7 @@ export class SunShadows {
   _tintFn() {
     const u = this.uniforms;
     const edgeOf = (i, P) => {
-      const c = u.sunMat[i].mul(vec4(P, 1.0));
+      const c = u.sunBox[i].mul(vec4(P, 1.0));
       const uv = ndcToUv(c), z = c.z.sub(u.sunParams[i].z);
       return select(z.greaterThanEqual(1.0).or(z.lessThanEqual(0.0)).or(u.sunCascades.lessThanEqual(i)), float(-1.0), min(min(uv.x, uv.x.oneMinus()), min(uv.y, uv.y.oneMinus())));
     };
@@ -434,4 +619,4 @@ export class DepthMaterial extends THREE.MeshBasicNodeMaterial {
 
 const _Y = new THREE.Vector3(0, 1, 0), _Z = new THREE.Vector3(0, 0, 1);
 const _fwd = new THREE.Vector3(), _right = new THREE.Vector3(), _lup = new THREE.Vector3(), _snap = new THREE.Vector3();
-const _cfwd = new THREE.Vector3(), _center = new THREE.Vector3();
+const _cfwd = new THREE.Vector3(), _view = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _rect = new THREE.Vector4();

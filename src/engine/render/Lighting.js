@@ -204,6 +204,10 @@ export class Lighting {
 
     // the ambient of materials drawn without our lights (scene lights: hemisphere only)
     this.hemi = new THREE.HemisphereLight(0xbfdfff, 0x5b4a2e, 1);
+    // seen by every camera whatever its layers: three keys an object's shaders on the lights its
+    // camera sees, so a depth pass of the dynamic layer alone (SunShadows' dynamic maps) would
+    // otherwise build its own copies, late
+    this.hemi.layers.enableAll();
     scene.add(this.hemi);
     this.fog = new THREE.FogExp2(0xb4dcf5, 0.0014); // colour / density of the far fog (data: Haze applies it)
     this._makeSky();
